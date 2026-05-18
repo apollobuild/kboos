@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
+import { BizSlideOver } from '../components/ui/BizSlideOver.jsx';
 
 export function Businesses() {
   const { businesses, setPage, setSelectedBiz, removeBusiness } = useAppStore(useShallow(s => ({
@@ -9,6 +11,8 @@ export function Businesses() {
     setSelectedBiz: s.setSelectedBiz,
     removeBusiness: s.removeBusiness,
   })));
+
+  const [openBiz, setOpenBiz] = useState(null);
 
   function handleManage(bizId) {
     setSelectedBiz(bizId);
@@ -19,6 +23,7 @@ export function Businesses() {
     e.stopPropagation();
     if (!window.confirm(`Remove "${biz.name}"? This cannot be undone.`)) return;
     removeBusiness(biz.id);
+    setOpenBiz(null);
   }
 
   return (
@@ -35,6 +40,7 @@ export function Businesses() {
           <div key={b.id} className="card" style={{transition:'all 0.2s',cursor:'pointer'}}
             onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
             onMouseLeave={e => e.currentTarget.style.transform=''}
+            onClick={() => setOpenBiz(b)}
           >
             <div className="flex items-center gap-3 mb-3">
               <BizAvatar id={b.id} color={b.color} size={40}/>
@@ -64,8 +70,8 @@ export function Businesses() {
             </div>
             {b.status==='setup' && <div className="badge amber mb-3" style={{width:'100%',justifyContent:'center'}}>In Setup</div>}
             <div className="flex gap-2">
-              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => handleManage(b.id)}>Manage →</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPage('client-portal')}>Portal ↗</button>
+              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e => { e.stopPropagation(); handleManage(b.id); }}>Manage →</button>
+              <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setPage('client-portal'); }}>Portal ↗</button>
               <button
                 className="btn btn-sm"
                 style={{color:'var(--red)', border:'1px solid var(--red)', padding:'3px 8px'}}
@@ -75,6 +81,16 @@ export function Businesses() {
           </div>
         ))}
       </div>
+
+      {openBiz && (
+        <BizSlideOver
+          biz={openBiz}
+          onClose={() => setOpenBiz(null)}
+          onManage={() => { handleManage(openBiz.id); setOpenBiz(null); }}
+          onPortal={() => { setPage('client-portal'); setOpenBiz(null); }}
+          onRemove={(e) => handleRemove({ stopPropagation: () => {} }, openBiz)}
+        />
+      )}
     </div>
   );
 }
