@@ -12,7 +12,7 @@ export function Businesses() {
           <div className="breadcrumb">Businesses / <span>All Businesses</span></div>
           <h1 className="page-title" style={{marginTop:4}}>All Businesses</h1>
         </div>
-        <button className="btn btn-green" onClick={() => setPage('businesses-new')}>＋ Add Business</button>
+        <button className="btn btn-green" onClick={() => setPage('add-business')}>＋ Add Business</button>
       </div>
       <div className="grid-3 fade-up-1">
         {businesses.map(b => (
