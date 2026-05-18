@@ -58,7 +58,11 @@ export default function App() {
 
   const inviteToken = new URLSearchParams(window.location.search).get('invite');
   if (!user || !token || inviteToken) {
-    return <Login onLogin={(u) => { setUser(u); setLoading(false); }} />;
+    return <Login onLogin={(u) => {
+      setUser(u);
+      setLoading(true);
+      Promise.all([init(), initWallet()]).finally(() => setLoading(false));
+    }} />;
   }
 
   if (loading) {
