@@ -46,17 +46,25 @@ export function Settings() {
     initWallet();
     settingsService.get().then(s => {
       setSettings(s || {});
+      if (s?.apiKeys) {
+        const keys = {};
+        APIS.forEach(api => { keys[api] = s.apiKeys[api] || ''; });
+        setApiKeys(keys);
+      }
     }).catch(() => {});
-    const keys = {};
-    APIS.forEach(api => { keys[api] = ''; });
-    setApiKeys(keys);
     setDriveConnected(googleDriveService.isConnected());
   }, []);
 
   async function saveApiKey(api) {
+    const val = apiKeys[api] || '';
+    if (!val || val.startsWith('••••')) {
+      showToast('Clear the field and enter a new key to update', 'amber');
+      return;
+    }
     try {
-      await settingsService.saveApiKey(api, apiKeys[api]);
+      await settingsService.saveApiKey(api, val);
       showToast(`${API_LABELS[api]} key saved`, 'green');
+      setApiKeys(prev => ({ ...prev, [api]: '••••••••' + val.slice(-4) }));
     } catch {
       showToast('Failed to save key', 'red');
     }
