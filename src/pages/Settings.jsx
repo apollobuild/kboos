@@ -44,6 +44,7 @@ export function Settings() {
 
   useEffect(() => {
     initWallet();
+    loadUsers();
     settingsService.get().then(s => {
       setSettings(s || {});
       if (s?.apiKeys) {
@@ -104,15 +105,23 @@ export function Settings() {
   }
 
   const [inviteLink, setInviteLink] = useState('');
+  const [users, setUsers] = useState([]);
+
+  async function loadUsers() {
+    try {
+      const list = await apiFetch('/settings/users');
+      setUsers(list || []);
+    } catch { /* not admin */ }
+  }
 
   async function addTeamMember() {
     if (!newMember.name || !newMember.email) return;
     try {
       const result = await settingsService.saveTeamMember(newMember);
       setNewMember({ name:'', email:'', role:'Operator' });
+      await loadUsers();
       if (result.inviteLink) {
         setInviteLink(result.inviteLink);
-        showToast(`Invite sent to ${result.email}`, 'green');
       } else {
         showToast(`${newMember.name} added`, 'green');
       }
@@ -123,9 +132,8 @@ export function Settings() {
 
   async function removeTeamMember(id) {
     try {
-      await settingsService.removeTeamMember(id);
-      const s = await settingsService.get();
-      setSettings(s || {});
+      await apiFetch(`/settings/users/${id}`, { method: 'DELETE' });
+      await loadUsers();
       showToast('Team member removed', 'amber');
     } catch {
       showToast('Failed to remove team member', 'red');
@@ -141,6 +149,7 @@ export function Settings() {
   ];
 
   return (
+    <>
     <div className="page">
       <div className="fade-up mb-4">
         <div className="breadcrumb">System / <span>Settings</span></div>
@@ -239,32 +248,21 @@ export function Settings() {
               </select>
               <button className="btn btn-blue" onClick={addTeamMember}>Invite</button>
             </div>
-            {inviteLink && (
-              <div style={{marginTop:14, background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:8, padding:'12px 14px'}}>
-                <div style={{fontSize:12, color:'var(--text-2)', marginBottom:6}}>
-                  Invite link (share this if email is not configured):
-                </div>
-                <div style={{display:'flex', gap:8}}>
-                  <input readOnly value={inviteLink} style={{flex:1, background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'6px 10px', borderRadius:6, fontSize:11, fontFamily:'var(--font-mono)'}} />
-                  <button className="btn btn-green" style={{fontSize:12, flexShrink:0}} onClick={() => { navigator.clipboard.writeText(inviteLink); showToast('Link copied', 'green'); }}>Copy</button>
-                  <button className="btn" style={{fontSize:12, flexShrink:0}} onClick={() => setInviteLink('')}>✕</button>
-                </div>
-              </div>
-            )}
           </div>
           <div className="card fade-up-1">
             <div style={{fontWeight:600, marginBottom:12}}>Current Team</div>
-            {(settings.team || []).length === 0 ? (
+            {users.length === 0 ? (
               <div style={{color:'var(--text-3)', fontSize:13}}>No team members yet.</div>
             ) : (
               <table className="table" style={{width:'100%'}}>
-                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                  {(settings.team || []).map(m => (
-                    <tr key={m.email}>
+                  {users.map(m => (
+                    <tr key={m.id}>
                       <td style={{fontWeight:500}}>{m.name}</td>
                       <td style={{color:'var(--text-2)'}}>{m.email}</td>
                       <td><span className="badge badge-blue">{m.role}</span></td>
+                      <td><span className={`badge badge-${m.pending ? 'amber' : 'green'}`}>{m.pending ? 'Invite Pending' : 'Active'}</span></td>
                       <td>
                         <button
                           className="btn"
@@ -496,5 +494,34 @@ export function Settings() {
         </div>
       )}
     </div>
+
+      {/* Invite link modal — rendered outside page div so it overlays everything */}
+      {inviteLink && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
+          <div className="card" style={{width:'100%', maxWidth:500, border:'1px solid oklch(65% 0.2 145 / 0.5)'}}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16}}>
+              <div style={{fontWeight:700, fontSize:16, color:'var(--green)'}}>Invite Link Ready</div>
+              <button className="btn" style={{fontSize:12}} onClick={() => setInviteLink('')}>✕ Close</button>
+            </div>
+            <div style={{color:'var(--text-2)', fontSize:13, marginBottom:16, lineHeight:1.6}}>
+              Copy this link and send it via WhatsApp, email, or any platform. The team member clicks it to set their own password.
+            </div>
+            <div style={{background:'var(--bg-2)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px', fontFamily:'var(--font-mono)', fontSize:12, wordBreak:'break-all', color:'var(--text-1)', marginBottom:14}}>
+              {inviteLink}
+            </div>
+            <div style={{display:'flex', gap:8}}>
+              <button
+                className="btn btn-green"
+                style={{flex:1, fontSize:14, padding:'10px'}}
+                onClick={() => { navigator.clipboard.writeText(inviteLink); showToast('Link copied — paste it in WhatsApp or email', 'green'); }}
+              >
+                Copy Link
+              </button>
+              <button className="btn" style={{fontSize:13}} onClick={() => setInviteLink('')}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
