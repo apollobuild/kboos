@@ -2,6 +2,7 @@ import { useAppStore } from '../../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useWalletStore } from '../../store/useWalletStore.js';
 import { CreditWalletWidget } from '../ui/CreditWalletWidget.jsx';
+import { useRole } from '../../hooks/useRole.js';
 
 const LogoMark = () => (
   <svg width="28" height="20" viewBox="0 0 28 20" fill="none">
@@ -37,8 +38,7 @@ const NAV = [
 
 export function Sidebar() {
   const { page, setPage, replies } = useAppStore(useShallow(s => ({ page:s.page, setPage:s.setPage, replies:s.replies })));
-
-  const user = (() => { try { return JSON.parse(localStorage.getItem('kboos_user') || 'null'); } catch { return null; } })();
+  const { canAccess, role, user } = useRole();
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : 'KO';
 
   function logout() {
@@ -62,7 +62,7 @@ export function Sidebar() {
         {NAV.map(section => (
           <div key={section.section} className="nav-section">
             <div className="nav-label">{section.section}</div>
-            {section.items.map(item => {
+            {section.items.filter(item => canAccess(item.id)).map(item => {
               const badge = item.id === 'replies' ? (unreadReplies || item.badge) : item.badge;
               return (
                 <div
@@ -84,7 +84,7 @@ export function Sidebar() {
           </div>
         ))}
       </div>
-      <CreditWalletWidget onClick={() => setPage('settings')} />
+      {role === 'admin' && <CreditWalletWidget onClick={() => setPage('settings')} />}
       <div className="sidebar-footer">
         <div className="avatar">{initials}</div>
         <div style={{flex:1, minWidth:0}}>

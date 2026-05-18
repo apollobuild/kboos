@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useWalletStore } from '../store/useWalletStore.js';
+import { useRole } from '../hooks/useRole.js';
 import { settingsService } from '../services/settings.js';
+import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { googleDriveService } from '../services/googleDrive.js';
 import { apiFetch } from '../services/api.js';
 
@@ -19,6 +21,7 @@ const API_LABELS = {
 
 export function Settings() {
   const { showToast } = useAppStore(useShallow(s => ({ showToast: s.showToast })));
+  const { canAccessSettingsTab, isAdmin } = useRole();
 
   const { wallet, init: initWallet, initiateTopUp } = useWalletStore();
 
@@ -106,6 +109,7 @@ export function Settings() {
 
   const [inviteLink, setInviteLink] = useState('');
   const [users, setUsers] = useState([]);
+  const [openMember, setOpenMember] = useState(null);
 
   async function loadUsers() {
     try {
@@ -146,7 +150,7 @@ export function Settings() {
     { id:'wallet', label:'Wallet' },
     { id:'drive', label:'Google Drive' },
     { id:'billing', label:'Billing' },
-  ];
+  ].filter(t => canAccessSettingsTab(t.id));
 
   return (
     <>
@@ -258,17 +262,17 @@ export function Settings() {
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {users.map(m => (
-                    <tr key={m.id}>
+                    <tr key={m.id} style={{cursor:'pointer'}} onClick={() => setOpenMember(m)}>
                       <td style={{fontWeight:500}}>{m.name}</td>
                       <td style={{color:'var(--text-2)'}}>{m.email}</td>
-                      <td><span className="badge badge-blue">{m.role}</span></td>
+                      <td><span className="badge badge-blue" style={{textTransform:'capitalize'}}>{m.role}</span></td>
                       <td><span className={`badge badge-${m.pending ? 'amber' : 'green'}`}>{m.pending ? 'Invite Pending' : 'Active'}</span></td>
                       <td>
                         <button
                           className="btn"
-                          style={{fontSize:11, padding:'3px 8px', color:'var(--red)', border:'1px solid var(--red)'}}
-                          onClick={() => removeTeamMember(m.id)}
-                        >Remove</button>
+                          style={{fontSize:11, padding:'3px 8px', color:'var(--muted)', border:'1px solid var(--border)'}}
+                          onClick={e => { e.stopPropagation(); setOpenMember(m); }}
+                        >View →</button>
                       </td>
                     </tr>
                   ))}
@@ -494,6 +498,19 @@ export function Settings() {
         </div>
       )}
     </div>
+
+      {openMember && (
+        <TeamMemberSlideOver
+          member={openMember}
+          onClose={() => setOpenMember(null)}
+          onUpdated={(updated) => {
+            setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+            setOpenMember(prev => ({ ...prev, ...updated }));
+          }}
+          onRemoved={(id) => setUsers(prev => prev.filter(u => u.id !== id))}
+          showToast={showToast}
+        />
+      )}
 
       {/* Invite link modal — rendered outside page div so it overlays everything */}
       {inviteLink && (
