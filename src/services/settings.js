@@ -5,6 +5,6 @@ export const settingsService = {
   saveApiKey: (api, value) => apiFetch('/settings/api-key', { method: 'POST', body: { api, value } }),
   getApiKey: () => Promise.resolve(''), // keys are server-side only
   testConnection: (api) => apiFetch(`/settings/test-connection/${api}`),
-  saveTeamMember: (member) => apiFetch('/settings/team', { method: 'POST', body: member }),
+  saveTeamMember: (member) => apiFetch('/settings/user', { method: 'POST', body: member }),
   removeTeamMember: (id) => apiFetch(`/settings/team/${id}`, { method: 'DELETE' }),
 };

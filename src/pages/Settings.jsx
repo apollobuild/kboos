@@ -103,16 +103,21 @@ export function Settings() {
     }
   }
 
+  const [inviteLink, setInviteLink] = useState('');
+
   async function addTeamMember() {
     if (!newMember.name || !newMember.email) return;
     try {
-      await settingsService.saveTeamMember(newMember);
-      const s = await settingsService.get();
-      setSettings(s || {});
+      const result = await settingsService.saveTeamMember(newMember);
       setNewMember({ name:'', email:'', role:'Operator' });
-      showToast(`${newMember.name} added to team`, 'green');
-    } catch {
-      showToast('Failed to add team member', 'red');
+      if (result.inviteLink) {
+        setInviteLink(result.inviteLink);
+        showToast(`Invite sent to ${result.email}`, 'green');
+      } else {
+        showToast(`${newMember.name} added`, 'green');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to add team member', 'red');
     }
   }
 
@@ -234,6 +239,18 @@ export function Settings() {
               </select>
               <button className="btn btn-blue" onClick={addTeamMember}>Invite</button>
             </div>
+            {inviteLink && (
+              <div style={{marginTop:14, background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:8, padding:'12px 14px'}}>
+                <div style={{fontSize:12, color:'var(--text-2)', marginBottom:6}}>
+                  Invite link (share this if email is not configured):
+                </div>
+                <div style={{display:'flex', gap:8}}>
+                  <input readOnly value={inviteLink} style={{flex:1, background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'6px 10px', borderRadius:6, fontSize:11, fontFamily:'var(--font-mono)'}} />
+                  <button className="btn btn-green" style={{fontSize:12, flexShrink:0}} onClick={() => { navigator.clipboard.writeText(inviteLink); showToast('Link copied', 'green'); }}>Copy</button>
+                  <button className="btn" style={{fontSize:12, flexShrink:0}} onClick={() => setInviteLink('')}>✕</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="card fade-up-1">
             <div style={{fontWeight:600, marginBottom:12}}>Current Team</div>
