@@ -17,12 +17,12 @@ const NAV = [
     { id:'dashboard', icon:'⬡', label:'Command Center' },
   ]},
   { section:'BUSINESSES', items:[
-    { id:'businesses', icon:'◈', label:'All Businesses', badge:'6', badgeColor:'green' },
-    { id:'replies', icon:'✦', label:'Reply Inbox', badge:'8', badgeColor:'red', pulse:true },
-    { id:'approval', icon:'⏳', label:'Approvals', badge:'2', badgeColor:'amber' },
+    { id:'businesses', icon:'◈', label:'All Businesses', badgeColor:'green' },
+    { id:'replies', icon:'✦', label:'Reply Inbox', badgeColor:'red' },
+    { id:'approval', icon:'⏳', label:'Approvals', badgeColor:'amber' },
   ]},
   { section:'CAMPAIGNS', items:[
-    { id:'campaigns', icon:'◉', label:'All Campaigns', badge:'8', badgeColor:'blue' },
+    { id:'campaigns', icon:'◉', label:'All Campaigns', badgeColor:'blue' },
     { id:'leads', icon:'👥', label:'Lead Manager' },
     { id:'new-campaign', icon:'＋', label:'New Campaign' },
   ]},
@@ -37,7 +37,10 @@ const NAV = [
 ];
 
 export function Sidebar() {
-  const { page, setPage, replies } = useAppStore(useShallow(s => ({ page:s.page, setPage:s.setPage, replies:s.replies })));
+  const { page, setPage, businesses, campaigns, replies } = useAppStore(useShallow(s => ({
+    page: s.page, setPage: s.setPage,
+    businesses: s.businesses, campaigns: s.campaigns, replies: s.replies,
+  })));
   const { canAccess, role, user } = useRole();
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : 'KO';
 
@@ -48,6 +51,17 @@ export function Sidebar() {
   }
 
   const unreadReplies = replies.filter(r => r.status === 'unread').length;
+  const pendingApprovals = campaigns.filter(c => c.status === 'awaiting_approval').length;
+  const totalCampaigns = campaigns.length;
+  const totalBusinesses = businesses.length;
+
+  function getBadge(id) {
+    if (id === 'businesses') return totalBusinesses || null;
+    if (id === 'replies') return unreadReplies || null;
+    if (id === 'approval') return pendingApprovals || null;
+    if (id === 'campaigns') return totalCampaigns || null;
+    return null;
+  }
 
   return (
     <div className="sidebar">
@@ -63,7 +77,8 @@ export function Sidebar() {
           <div key={section.section} className="nav-section">
             <div className="nav-label">{section.section}</div>
             {section.items.filter(item => canAccess(item.id)).map(item => {
-              const badge = item.id === 'replies' ? (unreadReplies || item.badge) : item.badge;
+              const badge = getBadge(item.id);
+              const pulse = item.id === 'replies' && unreadReplies > 0;
               return (
                 <div
                   key={item.id}
@@ -72,9 +87,9 @@ export function Sidebar() {
                 >
                   <span className="nav-icon">{item.icon}</span>
                   <span style={{flex:1}}>{item.label}</span>
-                  {badge && (
-                    <span className={`nav-badge ${item.badgeColor || ''}${item.pulse ? ' pulse' : ''}`}>
-                      {item.pulse && <span className="pulse-dot" style={{width:4,height:4,marginRight:2}}/>}
+                  {badge != null && (
+                    <span className={`nav-badge ${item.badgeColor || ''}${pulse ? ' pulse' : ''}`}>
+                      {pulse && <span className="pulse-dot" style={{width:4,height:4,marginRight:2}}/>}
                       {badge}
                     </span>
                   )}
