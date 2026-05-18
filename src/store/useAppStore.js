@@ -25,6 +25,7 @@ function applyTweaks({ accent, density }) {
 
 export const useAppStore = create((set, get) => ({
   page: 'dashboard',
+  selectedBizId: null,
   businesses: [],
   campaigns: [],
   leads: [],
@@ -49,6 +50,7 @@ export const useAppStore = create((set, get) => ({
   },
 
   setPage: (page) => set({ page }),
+  setSelectedBiz: (bizId) => set({ selectedBizId: bizId }),
 
   setTweak: (key, val) => {
     const tweaks = { ...get().tweaks, [key]: val };
@@ -71,6 +73,11 @@ export const useAppStore = create((set, get) => ({
   updateBusiness: async (id, patch) => {
     const updated = await businessesService.update(id, patch);
     set(s => ({ businesses: s.businesses.map(b => b.id === id ? updated : b) }));
+  },
+  removeBusiness: async (id) => {
+    await businessesService.remove(id);
+    set(s => ({ businesses: s.businesses.filter(b => b.id !== id) }));
+    get().showToast('Business removed', 'amber');
   },
 
   // Campaigns

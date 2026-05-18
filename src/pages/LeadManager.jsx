@@ -7,7 +7,15 @@ import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
 import { leadsService } from '../services/leads.js';
 
 export function LeadManager() {
-  const { leads, updateLead, bulkUpdateLeads } = useAppStore(useShallow(s => ({ leads:s.leads, updateLead:s.updateLead, bulkUpdateLeads:s.bulkUpdateLeads })));
+  const { leads, updateLead, bulkUpdateLeads, selectedBizId, setSelectedBiz, businesses } = useAppStore(useShallow(s => ({
+    leads: s.leads,
+    updateLead: s.updateLead,
+    bulkUpdateLeads: s.bulkUpdateLeads,
+    selectedBizId: s.selectedBizId,
+    setSelectedBiz: s.setSelectedBiz,
+    businesses: s.businesses,
+  })));
+  const selectedBiz = businesses.find(b => b.id === selectedBizId);
 
   const [selected, setSelected] = useState([]);
   const [slideOver, setSlideOver] = useState(null);
@@ -19,6 +27,7 @@ export function LeadManager() {
   const toggleAll = () => setSelected(s => s.length === filtered.length ? [] : filtered.map(l=>l.id));
 
   const filtered = leads.filter(l =>
+    (!selectedBizId || l.bizId === selectedBizId) &&
     (statusFilter==='All' || l.status===statusFilter) &&
     (scoreFilter==='All' || l.scoreLabel===scoreFilter) &&
     (search==='' || l.name.toLowerCase().includes(search.toLowerCase()) || l.company.toLowerCase().includes(search.toLowerCase()))
@@ -55,7 +64,14 @@ export function LeadManager() {
       <div className="flex items-center justify-between mb-3 fade-up">
         <div>
           <div className="breadcrumb">Campaigns / <span>Lead Manager</span></div>
-          <h1 className="page-title" style={{marginTop:4}}>Lead Manager</h1>
+          <div style={{display:'flex', alignItems:'center', gap:10, marginTop:4}}>
+            <h1 className="page-title">{selectedBiz ? selectedBiz.name : 'All Leads'}</h1>
+            {selectedBiz && (
+              <button className="btn btn-sm" style={{fontSize:11}} onClick={() => setSelectedBiz(null)}>
+                ✕ Clear filter
+              </button>
+            )}
+          </div>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={handleExport}>⬇ Export CSV</button>
       </div>

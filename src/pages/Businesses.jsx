@@ -3,7 +3,23 @@ import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 
 export function Businesses() {
-  const { businesses, setPage } = useAppStore(useShallow(s => ({ businesses:s.businesses, setPage:s.setPage })));
+  const { businesses, setPage, setSelectedBiz, removeBusiness } = useAppStore(useShallow(s => ({
+    businesses: s.businesses,
+    setPage: s.setPage,
+    setSelectedBiz: s.setSelectedBiz,
+    removeBusiness: s.removeBusiness,
+  })));
+
+  function handleManage(bizId) {
+    setSelectedBiz(bizId);
+    setPage('leads');
+  }
+
+  function handleRemove(e, biz) {
+    e.stopPropagation();
+    if (!window.confirm(`Remove "${biz.name}"? This cannot be undone.`)) return;
+    removeBusiness(biz.id);
+  }
 
   return (
     <div className="page">
@@ -48,8 +64,13 @@ export function Businesses() {
             </div>
             {b.status==='setup' && <div className="badge amber mb-3" style={{width:'100%',justifyContent:'center'}}>In Setup</div>}
             <div className="flex gap-2">
-              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => setPage('leads')}>Manage →</button>
+              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => handleManage(b.id)}>Manage →</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setPage('client-portal')}>Portal ↗</button>
+              <button
+                className="btn btn-sm"
+                style={{color:'var(--red)', border:'1px solid var(--red)', padding:'3px 8px'}}
+                onClick={(e) => handleRemove(e, b)}
+              >✕</button>
             </div>
           </div>
         ))}
