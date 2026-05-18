@@ -1,0 +1,59 @@
+import { useAppStore } from '../store/useAppStore.js';
+import { useShallow } from 'zustand/react/shallow';
+import { BizAvatar } from '../components/ui/BizAvatar.jsx';
+
+export function Businesses() {
+  const { businesses, setPage } = useAppStore(useShallow(s => ({ businesses:s.businesses, setPage:s.setPage })));
+
+  return (
+    <div className="page">
+      <div className="flex items-center justify-between mb-4 fade-up">
+        <div>
+          <div className="breadcrumb">Businesses / <span>All Businesses</span></div>
+          <h1 className="page-title" style={{marginTop:4}}>All Businesses</h1>
+        </div>
+        <button className="btn btn-green" onClick={() => setPage('businesses-new')}>＋ Add Business</button>
+      </div>
+      <div className="grid-3 fade-up-1">
+        {businesses.map(b => (
+          <div key={b.id} className="card" style={{transition:'all 0.2s',cursor:'pointer'}}
+            onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
+            onMouseLeave={e => e.currentTarget.style.transform=''}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <BizAvatar id={b.id} color={b.color} size={40}/>
+              <div>
+                <div style={{fontWeight:600,fontSize:14}}>{b.name}</div>
+                <div style={{fontSize:12,color:'var(--muted)'}}>{b.industry}</div>
+              </div>
+            </div>
+            <div className="grid-2 mb-3" style={{gap:8}}>
+              {[
+                {label:'Campaigns',val:b.campaigns},
+                {label:'Total Leads',val:(b.leads||0).toLocaleString()},
+                {label:'Hot Leads',val:b.hot,color:'amber'},
+                {label:'Spend',val:b.spend,color:'green'},
+              ].map(s => (
+                <div key={s.label} style={{background:'var(--s2)',borderRadius:8,padding:'8px 10px'}}>
+                  <div style={{fontSize:10,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{s.label}</div>
+                  <div className="mono" style={{fontSize:14,fontWeight:500,color:s.color?`var(--${s.color})`:'var(--text)'}}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mb-3">
+              <span style={{fontSize:11,color:'var(--muted)'}}>Brief</span>
+              {b.brief==='approved' && <span className="badge green">✓ Approved</span>}
+              {b.brief==='pending' && <span className="badge amber">Pending</span>}
+              {b.brief==='none' && <span className="badge gray">None</span>}
+            </div>
+            {b.status==='setup' && <div className="badge amber mb-3" style={{width:'100%',justifyContent:'center'}}>In Setup</div>}
+            <div className="flex gap-2">
+              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => setPage('leads')}>Manage →</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPage('client-portal')}>Portal ↗</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
