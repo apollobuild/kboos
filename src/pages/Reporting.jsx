@@ -3,97 +3,87 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { generateCampaignPDF } from '../services/reports.js';
 
-const BIZ_DATA = {
-  all: {
-    name: 'All Businesses',
-    funnel: { scraped:1972, contacted:1441, opened:489, replied:44, meetings:3 },
-    campaigns: [
-      { name:'Kuching Q2', status:'active', leads:743, opened:'38.2%', replied:'5.4%', hot:14, spend:'RM 46' },
-      { name:'Kota Samarahan', status:'active', leads:301, opened:'31.4%', replied:'3.2%', hot:6, spend:'RM 28' },
-      { name:'Sarawak GLCs', status:'active', leads:156, opened:'41.7%', replied:'7.1%', hot:9, spend:'RM 34' },
-      { name:'SME Kuching', status:'active', leads:89, opened:'29.3%', replied:'2.8%', hot:3, spend:'RM 21' },
-      { name:'Contractors', status:'active', leads:362, opened:'35.1%', replied:'6.2%', hot:7, spend:'RM 59' },
-      { name:'Universities', status:'active', leads:201, opened:'33.5%', replied:'4.5%', hot:5, spend:'RM 44' },
-    ],
-    defaultMeetings: 3, defaultDeal: 5000, platformCost: 167,
-    costs: { apollo:'RM 45', sendgrid:'RM 38', wati:'RM 52', retell:'RM 32' },
-  },
-  GS: {
-    name: 'Gadong Squad',
-    funnel: { scraped:1044, contacted:743, opened:284, replied:28, meetings:2 },
-    campaigns: [
-      { name:'Kuching Q2', status:'active', leads:743, opened:'38.2%', replied:'5.4%', hot:14, spend:'RM 46' },
-      { name:'Kota Samarahan', status:'active', leads:301, opened:'31.4%', replied:'3.2%', hot:6, spend:'RM 28' },
-    ],
-    defaultMeetings: 2, defaultDeal: 6000, platformCost: 74,
-    costs: { apollo:'RM 22', sendgrid:'RM 18', wati:'RM 24', retell:'RM 10' },
-  },
-  KV: {
-    name: 'KOBIS Video',
-    funnel: { scraped:156, contacted:120, opened:50, replied:8, meetings:1 },
-    campaigns: [
-      { name:'Sarawak GLCs', status:'active', leads:156, opened:'41.7%', replied:'7.1%', hot:9, spend:'RM 34' },
-    ],
-    defaultMeetings: 1, defaultDeal: 8000, platformCost: 34,
-    costs: { apollo:'RM 10', sendgrid:'RM 8', wati:'RM 10', retell:'RM 6' },
-  },
-  GB: {
-    name: 'GreenBuild Sarawak',
-    funnel: { scraped:482, contacted:362, opened:127, replied:22, meetings:0 },
-    campaigns: [
-      { name:'Developers KCH', status:'awaiting_approval', leads:50, opened:'0%', replied:'0%', hot:0, spend:'RM 8' },
-      { name:'Contractors', status:'active', leads:362, opened:'35.1%', replied:'6.2%', hot:7, spend:'RM 59' },
-    ],
-    defaultMeetings: 0, defaultDeal: 12000, platformCost: 67,
-    costs: { apollo:'RM 18', sendgrid:'RM 16', wati:'RM 20', retell:'RM 13' },
-  },
-  SE: {
-    name: 'Sarawak Edu Hub',
-    funnel: { scraped:201, contacted:201, opened:67, replied:9, meetings:1 },
-    campaigns: [
-      { name:'Universities', status:'active', leads:201, opened:'33.5%', replied:'4.5%', hot:5, spend:'RM 44' },
-    ],
-    defaultMeetings: 1, defaultDeal: 4000, platformCost: 44,
-    costs: { apollo:'RM 12', sendgrid:'RM 10', wati:'RM 14', retell:'RM 8' },
-  },
-};
-
 const STATUS_COLORS = { active:'green', awaiting_approval:'amber', paused:'muted' };
 
+// Cost split ratios: Apollo 27%, SendGrid 23%, WATI 31%, Retell 19%
+const COST_RATIOS = { apollo: 0.269, sendgrid: 0.228, wati: 0.311, retell: 0.192 };
+
+function fmtRM(n) { return `RM ${Math.round(n)}`; }
+
 export function Reporting() {
-  const { campaigns } = useAppStore(useShallow(s => ({ campaigns: s.campaigns })));
+  const { campaigns, leads, businesses } = useAppStore(useShallow(s => ({
+    campaigns: s.campaigns, leads: s.leads, businesses: s.businesses,
+  })));
 
   const [bizKey, setBizKey] = useState('all');
-  const [meetings, setMeetings] = useState(3);
+  const [meetings, setMeetings] = useState(0);
   const [dealVal, setDealVal] = useState(5000);
   const [generating, setGenerating] = useState(false);
 
-  const biz = BIZ_DATA[bizKey] || BIZ_DATA.all;
-  const { funnel, costs, platformCost } = biz;
+  // Filtered campaigns and leads for selected business
+  const filteredCampaigns = bizKey === 'all'
+    ? campaigns
+    : campaigns.filter(c => c.bizId === bizKey);
 
+  const campaignIds = new Set(filteredCampaigns.map(c => c.id));
+  const filteredLeads = leads.filter(l => campaignIds.has(l.campaignId));
+
+  // Funnel from real data
+  const scraped    = filteredCampaigns.reduce((s, c) => s + (c.total || 0), 0);
+  const contacted  = filteredCampaigns.reduce((s, c) => s + (c.leads || 0), 0);
+  const openedCnt  = filteredLeads.filter(l => ['opened','replied','hot','meeting_booked'].includes(l.status)).length;
+  const repliedCnt = filteredLeads.filter(l => ['replied','hot','meeting_booked'].includes(l.status)).length;
+  const meetingsCnt = filteredLeads.filter(l => l.status === 'meeting_booked').length;
+
+  const platformCost = filteredCampaigns.reduce((s, c) => {
+    return s + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0);
+  }, 0);
+
+  const costs = {
+    apollo:   fmtRM(platformCost * COST_RATIOS.apollo),
+    sendgrid: fmtRM(platformCost * COST_RATIOS.sendgrid),
+    wati:     fmtRM(platformCost * COST_RATIOS.wati),
+    retell:   fmtRM(platformCost * COST_RATIOS.retell),
+  };
+
+  // Reset meetings to real count when business changes
   useEffect(() => {
-    setMeetings(biz.defaultMeetings);
-    setDealVal(biz.defaultDeal);
-  }, [bizKey]);
+    setMeetings(meetingsCnt);
+  }, [bizKey, meetingsCnt]);
 
   const revenue = meetings * dealVal;
   const roi = platformCost > 0 ? Math.round(((revenue - platformCost) / platformCost) * 100) : 0;
 
-  const funnelMax = funnel.scraped;
+  const funnelMax = scraped || 1;
   const funnelSteps = [
-    { label:'Scraped', val: funnel.scraped, color:'var(--blue)' },
-    { label:'Contacted', val: funnel.contacted, color:'var(--blue)' },
-    { label:'Opened', val: funnel.opened, color:'var(--green)' },
-    { label:'Replied', val: funnel.replied, color:'var(--amber)' },
-    { label:'Meetings', val: funnel.meetings, color:'var(--amber)' },
+    { label:'Scraped',   val: scraped,    color:'var(--blue)' },
+    { label:'Contacted', val: contacted,  color:'var(--blue)' },
+    { label:'Opened',    val: openedCnt,  color:'var(--green)' },
+    { label:'Replied',   val: repliedCnt, color:'var(--amber)' },
+    { label:'Meetings',  val: meetingsCnt,color:'var(--amber)' },
   ];
+
+  function campaignRepliedPct(campaign) {
+    const cLeads = filteredLeads.filter(l => l.campaignId === campaign.id);
+    if (!cLeads.length) return campaign.open || '0%';
+    const cnt = cLeads.filter(l => ['replied','hot','meeting_booked'].includes(l.status)).length;
+    return `${((cnt / cLeads.length) * 100).toFixed(1)}%`;
+  }
+
+  const bizName = bizKey === 'all'
+    ? 'All Businesses'
+    : (businesses.find(b => b.id === bizKey)?.name || bizKey);
 
   async function handlePDF() {
     setGenerating(true);
     try {
-      await generateCampaignPDF(biz.name, {
+      await generateCampaignPDF(bizName, {
         funnel: funnelSteps,
-        campaigns: biz.campaigns,
+        campaigns: filteredCampaigns.map(c => ({
+          name: c.name, status: c.status, leads: c.leads,
+          opened: c.open || '0%', replied: campaignRepliedPct(c),
+          hot: c.hot, spend: c.spend,
+        })),
         roi: { revenue, cost: platformCost, roi, meetings, dealVal },
         costs,
         date: new Date().toLocaleDateString(),
@@ -119,10 +109,9 @@ export function Reporting() {
             }}
           >
             <option value="all">All Businesses</option>
-            <option value="GS">Gadong Squad</option>
-            <option value="KV">KOBIS Video</option>
-            <option value="GB">GreenBuild Sarawak</option>
-            <option value="SE">Sarawak Edu Hub</option>
+            {businesses.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
           </select>
           <button className="btn btn-blue" onClick={handlePDF} disabled={generating}>
             {generating ? 'Generating...' : '↓ PDF Report'}
@@ -143,14 +132,14 @@ export function Reporting() {
                   height:'100%', background:step.color, borderRadius:4,
                   display:'flex', alignItems:'center', paddingLeft:8,
                   fontSize:12, fontFamily:'var(--font-mono)', fontWeight:600,
-                  color:'var(--bg-1)', minWidth:40,
+                  color:'var(--bg-1)', minWidth:step.val > 0 ? 40 : 0,
                   transition:'width 0.5s cubic-bezier(.4,0,.2,1)'
                 }}>
-                  {step.val.toLocaleString()}
+                  {step.val > 0 ? step.val.toLocaleString() : ''}
                 </div>
               </div>
               <div style={{width:48, fontSize:12, color:'var(--text-3)', textAlign:'right', flexShrink:0, fontFamily:'var(--font-mono)'}}>
-                {funnelMax > 0 ? `${Math.round((step.val/funnelMax)*100)}%` : '0%'}
+                {funnelMax > 1 ? `${Math.round((step.val / funnelMax) * 100)}%` : '0%'}
               </div>
             </div>
           ))}
@@ -168,15 +157,18 @@ export function Reporting() {
             </tr>
           </thead>
           <tbody>
-            {biz.campaigns.map(c => (
-              <tr key={c.name}>
+            {filteredCampaigns.length === 0 && (
+              <tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'16px 0',fontSize:12}}>No campaigns</td></tr>
+            )}
+            {filteredCampaigns.map(c => (
+              <tr key={c.id}>
                 <td style={{fontWeight:500}}>{c.name}</td>
-                <td><span className={`badge badge-${STATUS_COLORS[c.status]||'muted'}`}>{c.status.replace('_',' ')}</span></td>
-                <td style={{fontFamily:'var(--font-mono)'}}>{c.leads.toLocaleString()}</td>
-                <td style={{fontFamily:'var(--font-mono)'}}>{c.opened}</td>
-                <td style={{fontFamily:'var(--font-mono)'}}>{c.replied}</td>
-                <td style={{fontFamily:'var(--font-mono)', color:'var(--amber)'}}>{c.hot}</td>
-                <td style={{fontFamily:'var(--font-mono)'}}>{c.spend}</td>
+                <td><span className={`badge badge-${STATUS_COLORS[c.status]||'muted'}`}>{c.status.replace(/_/g,' ')}</span></td>
+                <td style={{fontFamily:'var(--font-mono)'}}>{(c.leads||0).toLocaleString()}</td>
+                <td style={{fontFamily:'var(--font-mono)'}}>{c.open || '—'}</td>
+                <td style={{fontFamily:'var(--font-mono)'}}>{campaignRepliedPct(c)}</td>
+                <td style={{fontFamily:'var(--font-mono)', color:'var(--amber)'}}>{c.hot || 0}</td>
+                <td style={{fontFamily:'var(--font-mono)'}}>{c.spend || 'RM 0'}</td>
               </tr>
             ))}
           </tbody>
@@ -238,10 +230,10 @@ export function Reporting() {
           <div style={{fontWeight:600, marginBottom:16}}>Cost Breakdown</div>
           <div style={{display:'flex', flexDirection:'column', gap:8}}>
             {[
-              { label:'Apollo.io (leads)', val: costs.apollo },
-              { label:'SendGrid (email)', val: costs.sendgrid },
-              { label:'WATI (WhatsApp)', val: costs.wati },
-              { label:'Retell AI (calls)', val: costs.retell },
+              { label:'Apollo.io (leads)',  val: costs.apollo },
+              { label:'SendGrid (email)',   val: costs.sendgrid },
+              { label:'WATI (WhatsApp)',    val: costs.wati },
+              { label:'Retell AI (calls)',  val: costs.retell },
             ].map(row => (
               <div key={row.label} style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)'}}>
                 <span style={{color:'var(--text-2)', fontSize:13}}>{row.label}</span>
