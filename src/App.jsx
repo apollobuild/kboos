@@ -58,8 +58,9 @@ export default function App() {
 
   const PageComponent = PAGE_MAP[page] || Dashboard;
 
-  if (!user || !token) {
-    return <Login onLogin={(u) => setUser(u)} />;
+  const inviteToken = new URLSearchParams(window.location.search).get('invite');
+  if (!user || !token || inviteToken) {
+    return <Login onLogin={(u) => { setUser(u); }} />;
   }
 
   return (
