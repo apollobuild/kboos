@@ -244,7 +244,7 @@ export function Settings() {
                         <button
                           className="btn"
                           style={{fontSize:11, padding:'3px 8px', color:'var(--red)', border:'1px solid var(--red)'}}
-                          onClick={() => removeTeamMember(m.email)}
+                          onClick={() => removeTeamMember(m.id)}
                         >Remove</button>
                       </td>
                     </tr>
