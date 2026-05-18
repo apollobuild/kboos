@@ -48,20 +48,33 @@ export default function App() {
     try { return stored ? JSON.parse(stored) : null; } catch { return null; }
   });
   const token = localStorage.getItem('kboos_token');
+  const [loading, setLoading] = useState(!!(user && token));
 
   useEffect(() => {
     if (user && token) {
-      init();
-      initWallet();
+      Promise.all([init(), initWallet()]).finally(() => setLoading(false));
     }
   }, []);
 
-  const PageComponent = PAGE_MAP[page] || Dashboard;
-
   const inviteToken = new URLSearchParams(window.location.search).get('invite');
   if (!user || !token || inviteToken) {
-    return <Login onLogin={(u) => { setUser(u); }} />;
+    return <Login onLogin={(u) => { setUser(u); setLoading(false); }} />;
   }
+
+  if (loading) {
+    return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)',flexDirection:'column',gap:16}}>
+        <svg width="36" height="26" viewBox="0 0 28 20" fill="none" style={{opacity:0.8}}>
+          <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
+          <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(62% 0.19 245 / 0.7)" />
+          <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(62% 0.19 245 / 0.5)" />
+        </svg>
+        <div style={{fontSize:12,color:'var(--muted)',fontFamily:'var(--font-mono)',letterSpacing:'0.08em'}}>Loading...</div>
+      </div>
+    );
+  }
+
+  const PageComponent = PAGE_MAP[page] || Dashboard;
 
   return (
     <div className="app-shell">
