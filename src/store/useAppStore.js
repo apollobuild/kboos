@@ -3,6 +3,7 @@ import { businessesService } from '../services/businesses.js';
 import { campaignsService } from '../services/campaigns.js';
 import { leadsService } from '../services/leads.js';
 import { repliesService } from '../services/replies.js';
+import { apiFetch } from '../services/api.js';
 
 const ACCENT_PALETTES = {
   blue: { '--blue':'oklch(62% 0.19 245)', '--blue-dim':'oklch(62% 0.19 245 / 0.15)', '--green':'oklch(65% 0.2 145)', '--green-dim':'oklch(65% 0.2 145 / 0.15)' },
@@ -36,13 +37,14 @@ export const useAppStore = create((set, get) => ({
 
   init: async () => {
     try {
-      const [businesses, campaigns, leads, replies] = await Promise.all([
+      const [businesses, campaigns, leads, replies, activity] = await Promise.all([
         businessesService.getAll(),
         campaignsService.getAll(),
         leadsService.getAll(),
         repliesService.getAll(),
+        apiFetch('/activity').catch(() => []),
       ]);
-      set({ businesses, campaigns, leads, replies, activity: [] });
+      set({ businesses, campaigns, leads, replies, activity });
       applyTweaks(get().tweaks);
     } catch (e) {
       console.error('Failed to load data:', e);

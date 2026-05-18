@@ -1,24 +1,49 @@
-const MOOD_DATA = {
-  optimistic: { openRate:'38.2%', waResp:'54%', spend:'RM 167', tickerHot:'37 total', tickerLimit:'All APIs nominal', totalLeads:'1,972', apiStatus:{WATI:'ok'} },
-  realistic: { openRate:'29.6%', waResp:'38%', spend:'RM 167', tickerHot:'19 total', tickerLimit:'WATI 78% rate limit', totalLeads:'1,441', apiStatus:{WATI:'warn'} },
-  pressure: { openRate:'18.1%', waResp:'12%', spend:'RM 167', tickerHot:'4 total', tickerLimit:'SendGrid soft bounce 24%', totalLeads:'743', apiStatus:{WATI:'error'} },
-};
+import { useAppStore } from '../../store/useAppStore.js';
+import { useShallow } from 'zustand/react/shallow';
 
-export function TickerBar({ mood = 'realistic' }) {
-  const md = MOOD_DATA[mood] || MOOD_DATA.realistic;
+export function TickerBar() {
+  const { campaigns, leads } = useAppStore(useShallow(s => ({
+    campaigns: s.campaigns,
+    leads: s.leads,
+  })));
+
+  const hotCount = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  const queueCount = leads.filter(l => l.status === 'personalizing').length;
+  const totalSpend = campaigns.reduce((sum, c) => {
+    return sum + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0);
+  }, 0);
+  const awaitingApproval = campaigns.filter(c => c.status === 'awaiting_approval');
+  const activeCampaigns = campaigns.filter(c => c.status === 'active');
+
+  const ratesWithData = activeCampaigns.filter(c => c.open && parseFloat(c.open) > 0);
+  const avgOpen = ratesWithData.length > 0
+    ? (ratesWithData.reduce((s, c) => s + parseFloat(c.open), 0) / ratesWithData.length).toFixed(1) + '%'
+    : '—';
+
+  const waRates = activeCampaigns.filter(c => c.wa && c.wa !== '-' && c.wa !== '—');
+  const avgWa = waRates.length > 0
+    ? (waRates.reduce((s, c) => s + parseFloat(c.wa), 0) / waRates.length).toFixed(0) + '%'
+    : '—';
+
   const items = [
-    { label:'GS Kuching Q2', val:'743/2400 leads', color:'green' },
-    { label:'Open Rate', val:md.openRate, color:'text' },
-    { label:'WA Response', val:md.waResp, color: parseFloat(md.waResp) > 40 ? 'green' : 'amber' },
-    { label:'KOBIS Video GLCs', val:'156/1200', color:'blue' },
-    { label:'Hot Leads', val:md.tickerHot, color:'amber' },
-    { label:'Queue', val:'14 personalizing', color:'muted' },
-    { label:'GreenBuild', val:'AWAITING REVIEW', color:'amber' },
-    { label:'Spend Today', val:md.spend, color:'text' },
-    { label:'API Status', val:md.tickerLimit, color: md.apiStatus.WATI === 'ok' ? 'green' : 'amber' },
-    { label:'Leads', val:`${md.totalLeads.split(',')[0]} leads`, color:'blue' },
+    ...activeCampaigns.slice(0, 3).map(c => ({
+      label: c.name,
+      val: `${c.leads}/${c.total} leads`,
+      color: c.color || 'blue',
+    })),
+    { label: 'Open Rate', val: avgOpen, color: 'text' },
+    { label: 'WA Response', val: avgWa, color: parseFloat(avgWa) > 40 ? 'green' : 'amber' },
+    { label: 'Hot Leads', val: `${hotCount} total`, color: 'amber' },
+    { label: 'Queue', val: `${queueCount} personalizing`, color: 'muted' },
+    ...(awaitingApproval.length > 0 ? awaitingApproval.map(c => ({
+      label: c.name, val: 'AWAITING REVIEW', color: 'amber',
+    })) : []),
+    { label: 'Spend', val: `RM ${totalSpend}`, color: 'text' },
+    { label: 'Total Leads', val: `${leads.length} leads`, color: 'blue' },
   ];
+
   const doubled = [...items, ...items];
+
   return (
     <div className="ticker-wrap">
       <div style={{padding:'0 12px',fontSize:10,fontFamily:'var(--font-mono)',color:'var(--green)',letterSpacing:'0.1em',flexShrink:0,borderRight:'1px solid var(--border)'}}>LIVE</div>

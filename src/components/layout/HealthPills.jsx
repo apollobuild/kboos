@@ -1,33 +1,26 @@
 import { useAppStore } from '../../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 
-const MOOD_PILLS = {
-  optimistic: [
-    {label:'Active', dot:'green', val:'7 campaigns'},
-    {label:'APIs', dot:'green', val:'6/6 OK'},
-    {label:'Replies', dot:'red', val:'8 unread', pulse:true, action:'replies'},
-    {label:'Queue', dot:'green', val:'14 processing'},
-    {label:'Approvals', dot:'amber', val:'2 pending', action:'approval'},
-  ],
-  realistic: [
-    {label:'Active', dot:'green', val:'6 campaigns'},
-    {label:'APIs', dot:'amber', val:'5/6 OK'},
-    {label:'Replies', dot:'red', val:'7 unread', pulse:true, action:'replies'},
-    {label:'Queue', dot:'green', val:'8 processing'},
-    {label:'Approvals', dot:'amber', val:'2 pending', action:'approval'},
-  ],
-  pressure: [
-    {label:'Active', dot:'amber', val:'3 campaigns'},
-    {label:'APIs', dot:'red', val:'3/6 OK'},
-    {label:'Replies', dot:'red', val:'14 unread', pulse:true, action:'replies'},
-    {label:'Queue', dot:'amber', val:'0 processing'},
-    {label:'Bounces', dot:'red', val:'24% rate'},
-  ],
-};
+export function HealthPills() {
+  const { campaigns, replies, leads, setPage } = useAppStore(useShallow(s => ({
+    campaigns: s.campaigns,
+    replies: s.replies,
+    leads: s.leads,
+    setPage: s.setPage,
+  })));
 
-export function HealthPills({ mood = 'realistic' }) {
-  const setPage = useAppStore(s => s.setPage);
-  const pills = MOOD_PILLS[mood] || MOOD_PILLS.realistic;
+  const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
+  const unreadReplies = replies.filter(r => r.status === 'unread').length;
+  const pendingApprovals = campaigns.filter(c => c.status === 'awaiting_approval').length;
+  const queueLeads = leads.filter(l => l.status === 'personalizing').length;
+
+  const pills = [
+    { label:'Active', dot:'green', val:`${activeCampaigns} campaign${activeCampaigns !== 1 ? 's' : ''}` },
+    { label:'Replies', dot: unreadReplies > 0 ? 'red' : 'green', val:`${unreadReplies} unread`, pulse: unreadReplies > 0, action:'replies' },
+    { label:'Queue', dot: queueLeads > 0 ? 'green' : 'muted', val:`${queueLeads} personalizing` },
+    { label:'Approvals', dot: pendingApprovals > 0 ? 'amber' : 'green', val:`${pendingApprovals} pending`, action: pendingApprovals > 0 ? 'approval' : undefined },
+  ];
+
   return (
     <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
       {pills.map(p => (

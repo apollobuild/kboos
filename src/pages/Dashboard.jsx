@@ -6,15 +6,32 @@ import { TickerBar } from '../components/layout/TickerBar.jsx';
 import { HealthPills } from '../components/layout/HealthPills.jsx';
 import { CampaignBadge } from '../components/ui/CampaignBadge.jsx';
 
-const MOOD_DATA = {
-  optimistic: { totalLeads:'1,972', hotLeads:'37', meetings:'3', replies:'11', openRate:'38.2%', waResp:'54%', spend:'RM 167', roi:'4,180%' },
-  realistic: { totalLeads:'1,441', hotLeads:'19', meetings:'1', replies:'7', openRate:'29.6%', waResp:'38%', spend:'RM 167', roi:'2,894%' },
-  pressure: { totalLeads:'743', hotLeads:'4', meetings:'0', replies:'14', openRate:'18.1%', waResp:'12%', spend:'RM 167', roi:'−100%' },
-};
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
-function HotLeadsPanel({ leads }) {
+function HotLeadsPanel({ leads, campaigns }) {
+  const { setPage, setSelectedBiz } = useAppStore(useShallow(s => ({
+    setPage: s.setPage,
+    setSelectedBiz: s.setSelectedBiz,
+  })));
   const [handed, setHanded] = useState({});
   const hot = leads.filter(l => l.status === 'hot' || l.score >= 8).slice(0, 4);
+
+  function handOff(lead) {
+    const camp = campaigns.find(c => c.id === lead.campaignId);
+    if (camp?.bizId) setSelectedBiz(camp.bizId);
+    setPage('leads');
+    setHanded(h => ({ ...h, [lead.id]: true }));
+  }
+
   return (
     <div className="card" style={{height:'100%'}}>
       <div className="flex items-center justify-between mb-3">
@@ -22,16 +39,19 @@ function HotLeadsPanel({ leads }) {
         <span className="badge amber">{hot.length} ready</span>
       </div>
       <div className="flex-col gap-2">
+        {hot.length === 0 && (
+          <div style={{color:'var(--muted)',fontSize:12,textAlign:'center',padding:'20px 0'}}>No hot leads yet</div>
+        )}
         {hot.map(l => (
           <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'var(--s2)',borderRadius:8,border:'1px solid var(--border)'}}>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:12,fontWeight:500}}>{l.name}</div>
               <div style={{fontSize:11,color:'var(--muted)'}}>{l.company} · <span className="mono">{l.score}/10</span></div>
             </div>
-            <span className={`badge ${l.scoreLabel==='High'?'green':l.scoreLabel==='Medium'?'amber':'gray'}`}>{l.scoreLabel}</span>
+            <span className={`badge ${l.score >= 8 ? 'amber' : 'gray'}`}>{l.score >= 8 ? 'High' : 'Med'}</span>
             {handed[l.id]
               ? <span style={{fontSize:11,color:'var(--muted)'}}>✓ Sent</span>
-              : <button className="btn btn-amber btn-xs" onClick={() => setHanded(h => ({...h,[l.id]:true}))}>Hand Off →</button>
+              : <button className="btn btn-amber btn-xs" onClick={() => handOff(l)}>Hand Off →</button>
             }
           </div>
         ))}
@@ -43,6 +63,7 @@ function HotLeadsPanel({ leads }) {
 function ActivityFeed({ activity }) {
   const [filter, setFilter] = useState('All');
   const tabs = ['All','Leads','Campaigns','System'];
+  const filtered = filter === 'All' ? activity : activity.filter(a => a.tag === filter);
   return (
     <div className="card flex-col" style={{height:'100%'}}>
       <div className="flex items-center justify-between mb-3">
@@ -52,12 +73,15 @@ function ActivityFeed({ activity }) {
         </div>
       </div>
       <div className="flex-col" style={{gap:1,overflowY:'auto',flex:1}}>
-        {activity.map((a, i) => (
-          <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:'1px solid var(--border)'}}>
+        {filtered.length === 0 && (
+          <div style={{color:'var(--muted)',fontSize:12,textAlign:'center',padding:'20px 0'}}>No activity yet</div>
+        )}
+        {filtered.map((a, i) => (
+          <div key={a.id ?? i} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:'1px solid var(--border)'}}>
             <div style={{width:6,height:6,borderRadius:'50%',background:`var(--${a.color})`,marginTop:5,flexShrink:0}}/>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:12,color:'var(--text)'}}>{a.msg}</div>
-              <div style={{fontSize:11,color:'var(--muted)'}}><span className="mono">{a.time}</span> · {a.tag}</div>
+              <div style={{fontSize:11,color:'var(--muted)'}}><span className="mono">{timeAgo(a.createdAt)}</span> · {a.tag}</div>
             </div>
           </div>
         ))}
@@ -67,21 +91,32 @@ function ActivityFeed({ activity }) {
 }
 
 export function Dashboard() {
-  const { campaigns, businesses, leads, activity, tweaks, setPage, toggleCampaign } = useAppStore(useShallow(s => ({
+  const { campaigns, businesses, leads, activity, setPage, toggleCampaign } = useAppStore(useShallow(s => ({
     campaigns: s.campaigns, businesses: s.businesses, leads: s.leads,
-    activity: s.activity, tweaks: s.tweaks, setPage: s.setPage, toggleCampaign: s.toggleCampaign,
+    activity: s.activity, setPage: s.setPage, toggleCampaign: s.toggleCampaign,
   })));
   const [bizFilter, setBizFilter] = useState(null);
-  const mood = tweaks.mood || 'realistic';
-  const md = MOOD_DATA[mood] || MOOD_DATA.realistic;
+
+  const totalLeads = leads.length;
+  const hotLeads = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  const meetings = leads.filter(l => l.status === 'meeting_booked').length;
+  const totalSpend = campaigns.reduce((sum, c) => {
+    return sum + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0);
+  }, 0);
+  const ratesWithData = campaigns.filter(c => c.open && parseFloat(c.open) > 0);
+  const avgOpen = ratesWithData.length > 0
+    ? (ratesWithData.reduce((s, c) => s + parseFloat(c.open), 0) / ratesWithData.length).toFixed(1) + '%'
+    : '—';
 
   const stats = [
-    {label:'Total Leads', val:md.totalLeads, color:'text'},
-    {label:'Hot Leads', val:md.hotLeads, color:'amber'},
-    {label:'Meetings Booked', val:md.meetings, color:'green'},
-    {label:'Open Rate', val:md.openRate, color:parseFloat(md.openRate)>30?'blue':'red'},
-    {label:'Spend Today', val:md.spend, color:'muted'},
+    { label: 'Total Leads', val: totalLeads.toLocaleString(), color: 'text' },
+    { label: 'Hot Leads', val: hotLeads, color: 'amber' },
+    { label: 'Meetings Booked', val: meetings, color: 'green' },
+    { label: 'Open Rate', val: avgOpen, color: parseFloat(avgOpen) > 30 ? 'blue' : 'red' },
+    { label: 'Spend Today', val: `RM ${totalSpend}`, color: 'muted' },
   ];
+
+  const visibleCampaigns = campaigns.filter(c => !bizFilter || c.bizId === bizFilter);
 
   return (
     <div className="page">
@@ -91,9 +126,9 @@ export function Dashboard() {
             <div className="breadcrumb">Overview / <span>Command Center</span></div>
             <h1 className="page-title" style={{marginTop:4}}>Command Center</h1>
           </div>
-          <HealthPills mood={mood} />
+          <HealthPills />
         </div>
-        <TickerBar mood={mood} />
+        <TickerBar />
       </div>
 
       <div className="fade-up-1 mt-4" style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
@@ -135,13 +170,13 @@ export function Dashboard() {
               <tr><th>Campaign</th><th>Status</th><th style={{minWidth:160}}>Progress</th><th>Hot</th><th>Open</th><th>WA Resp</th><th>Spend</th><th>Tier</th><th></th></tr>
             </thead>
             <tbody>
-              {campaigns.filter(c => !bizFilter || c.biz === bizFilter).map(c => {
-                const pct = Math.round((c.leads/c.total)*100);
+              {visibleCampaigns.map(c => {
+                const pct = c.total > 0 ? Math.round((c.leads / c.total) * 100) : 0;
                 return (
                   <tr key={c.id} className={c.status==='awaiting_approval'?'row-awaiting':''} style={{opacity:c.status==='paused'?0.7:1,cursor:'pointer'}} onClick={() => setPage('campaigns')}>
                     <td>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <BizAvatar id={c.biz} color={c.color} size={26}/>
+                        <BizAvatar id={c.bizId} color={c.color} size={26}/>
                         <div><div style={{fontSize:13,fontWeight:500}}>{c.name}</div><div style={{fontSize:11,color:'var(--muted)'}}>{c.bizName}</div></div>
                       </div>
                     </td>
@@ -153,7 +188,7 @@ export function Dashboard() {
                       </div>
                     </td>
                     <td><span className="mono text-amber">{c.hot>0?`🔥 ${c.hot}`:'-'}</span></td>
-                    <td><span className="mono text-sm">{c.open}</span></td>
+                    <td><span className="mono text-sm">{c.open || '—'}</span></td>
                     <td><span className="mono text-sm">{c.wa||'-'}</span></td>
                     <td><span className="mono text-sm text-green">{c.spend}</span></td>
                     <td><span className="badge gray text-xs">{c.tier}</span></td>
@@ -168,6 +203,9 @@ export function Dashboard() {
                   </tr>
                 );
               })}
+              {visibleCampaigns.length === 0 && (
+                <tr><td colSpan={9} style={{textAlign:'center',color:'var(--muted)',padding:'20px 0',fontSize:12}}>No campaigns{bizFilter ? ' for this business' : ''}</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -175,7 +213,7 @@ export function Dashboard() {
 
       <div className="fade-up-4 mt-4" style={{display:'grid',gridTemplateColumns:'1fr 0.65fr',gap:16,minHeight:280}}>
         <ActivityFeed activity={activity}/>
-        <HotLeadsPanel leads={leads}/>
+        <HotLeadsPanel leads={leads} campaigns={campaigns}/>
       </div>
     </div>
   );
