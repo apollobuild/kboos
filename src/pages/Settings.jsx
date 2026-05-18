@@ -37,6 +37,11 @@ export function Settings() {
   const [scheduleFreq, setScheduleFreq] = useState('weekly');
 
   useEffect(() => {
+    const pendingTab = sessionStorage.getItem('settingsTab');
+    if (pendingTab) {
+      setTab(pendingTab);
+      sessionStorage.removeItem('settingsTab');
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.get('topup') === 'done') {
       setTab('wallet');

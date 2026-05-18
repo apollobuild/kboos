@@ -84,7 +84,7 @@ export function Sidebar() {
           </div>
         ))}
       </div>
-      {role === 'admin' && <CreditWalletWidget onClick={() => setPage('settings')} />}
+      {role === 'admin' && <CreditWalletWidget onClick={() => { sessionStorage.setItem('settingsTab', 'wallet'); setPage('settings'); }} />}
       <div className="sidebar-footer">
         <div className="avatar">{initials}</div>
         <div style={{flex:1, minWidth:0}}>
