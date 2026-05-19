@@ -5,15 +5,17 @@ import { LeadStatusBadge } from '../components/ui/LeadStatusBadge.jsx';
 import { ScoreDisplay } from '../components/ui/ScoreDisplay.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
 import { leadsService } from '../services/leads.js';
+import { apiFetch } from '../services/api.js';
 
 export function LeadManager() {
-  const { leads, updateLead, bulkUpdateLeads, selectedBizId, setSelectedBiz, businesses } = useAppStore(useShallow(s => ({
+  const { leads, updateLead, bulkUpdateLeads, selectedBizId, setSelectedBiz, businesses, showToast } = useAppStore(useShallow(s => ({
     leads: s.leads,
     updateLead: s.updateLead,
     bulkUpdateLeads: s.bulkUpdateLeads,
     selectedBizId: s.selectedBizId,
     setSelectedBiz: s.setSelectedBiz,
     businesses: s.businesses,
+    showToast: s.showToast,
   })));
   const selectedBiz = businesses.find(b => b.id === selectedBizId);
 
@@ -22,6 +24,20 @@ export function LeadManager() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [scoreFilter, setScoreFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [callingId, setCallingId] = useState(null);
+
+  const handleVoiceCall = async (e, lead) => {
+    e.stopPropagation();
+    setCallingId(lead.id);
+    try {
+      const result = await apiFetch('/voice/call', { method: 'POST', body: { leadId: lead.id } });
+      showToast(`Call placed to ${lead.name} (ID: ${result.callId})`, 'green');
+    } catch (err) {
+      showToast(err.message || 'Failed to place call', 'red');
+    } finally {
+      setCallingId(null);
+    }
+  };
 
   const toggle = (id) => setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s,id]);
   const toggleAll = () => setSelected(s => s.length === filtered.length ? [] : filtered.map(l=>l.id));
@@ -122,7 +138,7 @@ export function LeadManager() {
                 <th style={{width:36}}>
                   <input type="checkbox" checked={selected.length===filtered.length&&filtered.length>0} onChange={toggleAll} style={{accentColor:'var(--blue)'}}/>
                 </th>
-                <th>Lead</th><th>Company</th><th>Score</th><th>Priority</th><th>Status</th><th>Lang</th><th>Last</th>
+                <th>Lead</th><th>Company</th><th>Score</th><th>Priority</th><th>Status</th><th>Lang</th><th>Last</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -145,6 +161,19 @@ export function LeadManager() {
                   <td><LeadStatusBadge status={l.status}/></td>
                   <td><span className={`badge ${l.lang==='BM'?'purple':'blue'}`}>{l.lang}</span></td>
                   <td><span className="mono text-xs text-muted">{l.last}</span></td>
+                  <td onClick={e => e.stopPropagation()}>
+                    {l.phone && (
+                      <button
+                        className="btn btn-ghost btn-xs"
+                        disabled={callingId === l.id}
+                        onClick={(e) => handleVoiceCall(e, l)}
+                        title={`Call ${l.phone}`}
+                        style={{fontSize:11}}
+                      >
+                        {callingId === l.id ? '◌' : '📞 Call'}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

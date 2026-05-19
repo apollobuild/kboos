@@ -4,39 +4,49 @@ import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { apiFetch } from '../services/api.js';
 
-const TIERS = [
+const CHANNEL_OPTIONS = [
   {
-    name: 'Starter', leads: 600, color: 'muted',
-    channels: ['email'],
-    tagline: 'Email outreach',
-    features: ['600 leads scraped', 'AI-personalized emails', 'Google Maps scraping', 'Basic reporting'],
-    sequence: [{ type:'email', icon:'📧', day:0, label:'Email Day 0', desc:'Personalized cold email sent' }],
+    id: 'wa',
+    label: 'WhatsApp Only',
+    icon: '💬',
+    color: 'green',
+    desc: 'Best for local businesses, fast outreach, high open rates',
+    bestFor: ['Local B2B businesses', 'Fast response campaigns', 'Malaysian market'],
+    sequence: [
+      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Personalized WA message sent immediately' },
+      { type:'wa', icon:'💬', day:3, label:'WA Follow-up', desc:'Follow-up if no reply after 3 days' },
+    ],
+    needsSources: ['google_maps'],
   },
   {
-    name: 'Growth', leads: 1200, color: 'blue',
-    channels: ['email','wa'],
-    tagline: 'Email + WhatsApp',
-    features: ['1,200 leads scraped', 'AI-personalized emails', 'Google Maps + Apollo', 'WhatsApp follow-up on Day 3', 'Full analytics'],
+    id: 'wa_email',
+    label: 'WhatsApp + Email',
+    icon: '💬📧',
+    color: 'blue',
+    desc: 'Best for B2B professionals — WA for attention, email for detail',
+    bestFor: ['B2B decision makers', 'Corporate clients', 'Video production, IT, catering'],
     sequence: [
-      { type:'email', icon:'📧', day:0, label:'Email Day 0', desc:'Personalized cold email sent' },
-      { type:'wa',    icon:'💬', day:3, label:'WhatsApp Day 3', desc:'WA follow-up if no reply' },
+      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Opening WA message' },
+      { type:'email', icon:'📧', day:2, label:'Email', desc:'Detailed follow-up email if no WA reply' },
+      { type:'wa', icon:'💬', day:5, label:'WA Follow-up', desc:'Final WA nudge' },
     ],
+    needsSources: ['google_maps', 'apollo'],
   },
   {
-    name: 'Enterprise', leads: 2400, color: 'purple',
-    channels: ['email','wa','call'],
-    tagline: 'Email + WhatsApp + Voice',
-    features: ['2,400 leads scraped', 'AI-personalized emails', 'Google Maps + Apollo', 'WhatsApp follow-up', 'AI voice call Day 6', 'Priority support'],
+    id: 'full',
+    label: 'Full Outreach',
+    icon: '💬📧📞',
+    color: 'purple',
+    desc: 'Maximum reach — WA + Email + AI Voice call for high-value targets',
+    bestFor: ['Directors & C-suite', 'High-value deals', 'Premium clients'],
     sequence: [
-      { type:'email', icon:'📧', day:0, label:'Email Day 0', desc:'Personalized cold email sent' },
-      { type:'wa',    icon:'💬', day:3, label:'WhatsApp Day 3', desc:'WA follow-up if no reply' },
-      { type:'call',  icon:'📞', day:6, label:'Voice Call Day 6', desc:'AI call if still no reply', skipIfReplied:true },
+      { type:'email', icon:'📧', day:0, label:'Email', desc:'Professional email introduction' },
+      { type:'wa', icon:'💬', day:3, label:'WhatsApp', desc:'WA follow-up referencing the email' },
+      { type:'call', icon:'📞', day:6, label:'AI Voice Call', desc:'Vapi AI voice agent call', skipIfReplied:true },
     ],
+    needsSources: ['google_maps', 'apollo'],
   },
 ];
-
-const CHANNEL_ICONS = { email:'📧', wa:'💬', call:'📞' };
-const CHANNEL_LABELS = { email:'Email', wa:'WhatsApp', call:'Voice Call' };
 
 export function NewCampaign() {
   const { businesses, addCampaign, setPage, showToast } = useAppStore(useShallow(s => ({
@@ -47,37 +57,51 @@ export function NewCampaign() {
     try { return JSON.parse(localStorage.getItem('kboos_user') || '{}'); } catch { return {}; }
   })();
 
+  const steps = ['Business & Campaign', 'Channel & Sequence', 'Lead Sources', 'Review & Launch'];
+
   const [step, setStep] = useState(0);
   const [bizSel, setBizSel] = useState(null);
   const [campaignName, setCampaignName] = useState('');
   const [region, setRegion] = useState('Kuching, Sarawak');
-  const [tier, setTier] = useState(0);
 
-  // Lead sources — multi-select
+  // Channel
+  const [channelOpt, setChannelOpt] = useState('wa');
+  const [seqSteps, setSeqSteps] = useState(CHANNEL_OPTIONS[0].sequence);
+
+  const selectChannel = (id) => {
+    setChannelOpt(id);
+    setSeqSteps(CHANNEL_OPTIONS.find(c => c.id === id).sequence);
+  };
+
+  // Sequence editing
+  const addSeqStep = () => setSeqSteps(s => [...s, {
+    type:'email', icon:'📧', day:(s[s.length-1]?.day||0)+2, label:'Follow-up Email', desc:'Follow-up message'
+  }]);
+  const removeSeqStep = (i) => setSeqSteps(s => s.filter((_,idx) => idx !== i));
+  const moveStep = (i, dir) => setSeqSteps(s => { const a=[...s]; [a[i],a[i+dir]]=[a[i+dir],a[i]]; return a; });
+  const updateStepDay = (i, day) => setSeqSteps(s => s.map((st,idx) => idx===i ? {...st,day} : st));
+
+  // From details
+  const [fromName, setFromName] = useState(currentUser.name || '');
+  const [fromEmail, setFromEmail] = useState(currentUser.email || '');
+  const [recycleLeads, setRecycleLeads] = useState(false);
+
+  // Lead sources
   const [sources, setSources] = useState({ google_maps: true, apollo: false });
   const toggleSource = (src) => setSources(s => ({ ...s, [src]: !s[src] }));
-  // Google Maps
   const [keyword, setKeyword] = useState('');
   const [gmCity, setGmCity] = useState('Kuching');
   const [radius, setRadius] = useState(50);
-  // Apollo
   const [tags, setTags] = useState(['Property Manager','Facilities Manager']);
   const [tagInput, setTagInput] = useState('');
   const [seniority, setSeniority] = useState(['Manager','Director']);
   const [apolloCity, setApolloCity] = useState('Kuching');
-
-  // Sequence (auto-set from tier)
-  const [seqSteps, setSeqSteps] = useState(TIERS[0].sequence);
-  const [recycleLeads, setRecycleLeads] = useState(false);
-  const [fromName, setFromName] = useState(currentUser.name || '');
-  const [fromEmail, setFromEmail] = useState(currentUser.email || '');
 
   // Prompt & preview
   const [prompt, setPrompt] = useState(`You are a B2B outreach specialist writing for {{business_name}}.\nContact: {{first_name}} at {{company}} ({{title}})\n\nWrite a personalized cold email that:\n- References their industry: {{industry}}\n- Addresses a pain point they likely have\n- Clearly explains what we offer\n- Ends with a soft CTA (15-min call or site visit)\n\nTone: Professional but conversational\nLength: 120-150 words\nLanguage: {{language}}`);
   const [previewing, setPreviewing] = useState(false);
   const [previewDone, setPreviewDone] = useState(false);
   const [previewEmail, setPreviewEmail] = useState(null);
-  const [driveSync, setDriveSync] = useState(false);
 
   // Launch state
   const [created, setCreated] = useState(false);
@@ -85,20 +109,8 @@ export function NewCampaign() {
   const [scraping, setScraping] = useState(false);
 
   const selBiz = businesses.find(b => b.id === bizSel);
-  const tierDef = TIERS[tier];
-  const steps = ['Business & Tier', 'Lead Sources', 'Sequence', 'Review & Launch'];
-
-  const selectTier = (i) => {
-    setTier(i);
-    setSeqSteps(TIERS[i].sequence);
-  };
-
-  const addSeqStep = () => setSeqSteps(s => [...s, {
-    type:'email', icon:'📧', day:(s[s.length-1]?.day||0)+2, label:'Follow-up Email', desc:'Follow-up message'
-  }]);
-  const removeSeqStep = (i) => setSeqSteps(s => s.filter((_,idx) => idx !== i));
-  const moveStep = (i, dir) => setSeqSteps(s => { const a=[...s]; [a[i],a[i+dir]]=[a[i+dir],a[i]]; return a; });
-  const updateStepDay = (i, day) => setSeqSteps(s => s.map((st,idx) => idx===i ? {...st,day} : st));
+  const channelDef = CHANNEL_OPTIONS.find(c => c.id === channelOpt);
+  const hasEmail = seqSteps.some(s => s.type === 'email');
 
   const doPreview = async () => {
     setPreviewing(true);
@@ -129,10 +141,12 @@ export function NewCampaign() {
       google_maps: sources.google_maps ? { keyword, city: gmCity, radius } : null,
       apollo: sources.apollo ? { tags, seniority, city: apolloCity } : null,
       region, fromName, fromEmail, recycleLeads,
-      // keep legacy leadSource for scraper compat
       leadSource: sources.google_maps ? 'google_maps' : sources.apollo ? 'apollo' : 'manual',
       keyword, city: gmCity, tags, seniority,
     };
+
+    // Derive channels array from seqSteps
+    const channelSet = [...new Set(seqSteps.map(s => s.type))];
 
     let newCampaign;
     try {
@@ -143,15 +157,14 @@ export function NewCampaign() {
         status:   'awaiting_approval',
         color:    selBizData?.color || 'blue',
         leads:    0,
-        total:    tierDef.leads,
+        total:    600,
         hot:      0,
         spend:    'RM 0',
         open:     '0%',
         wa:       '-',
-        tier:     tierDef.name,
+        channels: channelSet,
         sequence: seqSteps,
         config,
-        driveSync,
       });
     } catch (e) {
       showToast(`Failed to save campaign: ${e.message}`, 'red');
@@ -160,7 +173,6 @@ export function NewCampaign() {
 
     setCreated(true);
 
-    // Auto-scrape all enabled sources
     if (!newCampaign?.id) return;
     const toScrape = [];
     if (sources.google_maps && keyword) toScrape.push('google_maps');
@@ -173,8 +185,8 @@ export function NewCampaign() {
       try {
         const endpoint = src === 'google_maps' ? '/scraper/google-maps' : '/scraper/apollo';
         const body = src === 'google_maps'
-          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: tierDef.leads }
-          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: tierDef.leads };
+          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: 600 }
+          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: 600 };
         const result = await apiFetch(endpoint, { method: 'POST', body });
         setScrapeLog(l => l.map(x => x.src === src ? { ...x, status:'done', count: result.count } : x));
       } catch (e) {
@@ -248,7 +260,7 @@ export function NewCampaign() {
 
       <div className="card fade-up-2" style={{maxWidth:860}}>
 
-        {/* ── Step 0: Business & Tier ── */}
+        {/* ── Step 0: Business & Campaign ── */}
         {step===0 && (
           <div className="flex-col gap-5">
             <div>
@@ -279,55 +291,127 @@ export function NewCampaign() {
               <div><label className="label">Campaign Name</label><input className="input" placeholder="e.g. Kuching Q3 Push" value={campaignName} onChange={e=>setCampaignName(e.target.value)}/></div>
               <div><label className="label">Target Region</label><input className="input" placeholder="e.g. Kuching, Samarahan" value={region} onChange={e=>setRegion(e.target.value)}/></div>
             </div>
+          </div>
+        )}
 
-            {/* Tier cards with real value */}
+        {/* ── Step 1: Channel & Sequence ── */}
+        {step===1 && (
+          <div className="flex-col gap-5">
             <div>
-              <label className="label">Campaign Package</label>
+              <div style={{fontWeight:600,marginBottom:4}}>Select Channel Strategy</div>
+              <div style={{fontSize:12,color:'var(--muted)',marginBottom:14}}>Choose how you want to reach your leads. This sets the outreach sequence.</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-                {TIERS.map((t,i) => (
-                  <div key={t.name}
-                    onClick={() => selectTier(i)}
+                {CHANNEL_OPTIONS.map(opt => (
+                  <div key={opt.id}
+                    onClick={() => selectChannel(opt.id)}
                     style={{
-                      border: `2px solid ${tier===i ? `var(--${t.color === 'muted' ? 'border' : t.color})` : 'var(--border)'}`,
+                      border:`2px solid ${channelOpt===opt.id?`var(--${opt.color})`:'var(--border)'}`,
                       borderRadius:10, padding:'14px 16px', cursor:'pointer',
-                      background: tier===i ? (t.color === 'muted' ? 'var(--s2)' : `oklch(from var(--${t.color}) l c h / 0.08)`) : 'var(--s1)',
+                      background: channelOpt===opt.id ? `oklch(from var(--${opt.color}) l c h / 0.08)` : 'var(--s1)',
                       transition:'all 0.15s',
                     }}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                      <span style={{fontWeight:700,fontSize:14,color: t.color === 'muted' ? 'var(--text)' : `var(--${t.color})`}}>{t.name}</span>
-                      {tier===i && <span style={{fontSize:10,color: t.color === 'muted' ? 'var(--muted)' : `var(--${t.color})`,fontWeight:600}}>SELECTED</span>}
+                      <span style={{fontSize:20}}>{opt.icon}</span>
+                      {channelOpt===opt.id && <span style={{fontSize:10,color:`var(--${opt.color})`,fontWeight:600}}>SELECTED</span>}
                     </div>
-                    <div style={{fontSize:22,fontWeight:700,marginBottom:2}}>{t.leads.toLocaleString()}</div>
-                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>leads · {t.tagline}</div>
-                    <div style={{borderTop:'1px solid var(--border)',paddingTop:10}}>
-                      {t.features.map(f => (
+                    <div style={{fontWeight:700,fontSize:13,color:`var(--${opt.color})`,marginBottom:4}}>{opt.label}</div>
+                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>{opt.desc}</div>
+                    <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+                      {opt.bestFor.map(f => (
                         <div key={f} style={{fontSize:11,color:'var(--text)',marginBottom:3,display:'flex',gap:6,alignItems:'flex-start'}}>
-                          <span style={{color:'var(--green)',flexShrink:0}}>✓</span>{f}
+                          <span style={{color:`var(--${opt.color})`,flexShrink:0}}>✓</span>{f}
                         </div>
-                      ))}
-                    </div>
-                    <div style={{marginTop:10,display:'flex',gap:6,flexWrap:'wrap'}}>
-                      {t.channels.map(ch => (
-                        <span key={ch} style={{fontSize:10,background:`oklch(from var(--${ch==='email'?'green':ch==='wa'?'blue':'purple'}) l c h / 0.15)`,color:`var(--${ch==='email'?'green':ch==='wa'?'blue':'purple'})`,borderRadius:4,padding:'2px 6px',fontWeight:500}}>
-                          {CHANNEL_ICONS[ch]} {CHANNEL_LABELS[ch]}
-                        </span>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Sequence timeline */}
+            <div>
+              <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>Outreach Sequence</div>
+              <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Auto-set from channel choice. You can customize the timing.</div>
+              <div className="seq-timeline">
+                {seqSteps.map((s,i) => (
+                  <div key={i} className="seq-stage">
+                    <div className={`seq-dot ${i===0?'active':'pending'}`}>{s.icon}</div>
+                    <div className="seq-body">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{fontWeight:500,fontSize:13}}>{s.label}</span>
+                        {i > 0 && (
+                          <>
+                            <input type="number" value={s.day} min={1} max={30} onChange={e=>updateStepDay(i,+e.target.value)}
+                              style={{width:44,fontFamily:'var(--font-mono)',fontSize:11,background:'var(--s2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',padding:'2px 6px'}}/>
+                            <span style={{fontSize:11,color:'var(--muted)'}}>days after previous</span>
+                          </>
+                        )}
+                        {i===0 && <span style={{fontSize:11,color:'var(--muted)'}}>Sent immediately after import</span>}
+                        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+                          {i > 0 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,-1)}>↑</button>}
+                          {i < seqSteps.length-1 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,1)}>↓</button>}
+                          {seqSteps.length > 1 && <button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:12,padding:'2px 6px'}} onClick={() => removeSeqStep(i)}>×</button>}
+                        </div>
+                      </div>
+                      <div style={{fontSize:11,color:'var(--muted)'}}>{s.desc}</div>
+                      {s.type==='call' && (
+                        <label style={{display:'flex',alignItems:'center',gap:6,marginTop:6,fontSize:11,color:'var(--muted)',cursor:'pointer'}}>
+                          <input type="checkbox" checked={s.skipIfReplied||false}
+                            onChange={e => setSeqSteps(ss=>ss.map((st,idx)=>idx===i?{...st,skipIfReplied:e.target.checked}:st))}
+                            style={{accentColor:'var(--blue)'}}/>
+                          Skip if lead already replied
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="btn btn-ghost btn-xs mt-2" onClick={addSeqStep}>＋ Add Step</button>
+            </div>
+
+            <div className="grid-2">
+              <div><label className="label">From Name</label><input className="input" value={fromName} onChange={e=>setFromName(e.target.value)} placeholder="Your name"/></div>
+              <div><label className="label">From Email</label><input className="input" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="your@email.com"/></div>
+            </div>
+
+            <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'var(--s2)',borderRadius:8,cursor:'pointer',fontSize:13}}>
+              <input type="checkbox" checked={recycleLeads} onChange={e=>setRecycleLeads(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
+              <div>
+                <div style={{fontWeight:500}}>Recycle leads after sequence ends</div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>Re-engage leads with a fresh round after the sequence completes</div>
+              </div>
+            </label>
           </div>
         )}
 
-        {/* ── Step 1: Lead Sources ── */}
-        {step===1 && (
+        {/* ── Step 2: Lead Sources ── */}
+        {step===2 && (
           <div className="flex-col gap-5">
             <div>
               <div style={{fontWeight:600,marginBottom:4}}>Lead Sources</div>
               <div style={{fontSize:12,color:'var(--muted)',marginBottom:14}}>
                 Enable multiple sources for a complete lead profile — Google Maps gets the phone number, Apollo gets the decision maker's email.
               </div>
+
+              {/* Channel hint */}
+              {channelOpt === 'wa_email' && (
+                <div style={{background:'var(--blue-dim)',border:'1px solid oklch(62% 0.19 245 / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--blue)',marginBottom:14,display:'flex',gap:8}}>
+                  <span>💡</span>
+                  <span>You selected <strong>WA+Email</strong> — enable both Google Maps (for phone) and Apollo (for email) to get complete lead profiles.</span>
+                </div>
+              )}
+              {channelOpt === 'full' && (
+                <div style={{background:'oklch(from var(--purple) l c h / 0.08)',border:'1px solid oklch(from var(--purple) l c h / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--purple)',marginBottom:14,display:'flex',gap:8}}>
+                  <span>💡</span>
+                  <span>You selected <strong>Full Outreach</strong> — enable both Google Maps (for phone/WA) and Apollo (for email) for maximum reach.</span>
+                </div>
+              )}
+              {channelOpt === 'wa' && (
+                <div style={{background:'var(--green-dim)',border:'1px solid oklch(65% 0.2 145 / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--green)',marginBottom:14,display:'flex',gap:8}}>
+                  <span>💡</span>
+                  <span>You selected <strong>WhatsApp Only</strong> — Google Maps is the best source to get phone numbers for WA outreach.</span>
+                </div>
+              )}
 
               {/* Google Maps toggle card */}
               <div style={{border:`2px solid ${sources.google_maps?'var(--green)':'var(--border)'}`,borderRadius:10,padding:'14px 16px',marginBottom:12,cursor:'pointer',transition:'all 0.15s'}}
@@ -446,93 +530,6 @@ export function NewCampaign() {
                 </div>
               </div>
             )}
-
-            <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'var(--s2)',borderRadius:8,cursor:'pointer',fontSize:13}}>
-              <input type="checkbox" checked={driveSync} onChange={e=>setDriveSync(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
-              <div>
-                <div style={{fontWeight:500}}>Auto-save leads to Google Drive</div>
-                <div style={{fontSize:11,color:'var(--muted)'}}>Saves CSV to campaign folder · Configure in Settings → Drive</div>
-              </div>
-            </label>
-          </div>
-        )}
-
-        {/* ── Step 2: Sequence ── */}
-        {step===2 && (
-          <div className="flex-col gap-4">
-            <div>
-              <div style={{fontWeight:600,marginBottom:4}}>Outreach Sequence</div>
-              <div style={{fontSize:12,color:'var(--muted)'}}>
-                Set to <strong style={{color:`var(--${tierDef.color==='muted'?'text':tierDef.color})`}}>{tierDef.name}</strong> — {tierDef.tagline}. This is what happens to each lead after import.
-              </div>
-            </div>
-
-            <div className="grid-2">
-              <div><label className="label">From Name</label><input className="input" value={fromName} onChange={e=>setFromName(e.target.value)} placeholder="Your name"/></div>
-              <div><label className="label">From Email</label><input className="input" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="your@email.com"/></div>
-            </div>
-
-            {/* Sequence timeline */}
-            <div>
-              <label className="label">Sequence Steps</label>
-              <div className="seq-timeline mt-2">
-                {seqSteps.map((s,i) => (
-                  <div key={i} className="seq-stage">
-                    <div className={`seq-dot ${i===0?'active':'pending'}`}>{s.icon}</div>
-                    <div className="seq-body">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span style={{fontWeight:500,fontSize:13}}>{s.label}</span>
-                        {i > 0 && (
-                          <>
-                            <input type="number" value={s.day} min={1} max={30} onChange={e=>updateStepDay(i,+e.target.value)}
-                              style={{width:44,fontFamily:'var(--font-mono)',fontSize:11,background:'var(--s2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',padding:'2px 6px'}}/>
-                            <span style={{fontSize:11,color:'var(--muted)'}}>days after previous</span>
-                          </>
-                        )}
-                        {i===0 && <span style={{fontSize:11,color:'var(--muted)'}}>Sent immediately after import</span>}
-                        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-                          {i > 0 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,-1)}>↑</button>}
-                          {i < seqSteps.length-1 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,1)}>↓</button>}
-                          {seqSteps.length > 1 && <button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:12,padding:'2px 6px'}} onClick={() => removeSeqStep(i)}>×</button>}
-                        </div>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--muted)'}}>{s.desc}</div>
-                      {s.type==='call' && (
-                        <label style={{display:'flex',alignItems:'center',gap:6,marginTop:6,fontSize:11,color:'var(--muted)',cursor:'pointer'}}>
-                          <input type="checkbox" checked={s.skipIfReplied||false}
-                            onChange={e => setSeqSteps(ss=>ss.map((st,idx)=>idx===i?{...st,skipIfReplied:e.target.checked}:st))}
-                            style={{accentColor:'var(--blue)'}}/>
-                          Skip if lead already replied
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {tier >= 1 && <button className="btn btn-ghost btn-xs mt-2" onClick={addSeqStep}>＋ Add Step</button>}
-            </div>
-
-            {/* Locked channels note for Starter */}
-            {tier === 0 && (
-              <div style={{background:'var(--s2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--muted)',display:'flex',gap:8,alignItems:'center'}}>
-                <span>🔒</span>
-                <span>WhatsApp and Voice Call steps are available on <strong>Growth</strong> and <strong>Enterprise</strong> packages.</span>
-              </div>
-            )}
-            {tier === 1 && (
-              <div style={{background:'var(--s2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--muted)',display:'flex',gap:8,alignItems:'center'}}>
-                <span>🔒</span>
-                <span>AI Voice Call is available on <strong>Enterprise</strong> package.</span>
-              </div>
-            )}
-
-            <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'var(--s2)',borderRadius:8,cursor:'pointer',fontSize:13}}>
-              <input type="checkbox" checked={recycleLeads} onChange={e=>setRecycleLeads(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
-              <div>
-                <div style={{fontWeight:500}}>Recycle leads after sequence ends</div>
-                <div style={{fontSize:11,color:'var(--muted)'}}>Re-engage leads with a fresh round after the sequence completes</div>
-              </div>
-            </label>
           </div>
         )}
 
@@ -544,11 +541,11 @@ export function NewCampaign() {
               <div style={{fontWeight:600,marginBottom:14,fontSize:13}}>Campaign Summary</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,fontSize:12}}>
                 <div><span style={{color:'var(--muted)'}}>Business: </span><strong>{selBiz?.name || '—'}</strong></div>
-                <div><span style={{color:'var(--muted)'}}>Package: </span><strong>{tierDef.name} · {tierDef.leads.toLocaleString()} leads</strong></div>
+                <div><span style={{color:'var(--muted)'}}>Channels: </span><strong>{channelDef?.label}</strong> <span style={{fontSize:14}}>{channelDef?.icon}</span></div>
                 <div><span style={{color:'var(--muted)'}}>Lead sources: </span><strong>{[sources.google_maps&&'Google Maps',sources.apollo&&'Apollo'].filter(Boolean).join(' + ') || 'Manual'}</strong></div>
-                <div><span style={{color:'var(--muted)'}}>Channels: </span><strong>{tierDef.channels.map(c=>CHANNEL_LABELS[c]).join(' → ')}</strong></div>
                 <div><span style={{color:'var(--muted)'}}>From: </span><strong>{fromName} &lt;{fromEmail}&gt;</strong></div>
                 <div><span style={{color:'var(--muted)'}}>Sequence: </span><strong>{seqSteps.length} steps over {seqSteps[seqSteps.length-1]?.day || 0} days</strong></div>
+                <div><span style={{color:'var(--muted)'}}>Region: </span><strong>{region}</strong></div>
               </div>
 
               <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)'}}>
@@ -557,7 +554,7 @@ export function NewCampaign() {
                   {sources.google_maps && keyword && (
                     <div style={{fontSize:12,display:'flex',gap:8}}>
                       <span style={{color:'var(--green)'}}>1.</span>
-                      <span>Scrape up to {tierDef.leads} businesses matching <strong>"{keyword}"</strong> in {gmCity} ({radius}km radius) from Google Maps → saves phone/WhatsApp numbers</span>
+                      <span>Scrape businesses matching <strong>"{keyword}"</strong> in {gmCity} ({radius}km radius) from Google Maps → saves phone/WhatsApp numbers</span>
                     </div>
                   )}
                   {sources.apollo && (
@@ -576,32 +573,34 @@ export function NewCampaign() {
               </div>
             </div>
 
-            {/* Email prompt editor */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-              <div className="flex-col gap-3">
-                <div style={{fontWeight:600,fontSize:13}}>Email Prompt (AI will use this)</div>
-                <textarea className="input mono" style={{minHeight:180,fontSize:11,lineHeight:1.8}} value={prompt} onChange={e=>setPrompt(e.target.value)}/>
-                <div>
-                  <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>Click to insert variable:</div>
-                  {['{{first_name}}','{{company}}','{{industry}}','{{title}}','{{language}}','{{location}}'].map(v => (
-                    <span key={v} className="chip" style={{margin:'0 4px 4px 0',cursor:'pointer',fontSize:10}} onClick={() => setPrompt(p=>p+' '+v)}>{v}</span>
-                  ))}
+            {/* Email prompt editor — only if email channel selected */}
+            {hasEmail && (
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                <div className="flex-col gap-3">
+                  <div style={{fontWeight:600,fontSize:13}}>Email Prompt (AI will use this)</div>
+                  <textarea className="input mono" style={{minHeight:180,fontSize:11,lineHeight:1.8}} value={prompt} onChange={e=>setPrompt(e.target.value)}/>
+                  <div>
+                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>Click to insert variable:</div>
+                    {['{{first_name}}','{{company}}','{{industry}}','{{title}}','{{language}}','{{location}}'].map(v => (
+                      <span key={v} className="chip" style={{margin:'0 4px 4px 0',cursor:'pointer',fontSize:10}} onClick={() => setPrompt(p=>p+' '+v)}>{v}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-col gap-3">
+                  <div style={{fontWeight:600,fontSize:13}}>Preview Generated Email</div>
+                  <button className="btn btn-primary btn-sm" onClick={doPreview}>
+                    {previewing ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> Generating…</> : '⚡ Generate Preview'}
+                  </button>
+                  {previewing && <div className="shimmer" style={{height:160,borderRadius:8}}/>}
+                  {previewDone && !previewing && (
+                    <div style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:12,fontSize:12,lineHeight:1.8,maxHeight:200,overflowY:'auto'}}>
+                      <div style={{fontWeight:600,marginBottom:6,color:'var(--text)'}}>Subject: {previewEmail?.subject}</div>
+                      <div style={{color:'var(--muted)',whiteSpace:'pre-line'}}>{previewEmail?.body}</div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex-col gap-3">
-                <div style={{fontWeight:600,fontSize:13}}>Preview Generated Email</div>
-                <button className="btn btn-primary btn-sm" onClick={doPreview}>
-                  {previewing ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> Generating…</> : '⚡ Generate Preview'}
-                </button>
-                {previewing && <div className="shimmer" style={{height:160,borderRadius:8}}/>}
-                {previewDone && !previewing && (
-                  <div style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:12,fontSize:12,lineHeight:1.8,maxHeight:200,overflowY:'auto'}}>
-                    <div style={{fontWeight:600,marginBottom:6,color:'var(--text)'}}>Subject: {previewEmail?.subject}</div>
-                    <div style={{color:'var(--muted)',whiteSpace:'pre-line'}}>{previewEmail?.body}</div>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>

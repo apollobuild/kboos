@@ -8,7 +8,7 @@ import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { googleDriveService } from '../services/googleDrive.js';
 import { apiFetch } from '../services/api.js';
 
-const APIS = ['claude', 'sendgrid', 'wati', 'apollo', 'outscraper', 'billplz_api_key', 'billplz_collection_id', 'billplz_x_signature_key'];
+const APIS = ['claude', 'sendgrid', 'wati', 'apollo', 'outscraper', 'billplz_api_key', 'billplz_collection_id', 'billplz_x_signature_key', 'vapi', 'vapi_phone_number_id'];
 const API_LABELS = {
   claude: 'Claude (Anthropic)',
   sendgrid: 'SendGrid',
@@ -18,6 +18,8 @@ const API_LABELS = {
   billplz_api_key: 'Billplz — API Key',
   billplz_collection_id: 'Billplz — Collection ID',
   billplz_x_signature_key: 'Billplz — X-Signature Key',
+  vapi: 'Vapi (AI Voice)',
+  vapi_phone_number_id: 'Vapi — Phone Number ID',
 };
 
 export function Settings() {

@@ -95,7 +95,7 @@ export function AllCampaigns() {
               <tr>
                 <th>Campaign</th><th>Business</th><th>Status</th>
                 <th style={{minWidth:140}}>Progress</th>
-                <th>Hot</th><th>Open Rate</th><th>WA Resp</th><th>Spend</th><th>Tier</th><th>Actions</th>
+                <th>Hot</th><th>Open Rate</th><th>WA Resp</th><th>Spend</th><th>Channels</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +122,12 @@ export function AllCampaigns() {
                     <td><span className="mono text-sm">{c.open}</span></td>
                     <td><span className="mono text-sm">{c.wa||'-'}</span></td>
                     <td><span className="mono text-green text-sm">{c.spend}</span></td>
-                    <td><span className="badge gray text-xs">{c.tier}</span></td>
+                    <td>
+                      {c.channels?.length
+                        ? <span style={{fontSize:14}}>{c.channels.includes('call') ? '💬📧📞' : c.channels.includes('email') ? '💬📧' : '💬'}</span>
+                        : <span className="badge gray text-xs">{c.tier}</span>
+                      }
+                    </td>
                     <td>
                       <div style={{display:'flex',gap:6,alignItems:'center'}}>
                         {c.status === 'awaiting_approval' && (
