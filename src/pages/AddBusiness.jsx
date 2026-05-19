@@ -44,17 +44,29 @@ export function AddBusiness() {
   };
 
   const approve = async () => {
-    if (!form.name) { alert('Please enter a business name first.'); return; }
+    if (!form.name) { showToast('Please enter a business name first.', 'red'); return; }
     setFlashGreen(true);
     await new Promise(r => setTimeout(r, 400));
     setApproved(true);
     try {
       const colors = ['green','blue','purple','amber','cyan'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      // Unique ID: slugified name + random suffix to avoid collisions
       const slug = form.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
       const id = slug + Math.random().toString(36).slice(2, 6);
-      await addBusiness({ id, name:form.name, industry:form.industry||'General', color, campaigns:0, leads:0, hot:0, spend:'RM0', brief:'approved' });
+      // Merge any edits into the generated content before saving
+      const finalContent = generatedContent ? {
+        email:   editContent.email   ?? (generatedContent.email   ? str(generatedContent.email)   : null),
+        whatsapp:editContent.wa      ?? (generatedContent.whatsapp? str(generatedContent.whatsapp): null),
+        voice:   editContent.voice   ?? (generatedContent.voice   ? str(generatedContent.voice)   : null),
+        scoring: editContent.scoring ?? (generatedContent.scoring ? str(generatedContent.scoring) : null),
+      } : null;
+      await addBusiness({
+        id, name:form.name, industry:form.industry||'General', color,
+        contact: form.contact||'', phone: form.phone||'',
+        campaigns:0, leads:0, hot:0, spend:'RM 0',
+        brief: generated ? 'approved' : 'none',
+        briefContent: finalContent,
+      });
       setTimeout(() => setPage('businesses'), 500);
     } catch (e) {
       showToast(`Failed to save business: ${e.message}`, 'red');
@@ -153,9 +165,16 @@ export function AddBusiness() {
                 />
               </div>
             </div>
-            <button className="btn btn-green btn-full mt-4" onClick={generate} disabled={generating}>
-              {generating ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> Generating...</> : '⚡ Generate All Outreach Assets'}
-            </button>
+            <div style={{display:'flex',gap:10,marginTop:16}}>
+              <button className="btn btn-green btn-full" onClick={generate} disabled={generating}>
+                {generating ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> Generating...</> : '⚡ Generate All Outreach Assets'}
+              </button>
+              {!generated && (
+                <button className="btn btn-ghost" style={{flexShrink:0}} onClick={approve} disabled={approved || !form.name}>
+                  Skip →
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
