@@ -42,8 +42,8 @@ const LEAD_SOURCES = {
 };
 
 export function NewCampaign() {
-  const { businesses, addCampaign, setPage } = useAppStore(useShallow(s => ({
-    businesses: s.businesses, addCampaign: s.addCampaign, setPage: s.setPage,
+  const { businesses, addCampaign, setPage, showToast } = useAppStore(useShallow(s => ({
+    businesses: s.businesses, addCampaign: s.addCampaign, setPage: s.setPage, showToast: s.showToast,
   })));
 
   const currentUser = (() => {
@@ -133,23 +133,29 @@ export function NewCampaign() {
       fromEmail,
       recycleLeads,
     };
-    const newCampaign = await addCampaign({
-      bizId:    bizSel,
-      bizName:  selBizData?.name || 'Unknown',
-      name:     campaignName || `${selBizData?.name || 'Campaign'} Q${Math.floor(Math.random()*4)+1}`,
-      status:   'awaiting_approval',
-      color:    selBizData?.color || 'blue',
-      leads:    0,
-      total:    tierTotals[tier],
-      hot:      0,
-      spend:    'RM 0',
-      open:     '0%',
-      wa:       '-',
-      tier:     tierLabels[tier],
-      sequence: seqSteps,
-      config:   audienceConfig,
-      driveSync,
-    });
+    let newCampaign;
+    try {
+      newCampaign = await addCampaign({
+        bizId:    bizSel,
+        bizName:  selBizData?.name || 'Unknown',
+        name:     campaignName || `${selBizData?.name || 'Campaign'} Q${Math.floor(Math.random()*4)+1}`,
+        status:   'awaiting_approval',
+        color:    selBizData?.color || 'blue',
+        leads:    0,
+        total:    tierTotals[tier],
+        hot:      0,
+        spend:    'RM 0',
+        open:     '0%',
+        wa:       '-',
+        tier:     tierLabels[tier],
+        sequence: seqSteps,
+        config:   audienceConfig,
+        driveSync,
+      });
+    } catch (e) {
+      showToast(`Failed to save campaign: ${e.message}`, 'red');
+      return;
+    }
 
     setCreated(true);
 

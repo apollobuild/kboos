@@ -43,17 +43,24 @@ export function AddBusiness() {
     }
   };
 
-  const approve = () => {
+  const approve = async () => {
     if (!form.name) { alert('Please enter a business name first.'); return; }
     setFlashGreen(true);
-    setTimeout(() => {
-      setApproved(true);
+    await new Promise(r => setTimeout(r, 400));
+    setApproved(true);
+    try {
       const colors = ['green','blue','purple','amber','cyan'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const id = form.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-      addBusiness({ id, name:form.name, industry:form.industry||'General', color, campaigns:0, leads:0, hot:0, spend:'RM0', brief:'approved' });
-      setTimeout(() => setPage('businesses'), 800);
-    }, 400);
+      // Unique ID: slugified name + random suffix to avoid collisions
+      const slug = form.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+      const id = slug + Math.random().toString(36).slice(2, 6);
+      await addBusiness({ id, name:form.name, industry:form.industry||'General', color, campaigns:0, leads:0, hot:0, spend:'RM0', brief:'approved' });
+      setTimeout(() => setPage('businesses'), 500);
+    } catch (e) {
+      showToast(`Failed to save business: ${e.message}`, 'red');
+      setApproved(false);
+      setFlashGreen(false);
+    }
   };
 
   const str = (v) => {
