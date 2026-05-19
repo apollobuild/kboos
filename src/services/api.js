@@ -11,8 +11,9 @@ export async function apiFetch(path, options = {}) {
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
-  if (res.status === 401) {
+  if (res.status === 401 && !path.startsWith('/auth/')) {
     localStorage.removeItem('kboos_token');
+    localStorage.removeItem('kboos_user');
     window.location.reload();
     throw new Error('Session expired');
   }

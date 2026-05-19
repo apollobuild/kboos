@@ -11,7 +11,7 @@ export function AddBusiness() {
 
   const [form, setForm] = useState({
     name:'', industry:'', contact:'', phone:'', email:'', website:'',
-    color:'blue', commissionType:'percent', commissionValue:'',
+    color:'blue', commissionType:'percent', commissionValue:'', avgDealValue:'',
   });
   const [generatedContent, setGeneratedContent] = useState(null);
   const [brief, setBrief] = useState({ service:'', audience:'', usps:'', tone:'professional', lang:'EN', locations:['Kuching','Kota Samarahan'] });
@@ -73,6 +73,7 @@ export function AddBusiness() {
         email: form.email||'', website: form.website||'',
         commissionType: form.commissionType||'percent',
         commissionValue: form.commissionValue||'',
+        avgDealValue: Number(form.avgDealValue)||0,
         campaigns:0, leads:0, hot:0, spend:'RM 0',
         brief: generated ? 'approved' : 'none',
         briefContent: finalContent,
@@ -160,27 +161,36 @@ export function AddBusiness() {
                 </div>
               </div>
 
-              {/* Commission structure */}
-              <div>
-                <label className="label">Commission Structure</label>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                  <div>
+              {/* Commission + Deal Value */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div>
+                  <label className="label">Commission Structure</label>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
                     <select className="input" value={form.commissionType} onChange={e=>setForm(p=>({...p,commissionType:e.target.value}))}>
                       <option value="percent">% per sale</option>
-                      <option value="flat_lead">Flat fee per lead</option>
-                      <option value="flat_sale">Flat fee per closed sale</option>
-                      <option value="retainer">Monthly retainer</option>
+                      <option value="flat_lead">Flat / lead</option>
+                      <option value="flat_sale">Flat / sale</option>
+                      <option value="retainer">Retainer</option>
                     </select>
+                    <div style={{position:'relative'}}>
+                      <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:12,pointerEvents:'none'}}>
+                        {form.commissionType==='percent' ? '%' : 'RM'}
+                      </span>
+                      <input className="input" style={{paddingLeft:28}}
+                        placeholder={form.commissionType==='percent' ? '10' : '500'}
+                        value={form.commissionValue}
+                        onChange={e=>setForm(p=>({...p,commissionValue:e.target.value}))}/>
+                    </div>
                   </div>
+                </div>
+                <div>
+                  <label className="label">Avg Deal Value (RM)</label>
                   <div style={{position:'relative'}}>
-                    <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:12,pointerEvents:'none'}}>
-                      {form.commissionType==='percent' ? '%' : 'RM'}
-                    </span>
-                    <input className="input" style={{paddingLeft:28}}
-                      placeholder={form.commissionType==='percent' ? '10' : '500'}
-                      value={form.commissionValue}
-                      onChange={e=>setForm(p=>({...p,commissionValue:e.target.value}))}/>
+                    <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:12,pointerEvents:'none'}}>RM</span>
+                    <input className="input" style={{paddingLeft:30}} type="number" placeholder="5000"
+                      value={form.avgDealValue} onChange={e=>setForm(p=>({...p,avgDealValue:e.target.value}))}/>
                   </div>
+                  <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Used to estimate pipeline value in client portal</div>
                 </div>
               </div>
             </div>

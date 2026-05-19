@@ -75,9 +75,22 @@ export default function App() {
   if (!user || !token || inviteToken) {
     return <Login onLogin={(u) => {
       setUser(u);
+      if (u.role === 'client') { setLoading(false); return; }
       setLoading(true);
       Promise.all([init(), initWallet()]).finally(() => setLoading(false));
     }} />;
+  }
+
+  // Client role — full-screen portal, no sidebar
+  if (user.role === 'client') {
+    return (
+      <ErrorBoundary>
+        <div style={{minHeight:'100vh',background:'var(--bg)',overflowY:'auto'}}>
+          <ClientPortal />
+        </div>
+        <Toast />
+      </ErrorBoundary>
+    );
   }
 
   if (loading) {
