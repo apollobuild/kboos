@@ -43,10 +43,11 @@ export function Businesses() {
             onClick={() => setOpenBiz(b)}
           >
             <div className="flex items-center gap-3 mb-3">
-              <BizAvatar id={b.id} color={b.color} size={40}/>
-              <div>
+              <BizAvatar id={b.id} name={b.name} color={b.color} size={40}/>
+              <div style={{minWidth:0,flex:1}}>
                 <div style={{fontWeight:600,fontSize:14}}>{b.name}</div>
                 <div style={{fontSize:12,color:'var(--muted)'}}>{b.industry}</div>
+                {b.contact && <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>👤 {b.contact}</div>}
               </div>
             </div>
             <div className="grid-2 mb-3" style={{gap:8}}>
@@ -54,7 +55,7 @@ export function Businesses() {
                 {label:'Campaigns',val:b.campaigns},
                 {label:'Total Leads',val:(b.leads||0).toLocaleString()},
                 {label:'Hot Leads',val:b.hot,color:'amber'},
-                {label:'Spend',val:b.spend,color:'green'},
+                {label:'Pipeline',val:b.hot && b.avgDealValue ? `RM ${((b.hot||0)*(b.avgDealValue||0)).toLocaleString()}` : '—',color:'green'},
               ].map(s => (
                 <div key={s.label} style={{background:'var(--s2)',borderRadius:8,padding:'8px 10px'}}>
                   <div style={{fontSize:10,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{s.label}</div>
@@ -62,6 +63,11 @@ export function Businesses() {
                 </div>
               ))}
             </div>
+            {b.commissionValue && (
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:8,padding:'5px 8px',background:'var(--s2)',borderRadius:6}}>
+                Commission: {b.commissionType==='percent' ? `${b.commissionValue}% per sale` : b.commissionType==='flat_lead' ? `RM ${b.commissionValue}/lead` : b.commissionType==='flat_sale' ? `RM ${b.commissionValue}/sale` : `RM ${b.commissionValue}/mo retainer`}
+              </div>
+            )}
             <div className="flex items-center justify-between mb-3">
               <span style={{fontSize:11,color:'var(--muted)'}}>Brief</span>
               {b.brief==='approved' && <span className="badge green">✓ Approved</span>}

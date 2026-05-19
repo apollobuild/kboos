@@ -5,11 +5,12 @@ import { BizAvatar } from '../ui/BizAvatar.jsx';
 export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
   const campaigns = useAppStore(useShallow(s => s.campaigns.filter(c => c.bizId === biz.id)));
 
+  const pipeline = (biz.hot || 0) * (biz.avgDealValue || 0);
   const stats = [
     { label: 'Campaigns', val: biz.campaigns || campaigns.length },
     { label: 'Total Leads', val: (biz.leads || 0).toLocaleString() },
     { label: 'Hot Leads', val: biz.hot || 0, color: 'amber' },
-    { label: 'Spend', val: biz.spend || 'RM 0', color: 'green' },
+    { label: 'Est. Pipeline', val: pipeline ? `RM ${pipeline.toLocaleString()}` : '—', color: 'green' },
   ];
 
   return (
@@ -26,7 +27,7 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
           </div>
 
           <div className="flex items-center gap-3 mb-4">
-            <BizAvatar id={biz.id} color={biz.color} size={52} />
+            <BizAvatar id={biz.id} name={biz.name} color={biz.color} size={52} />
             <div>
               <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.02 }}>{biz.name}</h2>
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>{biz.industry}</div>
@@ -54,6 +55,20 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
               </div>
             ))}
           </div>
+
+          {(biz.contact || biz.phone || biz.email || biz.website || biz.commissionValue) && (
+            <div style={{ background: 'var(--s2)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 10 }}>Client Details</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {biz.contact && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Contact</span><span style={{ fontWeight: 500 }}>{biz.contact}</span></div>}
+                {biz.phone && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Phone</span><a href={`tel:${biz.phone}`} style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.phone}</a></div>}
+                {biz.email && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Email</span><a href={`mailto:${biz.email}`} style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.email}</a></div>}
+                {biz.website && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Website</span><a href={biz.website.startsWith('http') ? biz.website : `https://${biz.website}`} target="_blank" rel="noopener noreferrer" style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.website}</a></div>}
+                {biz.commissionValue && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Commission</span><span style={{ fontWeight: 500, color: 'var(--green)' }}>{biz.commissionType === 'percent' ? `${biz.commissionValue}% per sale` : biz.commissionType === 'flat_lead' ? `RM ${biz.commissionValue}/lead` : biz.commissionType === 'flat_sale' ? `RM ${biz.commissionValue}/sale` : `RM ${biz.commissionValue}/mo`}</span></div>}
+                {biz.avgDealValue > 0 && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Avg Deal</span><span style={{ fontWeight: 500 }}>RM {(biz.avgDealValue || 0).toLocaleString()}</span></div>}
+              </div>
+            </div>
+          )}
 
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Campaigns</div>
           {campaigns.length === 0 ? (

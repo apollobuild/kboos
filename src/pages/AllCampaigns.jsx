@@ -108,7 +108,7 @@ export function AllCampaigns() {
                       <div style={{fontWeight:500,fontSize:13}}>{c.name}</div>
                       <div style={{fontSize:11,color:'var(--muted)'}}>{c.bizName}</div>
                     </td>
-                    <td><BizAvatar id={c.bizId} color={c.color} size={24}/></td>
+                    <td><BizAvatar id={c.bizId} name={c.bizName} color={c.color} size={24}/></td>
                     <td><CampaignBadge status={c.status}/></td>
                     <td>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>

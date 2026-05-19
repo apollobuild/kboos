@@ -270,7 +270,7 @@ export function NewCampaign() {
                   <div key={b.id} className={`radio-card${bizSel===b.id?' selected':''}`} style={{flex:'none'}}
                     onClick={() => { setBizSel(b.id); setCampaignName(`${b.name} Q${Math.floor(Math.random()*4)+1}`); }}>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <BizAvatar id={b.id} color={b.color} size={24}/>
+                      <BizAvatar id={b.id} name={b.name} color={b.color} size={24}/>
                       <div><div className="radio-card-title">{b.name}</div><div className="radio-card-sub">{b.industry}</div></div>
                     </div>
                   </div>
