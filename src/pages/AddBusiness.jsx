@@ -6,7 +6,13 @@ import { apiFetch } from '../services/api.js';
 export function AddBusiness() {
   const { setPage, addBusiness, showToast } = useAppStore(useShallow(s => ({ setPage:s.setPage, addBusiness:s.addBusiness, showToast:s.showToast })));
 
-  const [form, setForm] = useState({ name:'', industry:'', contact:'', phone:'' });
+  const COLORS = ['green','blue','purple','amber','cyan'];
+  const COLOR_HEX = { green:'#22c55e', blue:'#3b82f6', purple:'#a855f7', amber:'#f59e0b', cyan:'#06b6d4' };
+
+  const [form, setForm] = useState({
+    name:'', industry:'', contact:'', phone:'', email:'', website:'',
+    color:'blue', commissionType:'percent', commissionValue:'',
+  });
   const [generatedContent, setGeneratedContent] = useState(null);
   const [brief, setBrief] = useState({ service:'', audience:'', usps:'', tone:'professional', lang:'EN', locations:['Kuching','Kota Samarahan'] });
   const [tagInput, setTagInput] = useState('');
@@ -25,6 +31,7 @@ export function AddBusiness() {
         body: {
           name: form.name,
           industry: form.industry || 'General',
+          website: form.website || '',
           service: brief.service,
           audience: brief.audience,
           usps: brief.usps,
@@ -61,8 +68,11 @@ export function AddBusiness() {
         scoring: editContent.scoring ?? (generatedContent.scoring ? str(generatedContent.scoring) : null),
       } : null;
       await addBusiness({
-        id, name:form.name, industry:form.industry||'General', color,
+        id, name:form.name, industry:form.industry||'General', color: form.color,
         contact: form.contact||'', phone: form.phone||'',
+        email: form.email||'', website: form.website||'',
+        commissionType: form.commissionType||'percent',
+        commissionValue: form.commissionValue||'',
         campaigns:0, leads:0, hot:0, spend:'RM 0',
         brief: generated ? 'approved' : 'none',
         briefContent: finalContent,
@@ -104,17 +114,75 @@ export function AddBusiness() {
           <div className="card">
             <div style={{fontWeight:600,marginBottom:16,fontSize:13}}>Business Details</div>
             <div className="flex-col gap-3">
-              {[
-                {label:'Business Name',key:'name',placeholder:'e.g. Gadong Squad Landscaping'},
-                {label:'Industry',key:'industry',placeholder:'e.g. Landscaping, IT, Healthcare'},
-                {label:'Contact Person',key:'contact',placeholder:'e.g. Ali Hassan'},
-                {label:'Phone / WhatsApp',key:'phone',placeholder:'+60 12-345 6789'},
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="label">{f.label}</label>
-                  <input className="input" placeholder={f.placeholder} value={form[f.key]} onChange={e => setForm(p=>({...p,[f.key]:e.target.value}))}/>
+              {/* Name + Color on same row */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,alignItems:'end'}}>
+                <div>
+                  <label className="label">Business Name</label>
+                  <input className="input" placeholder="e.g. Gadong Squad Landscaping" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
                 </div>
-              ))}
+                <div>
+                  <label className="label">Colour</label>
+                  <div style={{display:'flex',gap:6,paddingBottom:2}}>
+                    {COLORS.map(c => (
+                      <div key={c} onClick={() => setForm(p=>({...p,color:c}))}
+                        style={{width:28,height:28,borderRadius:'50%',background:COLOR_HEX[c],cursor:'pointer',
+                          outline: form.color===c ? `3px solid ${COLOR_HEX[c]}` : '3px solid transparent',
+                          outlineOffset:2,transition:'outline 0.15s'}}/>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Industry</label>
+                <input className="input" placeholder="e.g. Landscaping, IT, Healthcare" value={form.industry} onChange={e=>setForm(p=>({...p,industry:e.target.value}))}/>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div>
+                  <label className="label">Contact Person</label>
+                  <input className="input" placeholder="e.g. Ali Hassan" value={form.contact} onChange={e=>setForm(p=>({...p,contact:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="label">Phone / WhatsApp</label>
+                  <input className="input" placeholder="+60 12-345 6789" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}/>
+                </div>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div>
+                  <label className="label">Business Email</label>
+                  <input className="input" type="email" placeholder="contact@business.com" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="label">Website</label>
+                  <input className="input" placeholder="https://gadong.my" value={form.website} onChange={e=>setForm(p=>({...p,website:e.target.value}))}/>
+                </div>
+              </div>
+
+              {/* Commission structure */}
+              <div>
+                <label className="label">Commission Structure</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div>
+                    <select className="input" value={form.commissionType} onChange={e=>setForm(p=>({...p,commissionType:e.target.value}))}>
+                      <option value="percent">% per sale</option>
+                      <option value="flat_lead">Flat fee per lead</option>
+                      <option value="flat_sale">Flat fee per closed sale</option>
+                      <option value="retainer">Monthly retainer</option>
+                    </select>
+                  </div>
+                  <div style={{position:'relative'}}>
+                    <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:12,pointerEvents:'none'}}>
+                      {form.commissionType==='percent' ? '%' : 'RM'}
+                    </span>
+                    <input className="input" style={{paddingLeft:28}}
+                      placeholder={form.commissionType==='percent' ? '10' : '500'}
+                      value={form.commissionValue}
+                      onChange={e=>setForm(p=>({...p,commissionValue:e.target.value}))}/>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="card">
