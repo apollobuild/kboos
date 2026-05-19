@@ -82,6 +82,9 @@ export function NewCampaign() {
   const [previewDone, setPreviewDone] = useState(false);
   const [previewEmail, setPreviewEmail] = useState(null);
   const [created, setCreated] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeResult, setScrapeResult] = useState(null);
+  const [createdCampaignId, setCreatedCampaignId] = useState(null);
 
   const steps = ['Business & Basics', 'Audience & Leads', 'Sequence', 'Prompts & Preview'];
   const selBiz = businesses.find(b => b.id === bizSel);
@@ -119,7 +122,7 @@ export function NewCampaign() {
     }
   };
 
-  const doCreate = () => {
+  const doCreate = async () => {
     const selBizData = businesses.find(b => b.id === bizSel);
     const audienceConfig = {
       leadSource,
@@ -130,7 +133,7 @@ export function NewCampaign() {
       fromEmail,
       recycleLeads,
     };
-    addCampaign({
+    const newCampaign = await addCampaign({
       bizId:    bizSel,
       bizName:  selBizData?.name || 'Unknown',
       name:     campaignName || `${selBizData?.name || 'Campaign'} Q${Math.floor(Math.random()*4)+1}`,
@@ -147,7 +150,26 @@ export function NewCampaign() {
       config:   audienceConfig,
       driveSync,
     });
+
     setCreated(true);
+
+    // Auto-trigger scrape for google_maps or apollo
+    if (newCampaign?.id && (leadSource === 'google_maps' || leadSource === 'apollo')) {
+      setCreatedCampaignId(newCampaign.id);
+      setScraping(true);
+      try {
+        const endpoint = leadSource === 'google_maps' ? '/scraper/google-maps' : '/scraper/apollo';
+        const body = leadSource === 'google_maps'
+          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: tierTotals[tier] }
+          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: tierTotals[tier] };
+        const result = await apiFetch(endpoint, { method: 'POST', body });
+        setScrapeResult(result);
+      } catch (e) {
+        setScrapeResult({ error: e.message || 'Scrape failed' });
+      } finally {
+        setScraping(false);
+      }
+    }
   };
 
   if (created) return (
@@ -157,8 +179,37 @@ export function NewCampaign() {
         <path d="M18 30l8 8 16-16" stroke="var(--green)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" className="check-mark"/>
       </svg>
       <div style={{fontWeight:600,fontSize:18,color:'var(--text)'}}>Campaign Created!</div>
-      <div style={{color:'var(--muted)',fontSize:13}}>Awaiting approval before going active.</div>
-      <button className="btn btn-green" onClick={() => setPage('campaigns')}>View Campaigns →</button>
+
+      {scraping && (
+        <div style={{textAlign:'center'}}>
+          <div style={{color:'var(--muted)',fontSize:13,marginBottom:8}}>
+            {leadSource === 'google_maps' ? '📍 Scraping Google Maps...' : '🔭 Importing from Apollo...'}
+          </div>
+          <div style={{fontSize:11,color:'var(--muted)'}}>This may take 30–90 seconds. Don't close this tab.</div>
+          <div style={{animation:'spin 1s linear infinite',display:'inline-block',fontSize:20,marginTop:8}}>◌</div>
+        </div>
+      )}
+
+      {!scraping && scrapeResult && !scrapeResult.error && (
+        <div style={{background:'var(--green-dim)',border:'1px solid var(--green)',borderRadius:8,padding:'10px 20px',fontSize:13,color:'var(--green)',textAlign:'center'}}>
+          ✓ {scrapeResult.count} leads imported successfully
+        </div>
+      )}
+
+      {!scraping && scrapeResult?.error && (
+        <div style={{background:'var(--red-dim)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 20px',fontSize:12,color:'var(--red)',textAlign:'center',maxWidth:340}}>
+          Lead scrape failed: {scrapeResult.error}<br/>
+          <span style={{color:'var(--muted)'}}>You can still scrape later from the campaign view.</span>
+        </div>
+      )}
+
+      {!scraping && (
+        <>
+          <div style={{color:'var(--muted)',fontSize:13}}>Awaiting approval before going active.</div>
+          <button className="btn btn-green" onClick={() => setPage('leads')}>View Leads →</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>View Campaigns</button>
+        </>
+      )}
     </div>
   );
 

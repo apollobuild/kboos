@@ -3,14 +3,37 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { CampaignBadge } from '../components/ui/CampaignBadge.jsx';
+import { apiFetch } from '../services/api.js';
 
 const PAGE_SIZE = 8;
 
 export function AllCampaigns() {
-  const { campaigns, toggleCampaign, setPage } = useAppStore(useShallow(s => ({ campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, setPage:s.setPage })));
+  const { campaigns, toggleCampaign, updateCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
+    campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, showToast:s.showToast, setPage:s.setPage,
+  })));
 
   const [filter, setFilter] = useState('All');
   const [pg, setPg] = useState(0);
+  const [scrapingId, setScrapingId] = useState(null);
+
+  const scrape = async (c) => {
+    const cfg = c.config || {};
+    if (!cfg.leadSource || cfg.leadSource === 'manual') return;
+    setScrapingId(c.id);
+    try {
+      const endpoint = cfg.leadSource === 'google_maps' ? '/scraper/google-maps' : '/scraper/apollo';
+      const body = cfg.leadSource === 'google_maps'
+        ? { campaignId: c.id, keyword: cfg.keyword, city: cfg.city, radius: cfg.radius || 50, limit: c.total }
+        : { campaignId: c.id, jobTitles: cfg.tags || [], seniority: cfg.seniority || [], city: cfg.city, limit: c.total };
+      const result = await apiFetch(endpoint, { method: 'POST', body });
+      showToast(`✓ ${result.count} leads imported`);
+      await updateCampaign(c.id, { leads: result.total });
+    } catch (e) {
+      showToast(e.message || 'Scrape failed', 'red');
+    } finally {
+      setScrapingId(null);
+    }
+  };
   const tabs = ['All','Active','Paused','Awaiting Review'];
 
   const filtered = campaigns.filter(c =>
@@ -63,12 +86,20 @@ export function AllCampaigns() {
                     <td><span className="mono text-green text-sm">{c.spend}</span></td>
                     <td><span className="badge gray text-xs">{c.tier}</span></td>
                     <td>
-                      {c.status==='awaiting_approval'
-                        ? <button className="btn btn-amber btn-xs" onClick={() => setPage('approval')}>Review</button>
-                        : (c.status==='active'||c.status==='paused')
-                          ? <button className={`btn ${c.status==='active'?'btn-ghost':'btn-green'} btn-xs`} onClick={() => toggleCampaign(c.id)}>{c.status==='active'?'Pause':'Resume'}</button>
-                          : null
-                      }
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                        {c.status==='awaiting_approval'
+                          ? <button className="btn btn-amber btn-xs" onClick={() => setPage('approval')}>Review</button>
+                          : (c.status==='active'||c.status==='paused')
+                            ? <button className={`btn ${c.status==='active'?'btn-ghost':'btn-green'} btn-xs`} onClick={() => toggleCampaign(c.id)}>{c.status==='active'?'Pause':'Resume'}</button>
+                            : null
+                        }
+                        {c.config?.leadSource && c.config.leadSource !== 'manual' && (
+                          <button className="btn btn-ghost btn-xs" disabled={scrapingId===c.id} onClick={() => scrape(c)}
+                            title={c.config.leadSource === 'google_maps' ? 'Scrape Google Maps' : 'Import from Apollo'}>
+                            {scrapingId===c.id ? '◌' : c.config.leadSource === 'google_maps' ? '📍' : '🔭'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

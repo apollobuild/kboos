@@ -8,12 +8,13 @@ import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { googleDriveService } from '../services/googleDrive.js';
 import { apiFetch } from '../services/api.js';
 
-const APIS = ['claude', 'sendgrid', 'wati', 'apollo', 'billplz_api_key', 'billplz_collection_id', 'billplz_x_signature_key'];
+const APIS = ['claude', 'sendgrid', 'wati', 'apollo', 'outscraper', 'billplz_api_key', 'billplz_collection_id', 'billplz_x_signature_key'];
 const API_LABELS = {
   claude: 'Claude (Anthropic)',
   sendgrid: 'SendGrid',
   wati: 'WATI (WhatsApp)',
   apollo: 'Apollo.io',
+  outscraper: 'Outscraper (Google Maps)',
   billplz_api_key: 'Billplz — API Key',
   billplz_collection_id: 'Billplz — Collection ID',
   billplz_x_signature_key: 'Billplz — X-Signature Key',
