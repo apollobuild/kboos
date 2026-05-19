@@ -8,13 +8,24 @@ import { apiFetch } from '../services/api.js';
 const PAGE_SIZE = 8;
 
 export function AllCampaigns() {
-  const { campaigns, toggleCampaign, updateCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
-    campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, showToast:s.showToast, setPage:s.setPage,
+  const { campaigns, toggleCampaign, updateCampaign, removeCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
+    campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, removeCampaign:s.removeCampaign, showToast:s.showToast, setPage:s.setPage,
   })));
 
   const [filter, setFilter] = useState('All');
   const [pg, setPg] = useState(0);
   const [scrapingId, setScrapingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // campaign id pending delete
+
+  const doDelete = async (id) => {
+    try {
+      await removeCampaign(id);
+      setConfirmDelete(null);
+      showToast('Campaign deleted');
+    } catch (e) {
+      showToast(e.message || 'Delete failed', 'red');
+    }
+  };
 
   const scrape = async (c) => {
     const cfg = c.config || {};
@@ -86,7 +97,7 @@ export function AllCampaigns() {
                     <td><span className="mono text-green text-sm">{c.spend}</span></td>
                     <td><span className="badge gray text-xs">{c.tier}</span></td>
                     <td>
-                      <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}}>
                         {c.status==='awaiting_approval'
                           ? <button className="btn btn-amber btn-xs" onClick={() => setPage('approval')}>Review</button>
                           : (c.status==='active'||c.status==='paused')
@@ -99,6 +110,7 @@ export function AllCampaigns() {
                             {scrapingId===c.id ? '◌' : c.config.leadSource === 'google_maps' ? '📍' : '🔭'}
                           </button>
                         )}
+                        <button className="btn btn-xs" style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:14,padding:'2px 6px',lineHeight:1}} onClick={() => setConfirmDelete(c.id)} title="Delete campaign">×</button>
                       </div>
                     </td>
                   </tr>
@@ -115,6 +127,22 @@ export function AllCampaigns() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirm modal */}
+      {confirmDelete && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={() => setConfirmDelete(null)}>
+          <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:12,padding:28,minWidth:320,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:8}}>Delete Campaign?</div>
+            <div style={{fontSize:13,color:'var(--muted)',marginBottom:20}}>
+              This will permanently delete the campaign and all its leads. This cannot be undone.
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="btn btn-sm" style={{background:'var(--red)',color:'#fff',border:'none'}} onClick={() => doDelete(confirmDelete)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

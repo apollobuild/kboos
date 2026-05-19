@@ -97,6 +97,10 @@ export const useAppStore = create((set, get) => ({
     const updated = await campaignsService.toggleStatus(id);
     if (updated) set(s => ({ campaigns: s.campaigns.map(c => c.id === id ? updated : c) }));
   },
+  removeCampaign: async (id) => {
+    await campaignsService.remove(id);
+    set(s => ({ campaigns: s.campaigns.filter(c => c.id !== id) }));
+  },
 
   // Leads
   updateLead: async (id, patch) => {
