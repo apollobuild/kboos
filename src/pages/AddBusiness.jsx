@@ -35,15 +35,9 @@ export function AddBusiness() {
       setGeneratedContent(result);
       setGenerated(true);
     } catch (e) {
-      showToast('Claude API not configured yet. Add your API key in Settings → API Keys.', 'amber');
-      // Still show the panels with placeholder content
-      setGeneratedContent({
-        email: 'Add your Claude API key in Settings → API Keys to generate real content.',
-        whatsapp: 'Add your Claude API key in Settings → API Keys to generate real content.',
-        voice: 'Add your Claude API key in Settings → API Keys to generate real content.',
-        scoring: 'Add your Claude API key in Settings → API Keys to generate real content.',
-      });
-      setGenerated(true);
+      const msg = e.message || '';
+      const isNoKey = msg.toLowerCase().includes('not configured') || msg.toLowerCase().includes('api key');
+      showToast(isNoKey ? 'Claude API key not configured — go to Settings → API Keys' : `Generation failed: ${msg}`, 'red');
     } finally {
       setGenerating(false);
     }
