@@ -1,4 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)',flexDirection:'column',gap:12}}>
+        <div style={{fontSize:14,color:'var(--red)',fontWeight:600}}>Something went wrong</div>
+        <div style={{fontSize:12,color:'var(--muted)',maxWidth:400,textAlign:'center'}}>{this.state.error.message}</div>
+        <button className="btn btn-ghost btn-sm" onClick={() => this.setState({ error: null })}>Try Again</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { useAppStore } from './store/useAppStore.js';
 import { Login } from './pages/Login.jsx';
 import { useShallow } from 'zustand/react/shallow';
@@ -81,13 +96,17 @@ export default function App() {
   const PageComponent = PAGE_MAP[page] || Dashboard;
 
   return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="main-content">
-        <PageComponent />
-      </main>
-      <TweaksPanel />
-      <Toast />
-    </div>
+    <ErrorBoundary>
+      <div className="app-shell">
+        <Sidebar />
+        <main className="main-content">
+          <ErrorBoundary>
+            <PageComponent />
+          </ErrorBoundary>
+        </main>
+        <TweaksPanel />
+        <Toast />
+      </div>
+    </ErrorBoundary>
   );
 }

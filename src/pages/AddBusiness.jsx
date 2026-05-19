@@ -56,11 +56,18 @@ export function AddBusiness() {
     }, 400);
   };
 
+  const str = (v) => {
+    if (!v) return null;
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object') return Object.entries(v).map(([k, val]) => `${k.toUpperCase()}:\n${val}`).join('\n\n');
+    return String(v);
+  };
+
   const panels = [
-    { key:'email', icon:'📧', color:'green', label:'Email Prompt', content: generatedContent?.email || `You are a B2B outreach specialist for ${form.name||'{{business_name}}'}.\nSubject: Transform Your Facility's Outdoor Spaces\n\nHi {{first_name}},\n\nI noticed {{company}} manages significant commercial property in Kuching...\n\nAt ${form.name||'{{business_name}}'}, we specialize in ${form.industry||'our industry'} for businesses across Kuching.\n\nWould you be open to a 15-minute assessment this week?\n\nBest,\n{{sender_name}}` },
-    { key:'wa', icon:'💬', color:'purple', label:'WhatsApp Template', content: generatedContent?.whatsapp || `Hi {{name}}, saya dari ${form.name||'kami'} — kami bantu {{company}} dalam perkhidmatan ${form.industry||'kami'}. Boleh saya hantar info lebih lanjut? 🌿` },
-    { key:'voice', icon:'📞', color:'blue', label:'Voice Script', content: generatedContent?.voice || `OPENER: Hi, may I speak with {{name}}?\nPITCH: We help facilities like {{company}} with ${form.industry||'our services'}...\nOBJECTION: I understand — many clients felt the same before seeing results...\nCLOSE: Can I schedule a quick 10-min site assessment this week?` },
-    { key:'scoring', icon:'📊', color:'amber', label:'Lead Scoring Rules', content: generatedContent?.scoring || `Title match (Facilities/Property/GM): +3\nCompany type (GLC/Bank/Hotel): +2\nLocation (Kuching/Sarawak): +2\nReplied (any channel): +2\nLinkedIn profile found: +1` },
+    { key:'email', icon:'📧', color:'green', label:'Email Prompt', content: str(generatedContent?.email) || `You are a B2B outreach specialist for ${form.name||'{{business_name}}'}.\nSubject: Transform Your Facility's Outdoor Spaces\n\nHi {{first_name}},\n\nI noticed {{company}} manages significant commercial property in Kuching...\n\nAt ${form.name||'{{business_name}}'}, we specialize in ${form.industry||'our industry'} for businesses across Kuching.\n\nWould you be open to a 15-minute assessment this week?\n\nBest,\n{{sender_name}}` },
+    { key:'wa', icon:'💬', color:'purple', label:'WhatsApp Template', content: str(generatedContent?.whatsapp) || `Hi {{name}}, saya dari ${form.name||'kami'} — kami bantu {{company}} dalam perkhidmatan ${form.industry||'kami'}. Boleh saya hantar info lebih lanjut? 🌿` },
+    { key:'voice', icon:'📞', color:'blue', label:'Voice Script', content: str(generatedContent?.voice) || `OPENER: Hi, may I speak with {{name}}?\nPITCH: We help facilities like {{company}} with ${form.industry||'our services'}...\nOBJECTION: I understand — many clients felt the same before seeing results...\nCLOSE: Can I schedule a quick 10-min site assessment this week?` },
+    { key:'scoring', icon:'📊', color:'amber', label:'Lead Scoring Rules', content: str(generatedContent?.scoring) || `Title match (Facilities/Property/GM): +3\nCompany type (GLC/Bank/Hotel): +2\nLocation (Kuching/Sarawak): +2\nReplied (any channel): +2\nLinkedIn profile found: +1` },
   ];
 
   return (
