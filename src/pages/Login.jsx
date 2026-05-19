@@ -131,7 +131,7 @@ export function Login({ onLogin }) {
                   <label style={{ fontSize: 12, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>Email</label>
                   <input
                     type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    placeholder="admin@kboos.app" required style={inputStyle}
+                    placeholder="Enter your email" required style={inputStyle}
                   />
                 </div>
                 <div style={{ marginBottom: 20 }}>
