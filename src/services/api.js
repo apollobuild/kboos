@@ -18,7 +18,9 @@ export async function apiFetch(path, options = {}) {
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed: ${res.status}`);
+    let msg = text;
+    try { msg = JSON.parse(text).error || text; } catch {}
+    throw new Error(msg || `Request failed: ${res.status}`);
   }
   return res.json();
 }
