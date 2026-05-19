@@ -151,9 +151,6 @@ export function Login({ onLogin }) {
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>
-              <div style={{ color: 'var(--text-3)', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
-                Default: admin@kboos.app / kboos2024
-              </div>
             </>
           )}
         </div>

@@ -56,6 +56,16 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
             ))}
           </div>
 
+          {biz.clientCount > 0 && (
+            <div style={{ background: 'oklch(65% 0.2 245 / 0.08)', border: '1px solid oklch(65% 0.2 245 / 0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>Portal Access</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{biz.clientCount} client{biz.clientCount !== 1 ? 's' : ''} can view this business</div>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--blue)' }}>{biz.clientCount}</div>
+            </div>
+          )}
+
           {(biz.contact || biz.phone || biz.email || biz.website || biz.commissionValue) && (
             <div style={{ background: 'var(--s2)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 10 }}>Client Details</div>

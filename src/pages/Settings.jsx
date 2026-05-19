@@ -23,7 +23,7 @@ const API_LABELS = {
 };
 
 export function Settings() {
-  const { showToast } = useAppStore(useShallow(s => ({ showToast: s.showToast })));
+  const { showToast, businesses } = useAppStore(useShallow(s => ({ showToast: s.showToast, businesses: s.businesses })));
   const { canAccessSettingsTab, isAdmin } = useRole();
 
   const { wallet, init: initWallet, initiateTopUp } = useWalletStore();
@@ -36,6 +36,7 @@ export function Settings() {
   const [topUpAmt, setTopUpAmt] = useState(100);
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [newMember, setNewMember] = useState({ name:'', email:'', role:'Operator' });
+  const [newClient, setNewClient] = useState({ name:'', email:'', bizId:'' });
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleFreq, setScheduleFreq] = useState('weekly');
 
@@ -126,6 +127,25 @@ export function Settings() {
     } catch { /* not admin */ }
   }
 
+  async function addClient() {
+    if (!newClient.name || !newClient.email || !newClient.bizId) {
+      showToast('Fill in name, email, and select a business', 'amber');
+      return;
+    }
+    try {
+      const result = await settingsService.saveTeamMember({ ...newClient, role: 'client' });
+      setNewClient({ name:'', email:'', bizId:'' });
+      await loadUsers();
+      if (result.inviteLink) {
+        setInviteLink(result.inviteLink);
+      } else {
+        showToast(`${newClient.name} added as client`, 'green');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to add client', 'red');
+    }
+  }
+
   async function addTeamMember() {
     if (!newMember.name || !newMember.email) return;
     try {
@@ -155,6 +175,7 @@ export function Settings() {
   const tabs = [
     { id:'api', label:'API Keys' },
     { id:'team', label:'Team' },
+    { id:'clients', label:'Clients' },
     { id:'wallet', label:'Wallet' },
     { id:'drive', label:'Google Drive' },
     { id:'billing', label:'Billing' },
@@ -263,13 +284,13 @@ export function Settings() {
           </div>
           <div className="card fade-up-1">
             <div style={{fontWeight:600, marginBottom:12}}>Current Team</div>
-            {users.length === 0 ? (
+            {users.filter(u => u.role !== 'client').length === 0 ? (
               <div style={{color:'var(--text-3)', fontSize:13}}>No team members yet.</div>
             ) : (
               <table className="table" style={{width:'100%'}}>
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                  {users.map(m => (
+                  {users.filter(u => u.role !== 'client').map(m => (
                     <tr key={m.id} style={{cursor:'pointer'}} onClick={() => setOpenMember(m)}>
                       <td style={{fontWeight:500}}>{m.name}</td>
                       <td style={{color:'var(--text-2)'}}>{m.email}</td>
@@ -284,6 +305,87 @@ export function Settings() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Clients */}
+      {tab === 'clients' && (
+        <div style={{display:'flex', flexDirection:'column', gap:12}}>
+          <div className="card fade-up">
+            <div style={{fontWeight:600, marginBottom:4}}>Add Client Portal Access</div>
+            <div style={{color:'var(--text-3)', fontSize:12, marginBottom:14}}>
+              Client receives an invite link to set their password. They log in and see only their business data.
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:8}}>
+              <input
+                placeholder="Contact name"
+                value={newClient.name}
+                onChange={e => setNewClient(p => ({...p, name:e.target.value}))}
+                style={{
+                  background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)',
+                  padding:'8px 12px', borderRadius:6, fontSize:13
+                }}
+              />
+              <input
+                placeholder="Email address"
+                value={newClient.email}
+                onChange={e => setNewClient(p => ({...p, email:e.target.value}))}
+                style={{
+                  background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)',
+                  padding:'8px 12px', borderRadius:6, fontSize:13
+                }}
+              />
+              <select
+                value={newClient.bizId}
+                onChange={e => setNewClient(p => ({...p, bizId:e.target.value}))}
+                style={{
+                  background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)',
+                  padding:'8px 12px', borderRadius:6, fontSize:13
+                }}
+              >
+                <option value="">— Select Business —</option>
+                {businesses.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <button className="btn btn-green" onClick={addClient}>Send Invite</button>
+            </div>
+          </div>
+          <div className="card fade-up-1">
+            <div style={{fontWeight:600, marginBottom:12}}>Client Portal Users</div>
+            {users.filter(u => u.role === 'client').length === 0 ? (
+              <div style={{color:'var(--text-3)', fontSize:13}}>No client users yet. Add one above to give a business client access to their portal.</div>
+            ) : (
+              <table className="table" style={{width:'100%'}}>
+                <thead><tr><th>Name</th><th>Email</th><th>Business</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {users.filter(u => u.role === 'client').map(m => {
+                    const biz = businesses.find(b => b.id === m.bizId);
+                    return (
+                      <tr key={m.id}>
+                        <td style={{fontWeight:500}}>{m.name}</td>
+                        <td style={{color:'var(--text-2)'}}>{m.email}</td>
+                        <td>
+                          {biz
+                            ? <span className={`badge badge-${biz.color || 'blue'}`}>{biz.name}</span>
+                            : <span style={{color:'var(--text-3)',fontSize:12}}>—</span>
+                          }
+                        </td>
+                        <td><span className={`badge badge-${m.pending ? 'amber' : 'green'}`}>{m.pending ? 'Invite Pending' : 'Active'}</span></td>
+                        <td>
+                          <button
+                            className="btn"
+                            style={{fontSize:11, padding:'3px 8px', color:'var(--red)', border:'1px solid var(--red)'}}
+                            onClick={() => { if (window.confirm(`Remove ${m.name}?`)) removeTeamMember(m.id); }}
+                          >Remove</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
