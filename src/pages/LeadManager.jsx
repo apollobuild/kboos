@@ -138,7 +138,7 @@ export function LeadManager() {
                 <th style={{width:36}}>
                   <input type="checkbox" checked={selected.length===filtered.length&&filtered.length>0} onChange={toggleAll} style={{accentColor:'var(--blue)'}}/>
                 </th>
-                <th>Lead</th><th>Company</th><th>Score</th><th>Priority</th><th>Status</th><th>Lang</th><th>Last</th><th></th>
+                <th>Lead</th><th>Company</th><th>Email</th><th>Score</th><th>Priority</th><th>Status</th><th>Enriched</th><th>Lang</th><th>Last</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -152,6 +152,9 @@ export function LeadManager() {
                     <div style={{fontSize:11,color:'var(--muted)'}}>{l.title}</div>
                   </td>
                   <td style={{fontSize:13}}>{l.company}</td>
+                  <td style={{fontSize:12,color:l.email?'var(--text-1)':'var(--muted)',fontFamily:l.email?'var(--font-mono)':'inherit',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {l.email || '—'}
+                  </td>
                   <td><ScoreDisplay score={l.score}/></td>
                   <td>
                     <span className={`badge ${l.scoreLabel==='High'?'green':l.scoreLabel==='Medium'?'amber':'gray'}`}>
@@ -159,6 +162,14 @@ export function LeadManager() {
                     </span>
                   </td>
                   <td><LeadStatusBadge status={l.status}/></td>
+                  <td>
+                    <span style={{fontSize:10,padding:'2px 7px',borderRadius:4,fontWeight:600,
+                      background:l.enriched?'rgba(0,120,255,0.1)':'var(--bg-2)',
+                      color:l.enriched?'var(--blue)':'var(--muted)',
+                      border:`1px solid ${l.enriched?'rgba(0,120,255,0.3)':'var(--border)'}`}}>
+                      {l.enriched?'Enriched':'Raw'}
+                    </span>
+                  </td>
                   <td><span className={`badge ${l.lang==='BM'?'purple':'blue'}`}>{l.lang}</span></td>
                   <td><span className="mono text-xs text-muted">{l.last}</span></td>
                   <td onClick={e => e.stopPropagation()}>

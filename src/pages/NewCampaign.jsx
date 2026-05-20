@@ -37,12 +37,13 @@ const CHANNEL_OPTIONS = [
     label: 'Full Outreach',
     icon: '💬📧📞',
     color: 'purple',
-    desc: 'Maximum reach — WA + Email + AI Voice call for high-value targets',
+    desc: 'Maximum reach — WA first + Email follow-up + AI Voice call for high-value targets',
     bestFor: ['Directors & C-suite', 'High-value deals', 'Premium clients'],
     sequence: [
-      { type:'email', icon:'📧', day:0, label:'Email', desc:'Professional email introduction' },
-      { type:'wa', icon:'💬', day:3, label:'WhatsApp', desc:'WA follow-up referencing the email' },
-      { type:'call', icon:'📞', day:6, label:'AI Voice Call', desc:'Vapi AI voice agent call', skipIfReplied:true },
+      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Opening WA message — fastest first touch' },
+      { type:'email', icon:'📧', day:3, label:'Email', desc:'Professional email follow-up if no WA reply' },
+      { type:'wa', icon:'💬', day:7, label:'WA Follow-up', desc:'Second WA nudge' },
+      { type:'call', icon:'📞', day:12, label:'AI Voice Call', desc:'Vapi AI voice agent call', skipIfReplied:true },
     ],
     needsSources: ['google_maps', 'apollo'],
   },
@@ -81,9 +82,16 @@ export function NewCampaign() {
   const moveStep = (i, dir) => setSeqSteps(s => { const a=[...s]; [a[i],a[i+dir]]=[a[i+dir],a[i]]; return a; });
   const updateStepDay = (i, day) => setSeqSteps(s => s.map((st,idx) => idx===i ? {...st,day} : st));
 
+  // Lead count
+  const [leadCount, setLeadCount] = useState(200);
+
   // From details
   const [fromName, setFromName] = useState(currentUser.name || '');
   const [fromEmail, setFromEmail] = useState(currentUser.email || '');
+  const [replyTo, setReplyTo] = useState('');
+  const [useSmtp, setUseSmtp] = useState(false);
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
   const [recycleLeads, setRecycleLeads] = useState(false);
 
   // Lead sources
@@ -141,8 +149,16 @@ export function NewCampaign() {
       google_maps: sources.google_maps ? { keyword, city: gmCity, radius } : null,
       apollo: sources.apollo ? { tags, seniority, city: apolloCity } : null,
       region, fromName, fromEmail, recycleLeads,
+      replyTo: replyTo || undefined,
+      smtp: useSmtp && smtpUser && smtpPass ? {
+        host: smtpUser.includes('gmail') ? 'smtp.gmail.com' : 'smtp-mail.outlook.com',
+        port: 587,
+        user: smtpUser,
+        pass: smtpPass,
+      } : undefined,
       leadSource: sources.google_maps ? 'google_maps' : sources.apollo ? 'apollo' : 'manual',
       keyword, city: gmCity, tags, seniority,
+      emailPrompt: prompt,
     };
 
     // Derive channels array from seqSteps
@@ -157,7 +173,7 @@ export function NewCampaign() {
         status:   'awaiting_approval',
         color:    selBizData?.color || 'blue',
         leads:    0,
-        total:    600,
+        total:    leadCount,
         hot:      0,
         spend:    'RM 0',
         open:     '0%',
@@ -174,23 +190,37 @@ export function NewCampaign() {
     setCreated(true);
 
     if (!newCampaign?.id) return;
-    const toScrape = [];
-    if (sources.google_maps && keyword) toScrape.push('google_maps');
-    if (sources.apollo) toScrape.push('apollo');
-    if (!toScrape.length) return;
+    const hasMaps = sources.google_maps && keyword;
+    const hasApollo = sources.apollo;
+    if (!hasMaps && !hasApollo) return;
 
     setScraping(true);
-    for (const src of toScrape) {
-      setScrapeLog(l => [...l, { src, status: 'running' }]);
+
+    // Use parallel endpoint when both sources enabled — more efficient and merges data
+    if (hasMaps && hasApollo) {
+      setScrapeLog([{ src: 'parallel', status: 'running' }]);
+      try {
+        const result = await apiFetch('/scraper/parallel', {
+          method: 'POST',
+          body: { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: leadCount, jobTitles: tags, seniority },
+        });
+        setScrapeLog([{ src: 'parallel', status: 'done', count: result.count, merged: result.merged }]);
+      } catch (e) {
+        setScrapeLog([{ src: 'parallel', status: 'error', error: e.message }]);
+      }
+    } else {
+      // Single source
+      const src = hasMaps ? 'google_maps' : 'apollo';
+      setScrapeLog([{ src, status: 'running' }]);
       try {
         const endpoint = src === 'google_maps' ? '/scraper/google-maps' : '/scraper/apollo';
         const body = src === 'google_maps'
-          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: 600 }
-          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: 600 };
+          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: leadCount }
+          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: leadCount };
         const result = await apiFetch(endpoint, { method: 'POST', body });
-        setScrapeLog(l => l.map(x => x.src === src ? { ...x, status:'done', count: result.count } : x));
+        setScrapeLog([{ src, status: 'done', count: result.count }]);
       } catch (e) {
-        setScrapeLog(l => l.map(x => x.src === src ? { ...x, status:'error', error: e.message } : x));
+        setScrapeLog([{ src, status: 'error', error: e.message }]);
       }
     }
     setScraping(false);
@@ -210,10 +240,10 @@ export function NewCampaign() {
           <div style={{fontSize:12,fontWeight:600,marginBottom:8,color:'var(--muted)'}}>IMPORTING LEADS</div>
           {scrapeLog.map(entry => (
             <div key={entry.src} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6,fontSize:13}}>
-              <span>{entry.src === 'google_maps' ? '📍' : '🔭'}</span>
-              <span style={{flex:1}}>{entry.src === 'google_maps' ? 'Google Maps' : 'Apollo'}</span>
+              <span>{entry.src === 'google_maps' ? '📍' : entry.src === 'apollo' ? '🔭' : '📍🔭'}</span>
+              <span style={{flex:1}}>{entry.src === 'google_maps' ? 'Google Maps' : entry.src === 'apollo' ? 'Apollo' : 'Google Maps + Apollo (parallel)'}</span>
               {entry.status === 'running' && <span style={{animation:'spin 1s linear infinite',display:'inline-block',color:'var(--blue)'}}>◌</span>}
-              {entry.status === 'done' && <span style={{color:'var(--green)',fontWeight:600}}>✓ {entry.count} leads</span>}
+              {entry.status === 'done' && <span style={{color:'var(--green)',fontWeight:600}}>✓ {entry.count} leads{entry.merged ? ` (${entry.merged} fully matched)` : ''}</span>}
               {entry.status === 'error' && <span style={{color:'var(--red)',fontSize:11}}>{entry.error}</span>}
             </div>
           ))}
@@ -371,7 +401,31 @@ export function NewCampaign() {
 
             <div className="grid-2">
               <div><label className="label">From Name</label><input className="input" value={fromName} onChange={e=>setFromName(e.target.value)} placeholder="Your name"/></div>
-              <div><label className="label">From Email</label><input className="input" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="your@email.com"/></div>
+              <div><label className="label">From Email (display)</label><input className="input" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="your@email.com"/></div>
+            </div>
+
+            <div>
+              <label className="label">Reply-To (where client replies land)</label>
+              <input className="input" value={replyTo} onChange={e=>setReplyTo(e.target.value)} placeholder="client@theirbusiness.com — leave blank to use KOBIS domain"/>
+            </div>
+
+            <div style={{border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px'}}>
+              <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, marginBottom: useSmtp ? 12 : 0}}>
+                <input type="checkbox" checked={useSmtp} onChange={e=>setUseSmtp(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
+                <div>
+                  <div style={{fontWeight:500}}>Send from client's own email (white-label)</div>
+                  <div style={{fontSize:11, color:'var(--muted)'}}>Emails show the client's actual address. Needs their app password.</div>
+                </div>
+              </label>
+              {useSmtp && (
+                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                  <input className="input" value={smtpUser} onChange={e=>setSmtpUser(e.target.value)} placeholder="client@gmail.com or client@theirbusiness.com" style={{fontSize:12}}/>
+                  <input className="input" type="password" value={smtpPass} onChange={e=>setSmtpPass(e.target.value)} placeholder="16-digit app password (not their login password)" style={{fontSize:12}}/>
+                  <div style={{fontSize:11, color:'var(--muted)', padding:'6px 10px', background:'var(--bg)', borderRadius:6}}>
+                    Get app password: <strong>Google Account → Security → 2-Step Verification → App passwords</strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'var(--s2)',borderRadius:8,cursor:'pointer',fontSize:13}}>
@@ -504,6 +558,29 @@ export function NewCampaign() {
               <div style={{border:'1px solid var(--border)',borderRadius:10,padding:'12px 16px',color:'var(--muted)',fontSize:12,display:'flex',gap:10,alignItems:'center'}}>
                 <span>📋</span>
                 <span><strong style={{color:'var(--text)'}}>Manual / CSV</strong> — You can always import a CSV file from Lead Manager after launching.</span>
+              </div>
+            </div>
+
+            {/* Lead count slider */}
+            <div style={{background:'var(--s2)', borderRadius:10, padding:'14px 16px'}}>
+              <div style={{fontWeight:600, fontSize:13, marginBottom:10}}>Lead Target</div>
+              <div style={{display:'flex', alignItems:'center', gap:16}}>
+                <input type="range" min={50} max={500} step={50} value={leadCount}
+                  onChange={e => setLeadCount(+e.target.value)}
+                  style={{flex:1, accentColor:'var(--blue)'}}/>
+                <span style={{fontSize:28, fontWeight:800, fontFamily:'var(--font-mono)', color:'var(--blue)', minWidth:60}}>{leadCount}</span>
+              </div>
+              <div style={{marginTop:10, padding:'8px 12px', borderRadius:6, fontSize:12,
+                background: leadCount > 300 ? 'rgba(255,170,0,0.08)' : 'rgba(0,255,128,0.06)',
+                border: `1px solid ${leadCount > 300 ? 'var(--amber)' : 'var(--green)'}`,
+                color: leadCount > 300 ? 'var(--amber)' : 'var(--green)'}}>
+                {leadCount <= 100 && 'Low volume — good for testing. All channels safe.'}
+                {leadCount > 100 && leadCount <= 200 && 'Standard. Stays within safe WhatsApp daily limits.'}
+                {leadCount > 200 && leadCount <= 300 && 'Medium batch. Engine paces delivery over 2 days.'}
+                {leadCount > 300 && 'Large batch. Engine paces over 3–5 days to protect deliverability.'}
+              </div>
+              <div style={{fontSize:11, color:'var(--muted)', marginTop:6}}>
+                Safe daily limit: <strong style={{color:'var(--fg)'}}>{Math.min(200, leadCount)} contacts/day</strong>
               </div>
             </div>
 

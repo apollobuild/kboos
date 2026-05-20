@@ -32,7 +32,9 @@ export function Settings() {
   const [settings, setSettings] = useState({});
   const [apiKeys, setApiKeys] = useState({});
   const [showKey, setShowKey] = useState({});
-  const [driveConnected, setDriveConnected] = useState(googleDriveService.isConnected());
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [driveJsonText, setDriveJsonText] = useState('');
+  const [driveUploading, setDriveUploading] = useState(false);
   const [topUpAmt, setTopUpAmt] = useState(100);
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [newMember, setNewMember] = useState({ name:'', email:'', role:'Operator' });
@@ -65,7 +67,7 @@ export function Settings() {
         setApiKeys(keys);
       }
     }).catch(() => {});
-    setDriveConnected(googleDriveService.isConnected());
+    apiFetch('/settings/drive-status').then(r => setDriveConnected(r.connected)).catch(() => {});
   }, []);
 
   async function saveApiKey(api) {
@@ -104,16 +106,18 @@ export function Settings() {
     }
   }
 
-  function handleDriveConnect() {
-    if (driveConnected) {
-      googleDriveService.disconnect();
-      setDriveConnected(false);
-      showToast('Google Drive disconnected', 'amber');
-    } else {
-      googleDriveService.connect();
+  async function handleDriveSave() {
+    let parsed;
+    try { parsed = JSON.parse(driveJsonText); } catch { showToast('Invalid JSON — paste the full service account key file', 'red'); return; }
+    if (!parsed.type || parsed.type !== 'service_account') { showToast('This does not look like a service account key', 'red'); return; }
+    setDriveUploading(true);
+    try {
+      await apiFetch('/settings/drive-service-account', { method: 'POST', body: { serviceAccountKey: parsed } });
       setDriveConnected(true);
-      showToast('Google Drive connected', 'green');
-    }
+      setDriveJsonText('');
+      showToast('Google Drive service account connected ✓', 'green');
+    } catch (e) { showToast(e.message || 'Failed to save', 'red'); }
+    finally { setDriveUploading(false); }
   }
 
   const [inviteLink, setInviteLink] = useState('');
@@ -466,65 +470,65 @@ export function Settings() {
       {/* Google Drive */}
       {tab === 'drive' && (
         <div style={{display:'flex', flexDirection:'column', gap:12}}>
-          <div className="card fade-up" style={{
-            border: driveConnected ? '1px solid var(--green)' : '1px solid var(--border)'
-          }}>
-            <div style={{display:'flex', alignItems:'center', gap:16}}>
-              <div style={{
-                width:48, height:48, borderRadius:12,
-                background: driveConnected ? 'oklch(65% 0.2 145 / 0.15)' : 'var(--bg-2)',
-                display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0
-              }}>
+          <div className="card fade-up" style={{border: driveConnected ? '1px solid var(--green)' : '1px solid var(--border)'}}>
+            <div style={{display:'flex', alignItems:'center', gap:16, marginBottom: driveConnected ? 0 : 16}}>
+              <div style={{width:48,height:48,borderRadius:12,background:driveConnected?'oklch(65% 0.2 145 / 0.15)':'var(--bg-2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>
                 📁
               </div>
               <div style={{flex:1}}>
-                <div style={{fontWeight:600, marginBottom:2}}>Google Drive</div>
-                <div style={{color:'var(--text-2)', fontSize:13}}>
+                <div style={{fontWeight:600,marginBottom:2}}>Google Drive — Service Account</div>
+                <div style={{color:'var(--text-2)',fontSize:13}}>
                   {driveConnected
-                    ? 'Connected — leads CSVs and PDF reports will sync automatically'
-                    : 'Connect to auto-save leads and reports to Google Drive per campaign'}
+                    ? 'Connected — campaign lead sheets will be created automatically in your Drive'
+                    : 'Paste your Google service account JSON key below to enable auto-sheet creation'}
                 </div>
               </div>
-              <button
-                className={driveConnected ? 'btn' : 'btn btn-green'}
-                style={driveConnected ? {border:'1px solid var(--red)', color:'var(--red)'} : {}}
-                onClick={handleDriveConnect}
-              >
-                {driveConnected ? 'Disconnect' : 'Connect Drive'}
-              </button>
+              {driveConnected && (
+                <span style={{fontSize:12,color:'var(--green)',fontWeight:600,border:'1px solid var(--green)',borderRadius:6,padding:'4px 10px'}}>✓ Connected</span>
+              )}
             </div>
+
+            {!driveConnected && (
+              <>
+                <div style={{fontSize:12,color:'var(--text-3)',marginBottom:8,lineHeight:1.6}}>
+                  1. Go to <strong>console.cloud.google.com</strong> → IAM & Admin → Service Accounts<br/>
+                  2. Create a service account, enable Drive API + Sheets API, create a JSON key<br/>
+                  3. Paste the entire JSON key file contents below
+                </div>
+                <textarea
+                  value={driveJsonText}
+                  onChange={e => setDriveJsonText(e.target.value)}
+                  placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  ...\n}'}
+                  rows={8}
+                  style={{
+                    width:'100%', background:'var(--bg-2)', border:'1px solid var(--border)',
+                    color:'var(--text-1)', borderRadius:6, padding:'10px 12px', fontSize:12,
+                    fontFamily:'var(--font-mono)', resize:'vertical', boxSizing:'border-box',
+                  }}
+                />
+                <div style={{display:'flex',justifyContent:'flex-end',marginTop:10}}>
+                  <button className="btn btn-green" onClick={handleDriveSave} disabled={driveUploading || !driveJsonText.trim()}>
+                    {driveUploading ? 'Saving…' : 'Save & Connect'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="card fade-up-1">
-            <div style={{fontWeight:600, marginBottom:12}}>How It Works</div>
-            <div style={{display:'flex', flexDirection:'column', gap:8}}>
+            <div style={{fontWeight:600,marginBottom:12}}>How It Works</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {[
-                { step:'1', text:'Connect your Google account via OAuth' },
-                { step:'2', text:'A "KBOOS" folder is created in your Drive' },
-                { step:'3', text:'Each campaign gets its own subfolder' },
-                { step:'4', text:'Leads export as CSV and reports as PDF — auto-uploaded' },
+                { step:'1', text:'Google Maps scrapes leads → sheet created in your Drive automatically' },
+                { step:'2', text:'Apollo enrichment updates the same sheet with decision maker emails' },
+                { step:'3', text:'You get a direct link to the sheet in the Approvals page to review before launch' },
+                { step:'4', text:'No manual export needed — it\'s always up to date' },
               ].map(item => (
-                <div key={item.step} style={{display:'flex', gap:12, alignItems:'flex-start'}}>
-                  <div style={{
-                    width:24, height:24, borderRadius:'50%', background:'var(--blue-dim)',
-                    color:'var(--blue)', fontSize:12, fontWeight:700, display:'flex',
-                    alignItems:'center', justifyContent:'center', flexShrink:0
-                  }}>{item.step}</div>
-                  <div style={{color:'var(--text-2)', fontSize:13, paddingTop:3}}>{item.text}</div>
+                <div key={item.step} style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:24,height:24,borderRadius:'50%',background:'var(--blue-dim)',color:'var(--blue)',fontSize:12,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{item.step}</div>
+                  <div style={{color:'var(--text-2)',fontSize:13,paddingTop:3}}>{item.text}</div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="card fade-up-2" style={{background:'var(--bg-2)'}}>
-            <div style={{fontWeight:600, marginBottom:8, color:'var(--amber)'}}>Production Setup Required</div>
-            <div style={{color:'var(--text-2)', fontSize:13, lineHeight:1.6}}>
-              To use real Google Drive sync:<br/>
-              1. Go to <span style={{fontFamily:'var(--font-mono)'}}>console.cloud.google.com</span><br/>
-              2. Enable the Google Drive API<br/>
-              3. Create OAuth 2.0 credentials<br/>
-              4. Add your domain to authorized redirect URIs<br/>
-              5. Add the client ID and secret to your environment variables
             </div>
           </div>
         </div>

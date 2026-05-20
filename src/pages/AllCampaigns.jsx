@@ -62,12 +62,25 @@ export function AllCampaigns() {
     }
   };
 
+  function engineStatus(c) {
+    if (c.status === 'active' && c.startedAt) {
+      const days = Math.floor((Date.now() - new Date(c.startedAt).getTime()) / 86400000);
+      return { label: `Day ${days + 1} · Running`, color: 'var(--green)' };
+    }
+    if (c.status === 'active') return { label: 'Running', color: 'var(--green)' };
+    if (c.status === 'awaiting_launch') return { label: 'Ready to Launch', color: 'var(--amber)' };
+    if (c.status === 'enriching') return { label: 'Enriching…', color: 'var(--blue)' };
+    if (c.status === 'awaiting_approval') return { label: 'Pending Review', color: 'var(--blue)' };
+    if (c.status === 'paused') return { label: 'Paused', color: 'var(--muted)' };
+    return null;
+  }
+
   const tabs = ['All', 'Active', 'Paused', 'Awaiting Review'];
   const filtered = campaigns.filter(c =>
     filter === 'All' ||
     (filter === 'Active' && c.status === 'active') ||
     (filter === 'Paused' && c.status === 'paused') ||
-    (filter === 'Awaiting Review' && c.status === 'awaiting_approval')
+    (filter === 'Awaiting Review' && (c.status === 'awaiting_approval' || c.status === 'awaiting_launch' || c.status === 'enriching'))
   );
   const total = filtered.length;
   const paged = filtered.slice(pg * PAGE_SIZE, (pg + 1) * PAGE_SIZE);
@@ -95,6 +108,7 @@ export function AllCampaigns() {
               <tr>
                 <th>Campaign</th><th>Business</th><th>Status</th>
                 <th style={{minWidth:140}}>Progress</th>
+                <th>Engine</th>
                 <th>Hot</th><th>Open Rate</th><th>WA Resp</th><th>Spend</th><th>Channels</th><th>Actions</th>
               </tr>
             </thead>
@@ -117,6 +131,9 @@ export function AllCampaigns() {
                         </div>
                         <span className="mono" style={{fontSize:10,color:'var(--muted)',whiteSpace:'nowrap'}}>{c.leads}/{c.total}</span>
                       </div>
+                    </td>
+                    <td>
+                      {(() => { const es = engineStatus(c); return es ? <span style={{fontSize:11, color:es.color, fontWeight:500, whiteSpace:'nowrap'}}>{es.label}</span> : <span style={{color:'var(--muted)'}}>—</span>; })()}
                     </td>
                     <td><span className="mono text-amber">{c.hot>0?`🔥 ${c.hot}`:'-'}</span></td>
                     <td><span className="mono text-sm">{c.open}</span></td>
@@ -162,7 +179,7 @@ export function AllCampaigns() {
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
+                  <td colSpan={11} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
                     No campaigns found
                   </td>
                 </tr>
