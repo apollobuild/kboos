@@ -25,15 +25,17 @@ const CSS = `
     background:radial-gradient(ellipse at 50% 50%, transparent 15%, rgba(3,5,10,0.18) 55%, rgba(3,5,10,0.55) 100%);
   }
 
-  .lp-card-border {
-    position:relative; z-index:10; border-radius:28px; width:100%; max-width:420px;
-    box-shadow:0 0 60px oklch(65% 0.22 145 / 0.28),0 0 120px oklch(65% 0.22 145 / 0.12);
-  }
   .lp-card {
+    position:relative; z-index:100;
     background:rgba(6,10,16,0.96);
     backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-    border-radius:27px; padding:46px 42px 42px;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.07),inset 0 -1px 0 rgba(0,0,0,0.3);
+    border-radius:28px; padding:46px 42px 42px;
+    width:100%; max-width:420px;
+    box-shadow:
+      0 0 60px oklch(65% 0.22 145 / 0.28),
+      0 0 120px oklch(65% 0.22 145 / 0.12),
+      inset 0 1px 0 rgba(255,255,255,0.07),
+      inset 0 -1px 0 rgba(0,0,0,0.3);
     transform:translateZ(0);
   }
 
@@ -462,8 +464,7 @@ export function Login({ onLogin }) {
         <div className="lp-hex" />
         <div className="lp-vignette" />
 
-        <div className="lp-card-border" style={{padding:24}}>
-          <div className="lp-card">
+        <div className="lp-card">
             <div className="lp-logo">
               <span className="lp-icon-wrap">
                 <svg className="lp-icon" width="44" height="32" viewBox="0 0 28 20" fill="none">
@@ -520,7 +521,6 @@ export function Login({ onLogin }) {
               </>
             )}
           </div>
-        </div>
       </div>
     </>
   );
