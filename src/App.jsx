@@ -34,6 +34,7 @@ import { Reporting } from './pages/Reporting.jsx';
 import { PromptStudio } from './pages/PromptStudio.jsx';
 import { Settings } from './pages/Settings.jsx';
 import { ClientPortal } from './pages/ClientPortal.jsx';
+import { LiveDemo } from './pages/LiveDemo.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -48,6 +49,7 @@ const PAGE_MAP = {
   approval: Approvals,
   reporting: Reporting,
   'prompt-studio': PromptStudio,
+  'live-demo': LiveDemo,
   settings: Settings,
   portal: ClientPortal,
   'client-portal': ClientPortal,

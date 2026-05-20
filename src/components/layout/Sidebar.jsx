@@ -4,6 +4,8 @@ import { useWalletStore } from '../../store/useWalletStore.js';
 import { CreditWalletWidget } from '../ui/CreditWalletWidget.jsx';
 import { useRole } from '../../hooks/useRole.js';
 
+const SIDEBAR_STYLE = `@keyframes livePulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.6)} }`;
+
 const LogoMark = () => (
   <svg width="28" height="20" viewBox="0 0 28 20" fill="none">
     <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
@@ -29,6 +31,9 @@ const NAV = [
   { section:'ANALYTICS', items:[
     { id:'reporting', icon:'↗', label:'Reporting & ROI' },
     { id:'prompt-studio', icon:'⚡', label:'Prompt Studio' },
+  ]},
+  { section:'DEMO', items:[
+    { id:'live-demo', icon:'●', label:'Live Demo' },
   ]},
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },
@@ -65,6 +70,7 @@ export function Sidebar() {
 
   return (
     <div className="sidebar">
+      <style>{SIDEBAR_STYLE}</style>
       <div className="sidebar-logo">
         <div className="logo-mark">
           <LogoMark />
@@ -85,7 +91,7 @@ export function Sidebar() {
                   className={`nav-item${page === item.id ? ' active' : ''}`}
                   onClick={() => setPage(item.id)}
                 >
-                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-icon" style={item.id==='live-demo'?{color:'var(--green)',fontSize:8,animation:'livePulse 2s ease-in-out infinite'}:{}}>{item.icon}</span>
                   <span style={{flex:1}}>{item.label}</span>
                   {badge != null && (
                     <span className={`nav-badge ${item.badgeColor || ''}${pulse ? ' pulse' : ''}`}>
