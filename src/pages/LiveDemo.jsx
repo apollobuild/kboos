@@ -3,7 +3,7 @@ import { apiFetch } from '../services/api.js';
 
 const INDUSTRIES = ['Landscaping','Construction','IT Services','Healthcare','Education','F&B','Retail','Property','Finance','Manufacturing','Logistics','Media','Legal','Consulting'];
 const TONES = ['Professional','Friendly','Direct','Formal'];
-const LANGS = [{ v:'EN', l:'English' },{ v:'MS', l:'Bahasa Malaysia' },{ v:'ZH', l:'Mandarin' }];
+const LANGS = [{ v:'EN', l:'English' },{ v:'MS', l:'Melayu' },{ v:'ZH', l:'中文' }];
 
 const LOG_KEY = 'kboos_demo_log';
 function loadLog() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } }
@@ -126,7 +126,7 @@ export function LiveDemo() {
                   {LANGS.map(l=>(
                     <button key={l.v} onClick={()=>set('lang',l.v)} disabled={step==='generating'}
                       style={{flex:1, padding:'7px 0', borderRadius:8, border:`1px solid ${form.lang===l.v?'var(--green)':'var(--border)'}`, background:form.lang===l.v?'rgba(0,255,128,0.1)':'transparent', color:form.lang===l.v?'var(--green)':'var(--muted)', fontSize:11, fontWeight:700, cursor:'pointer'}}>
-                      {l.v}
+                      {l.l}
                     </button>
                   ))}
                 </div>
