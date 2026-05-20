@@ -1,6 +1,6 @@
 const ROLE_ACCESS = {
-  admin:    ['dashboard','businesses','add-business','campaigns','new-campaign','leads','replies','approvals','reporting','prompt-studio','settings','client-portal'],
-  operator: ['dashboard','businesses','add-business','campaigns','new-campaign','leads','replies','approvals','reporting','prompt-studio','settings','client-portal'],
+  admin:    ['dashboard','businesses','add-business','campaigns','new-campaign','leads','replies','approvals','reporting','prompt-studio','live-demo','settings','client-portal'],
+  operator: ['dashboard','businesses','add-business','campaigns','new-campaign','leads','replies','approvals','reporting','prompt-studio','live-demo','settings','client-portal'],
   viewer:   ['dashboard','businesses','campaigns','leads','replies','reporting','client-portal'],
 };
 
