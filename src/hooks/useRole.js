@@ -5,7 +5,7 @@ const ROLE_ACCESS = {
 };
 
 const SETTINGS_TABS = {
-  admin:    ['api','team','wallet','drive','billing'],
+  admin:    ['api','team','clients','wallet','drive','billing'],
   operator: ['drive'],
   viewer:   [],
 };
