@@ -420,13 +420,22 @@ export function Settings() {
         const cardYear = new Date().getFullYear() + 1;
         const cardMM = String(new Date().getMonth() + 1).padStart(2, '0');
 
+        const rmRate = spend.usdRmRate || 4.70;
         const API_ROWS = [
-          { key:'wa',     label:'WhatsApp Messages',  icon:'💬', color:'#00d97e', rate:'RM 0.15/msg',   sub:'WATI RM 245/mo subscription' },
-          { key:'email',  label:'Email Delivery',     icon:'📧', color:'#0078ff', rate:'RM 0.05/email', sub:null },
-          { key:'call',   label:'AI Voice Calls',     icon:'📞', color:'#f5a623', rate:'RM 0.80/call',  sub:null },
-          { key:'enrich', label:'Apollo Enrichment',  icon:'🔭', color:'#a855f7', rate:'RM 0.50/lead',  sub:'Apollo Pro RM 99/mo subscription' },
-          { key:'scrape', label:'Outscraper (Maps)',   icon:'📍', color:'#06b6d4', rate:'RM 0.003/rec',  sub:null },
+          { key:'wa',     label:'WhatsApp (Meta)',     icon:'💬', color:'#00d97e', rate:`$0.045 USD/conversation × RM ${rmRate}`, sub:'WATI RM 245/mo subscription separate' },
+          { key:'email',  label:'Email (SendGrid)',    icon:'📧', color:'#0078ff', rate:`$0.0004 USD/email × RM ${rmRate}`,       sub:null },
+          { key:'claude', label:'Claude AI Writing',  icon:'🤖', color:'#a855f7', rate:'Exact token cost (Sonnet 4.6)',           sub:null },
+          { key:'call',   label:'AI Voice (Vapi)',     icon:'📞', color:'#f5a623', rate:'Exact cost from Vapi API per call',       sub:null },
+          { key:'enrich', label:'Apollo Enrichment',  icon:'🔭', color:'#7c3aed', rate:'Flat subscription',                      sub:'Apollo Professional RM 465/mo' },
+          { key:'scraper',label:'Outscraper (Maps)',   icon:'📍', color:'#06b6d4', rate:`$0.001 USD/record × RM ${rmRate}`,       sub:null },
         ];
+        const SOURCE_BADGE = {
+          exact:        { label:'Exact',       color:'#00d97e' },
+          calculated:   { label:'Calculated',  color:'#0078ff' },
+          live:         { label:'Live API',    color:'#00d97e' },
+          subscription: { label:'Subscription',color:'#a855f7' },
+          none:         { label:'No data',     color:'#666' },
+        };
 
         return (
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
@@ -506,32 +515,41 @@ export function Settings() {
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:12}}>
                 {API_ROWS.map(row => {
-                  const d = spend.breakdown?.[row.key] || { count: 0, cost: 0 };
-                  const rowPct = spend.budget > 0 ? Math.min((d.cost / spend.budget) * 100, 100) : 0;
+                  const d = spend.breakdown?.[row.key] || { count: 0, costRm: 0, source: 'none' };
+                  const costRm = d.costRm || 0;
+                  const rowPct = spend.budget > 0 ? Math.min((costRm / spend.budget) * 100, 100) : 0;
+                  const badge = SOURCE_BADGE[d.source] || SOURCE_BADGE.none;
                   return (
                     <div key={row.key}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:d.cost > 0 ? 5 : 0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:costRm > 0 ? 5 : 0}}>
                         <div style={{display:'flex',gap:10,alignItems:'center'}}>
                           <div style={{width:34,height:34,borderRadius:10,background:`${row.color}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>
                             {row.icon}
                           </div>
                           <div>
-                            <div style={{fontSize:13,fontWeight:500}}>{row.label}</div>
-                            <div style={{fontSize:10,color:'var(--muted)',lineHeight:1.4}}>
-                              {row.rate}{row.sub ? <span style={{color:'rgba(255,255,255,0.2)'}}> · {row.sub}</span> : ''}
+                            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                              <span style={{fontSize:13,fontWeight:500}}>{row.label}</span>
+                              <span style={{fontSize:9,padding:'1px 5px',borderRadius:3,background:`${badge.color}22`,color:badge.color,fontWeight:600,letterSpacing:'0.05em'}}>{badge.label}</span>
                             </div>
+                            <div style={{fontSize:10,color:'var(--muted)',lineHeight:1.4,marginTop:1}}>
+                              {row.rate}{row.sub ? <span style={{opacity:0.5}}> · {row.sub}</span> : ''}
+                            </div>
+                            {d.note && <div style={{fontSize:10,color:'#a855f7',marginTop:1}}>{d.note}</div>}
                           </div>
                         </div>
                         <div style={{textAlign:'right',flexShrink:0}}>
-                          <div style={{fontFamily:'var(--font-mono)',fontSize:15,fontWeight:600,color:d.cost > 0 ? '#fff' : 'var(--muted)'}}>
-                            RM {d.cost.toFixed(2)}
+                          <div style={{fontFamily:'var(--font-mono)',fontSize:15,fontWeight:600,color:costRm > 0 ? '#fff' : 'var(--muted)'}}>
+                            {d.source === 'subscription' ? '—' : `RM ${costRm.toFixed(2)}`}
                           </div>
                           {d.count > 0 && (
-                            <div style={{fontSize:10,color:'var(--muted)'}}>{d.count.toLocaleString()} actions</div>
+                            <div style={{fontSize:10,color:'var(--muted)'}}>{d.count.toLocaleString()} {d.tokens ? `tokens` : 'actions'}</div>
+                          )}
+                          {d.tokens > 0 && (
+                            <div style={{fontSize:10,color:'var(--muted)'}}>{d.tokens.toLocaleString()} tokens</div>
                           )}
                         </div>
                       </div>
-                      {d.cost > 0 && (
+                      {costRm > 0 && (
                         <div style={{background:'var(--bg)',borderRadius:3,height:3,overflow:'hidden'}}>
                           <div style={{height:'100%',width:`${rowPct}%`,background:row.color,borderRadius:3,transition:'width 0.5s'}}/>
                         </div>
@@ -540,9 +558,23 @@ export function Settings() {
                   );
                 })}
               </div>
-              <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontSize:12,color:'var(--muted)'}}>Subscriptions (WATI + Apollo) are billed directly to your card — not tracked here</span>
-                <span style={{fontFamily:'var(--font-mono)',fontSize:15,fontWeight:700}}>RM {spend.total.toFixed(2)}</span>
+              <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <span style={{fontSize:12,color:'var(--muted)'}}>Usage cost this month (excl. fixed subscriptions)</span>
+                  <span style={{fontFamily:'var(--font-mono)',fontSize:15,fontWeight:700}}>RM {spend.total.toFixed(2)}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)'}}>
+                  <span>USD/RM rate:</span>
+                  <input type="number" step="0.01" min="1" value={rmRate}
+                    onChange={e => setSpend(p => ({ ...p, usdRmRate: parseFloat(e.target.value) }))}
+                    style={{width:70,background:'var(--bg-2)',border:'1px solid var(--border)',color:'var(--text-1)',padding:'3px 6px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:12}}
+                  />
+                  <button className="btn btn-sm" style={{fontSize:11}} onClick={async () => {
+                    await apiFetch('/wallet/budget', { method:'PATCH', body:{ budget, usdRmRate: rmRate } }).catch(()=>{});
+                    showToast('Rate saved', 'green');
+                  }}>Save rate</button>
+                  <span style={{opacity:0.5}}>· Subscriptions (WATI RM 245 + Apollo RM 465) billed directly to your card</span>
+                </div>
               </div>
             </div>
 
