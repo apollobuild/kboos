@@ -147,8 +147,8 @@ export function Login({ onLogin }) {
         const [sx,sy]=geo(pts[0][0],pts[0][1]); ctx.moveTo(sx,sy);
         for(let i=1;i<pts.length;i++){ const [x,y]=geo(pts[i][0],pts[i][1]); ctx.lineTo(x,y); }
         ctx.closePath();
-        ctx.fillStyle='rgba(0,255,128,0.010)'; ctx.fill();
-        ctx.strokeStyle='rgba(0,255,128,0.048)'; ctx.lineWidth=0.8; ctx.stroke();
+        ctx.fillStyle='rgba(0,255,128,0.028)'; ctx.fill();
+        ctx.strokeStyle='rgba(0,255,128,0.12)'; ctx.lineWidth=1; ctx.stroke();
       });
     }
 
