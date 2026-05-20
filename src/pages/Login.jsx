@@ -136,23 +136,7 @@ export function Login({ onLogin }) {
     const CH_ICONS  = ['✉','💬','📞','📱','🔔','📧'];
     const stats     = { emails:1247, hot:23, meetings:8 };
 
-    // ── Malaysia map ──
-    const MAP_PENINSULA = [[100.1,5.6],[100.3,5.85],[101.0,6.2],[101.8,6.25],[102.3,6.1],[103.0,5.8],[103.7,5.3],[104.2,4.85],[104.35,4.2],[104.1,3.5],[103.85,2.8],[104.15,2.0],[103.95,1.5],[103.5,1.28],[103.0,1.35],[102.55,2.0],[102.1,2.8],[101.65,3.5],[101.15,4.0],[100.75,4.5],[100.45,5.0],[100.2,5.4],[100.1,5.6]];
-    const MAP_SARAWAK   = [[109.6,1.8],[110.5,1.5],[111.5,1.85],[112.5,2.2],[113.5,2.8],[114.2,3.4],[114.85,4.05],[115.05,4.55],[114.5,4.65],[113.8,4.5],[112.5,4.2],[111.2,4.0],[110.0,3.5],[109.3,2.8],[109.0,2.2],[109.6,1.8]];
-    const MAP_SABAH     = [[115.2,4.1],[116.0,4.5],[116.8,5.5],[117.5,6.3],[118.5,6.85],[119.3,6.5],[119.5,5.8],[118.8,5.0],[118.0,4.5],[117.0,4.2],[116.0,4.0],[115.5,4.1],[115.2,4.1]];
 
-    function geo(lon,lat){ return [W*(0.04+(lon-99.5)/21*0.92), H*(0.96-(lat-0.5)/8.5*0.92)]; }
-
-    function drawMap() {
-      [MAP_PENINSULA,MAP_SARAWAK,MAP_SABAH].forEach(pts=>{
-        ctx.beginPath();
-        const [sx,sy]=geo(pts[0][0],pts[0][1]); ctx.moveTo(sx,sy);
-        for(let i=1;i<pts.length;i++){ const [x,y]=geo(pts[i][0],pts[i][1]); ctx.lineTo(x,y); }
-        ctx.closePath();
-        ctx.fillStyle='rgba(0,255,128,0.028)'; ctx.fill();
-        ctx.strokeStyle='rgba(0,255,128,0.12)'; ctx.lineWidth=1; ctx.stroke();
-      });
-    }
 
     // ── Classes ──
     class Node {
@@ -379,7 +363,6 @@ export function Login({ onLogin }) {
     function loop(now){
       const dt=Math.min(now-last,50);last=now;
       ctx.clearRect(0,0,W,H);
-      drawMap();
       spawnT+=dt;hqBroadT+=dt;cityBroadT+=dt;iconT+=dt;emailT+=dt;
       if(spawnT>1700){ spawnT=0;spawnLead(); }
       if(hqBroadT>2800){ hqBroadT=0;broadcastHQ(); }
