@@ -140,6 +140,31 @@ export function Dashboard() {
         ))}
       </div>
 
+      {/* First-time empty state */}
+      {businesses.length === 0 && campaigns.length === 0 && (
+        <div className="card fade-up-1 mt-4" style={{padding:'32px 24px',textAlign:'center'}}>
+          <div style={{fontSize:28,marginBottom:12}}>👋</div>
+          <div style={{fontWeight:600,fontSize:15,marginBottom:6,color:'var(--text-1)'}}>Welcome to KBOOS — here's how to get started</div>
+          <div style={{color:'var(--muted)',fontSize:13,marginBottom:24}}>Three steps to your first outreach campaign</div>
+          <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+            {[
+              { step:'1', icon:'◈', label:'Add a Business', desc:'Set up your first client business and generate an AI outreach brief', action:'businesses', btn:'Add Business' },
+              { step:'2', icon:'◉', label:'Create a Campaign', desc:'Choose channels, set up lead scraping, and define your sequence', action:'new-campaign', btn:'New Campaign' },
+              { step:'3', icon:'⏳', label:'Review & Approve', desc:'Review scraped leads and approve the campaign to start outreach', action:'approval', btn:'Go to Approvals' },
+            ].map(s => (
+              <div key={s.step} className="card" style={{maxWidth:220,textAlign:'left',padding:'16px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <span style={{width:22,height:22,borderRadius:'50%',background:'var(--accent-bg)',border:'1px solid var(--accent-border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'var(--accent)',flexShrink:0}}>{s.step}</span>
+                  <span style={{fontSize:13,fontWeight:600}}>{s.label}</span>
+                </div>
+                <div style={{fontSize:12,color:'var(--muted)',marginBottom:12,lineHeight:1.5}}>{s.desc}</div>
+                <button className="btn btn-sm" style={{width:'100%',fontSize:12}} onClick={() => setPage(s.action)}>{s.btn} →</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="fade-up-2 mt-4" style={{overflowX:'auto',paddingBottom:8}}>
         <div style={{display:'flex',gap:10,minWidth:'max-content'}}>
           {businesses.map(b => (

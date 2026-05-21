@@ -22,6 +22,7 @@ export function LiveDemo() {
   const [results, setResults] = useState({});
   const [error, setError] = useState('');
   const [log, setLog] = useState(loadLog);
+  const [voiceConfirm, setVoiceConfirm] = useState(null);
   const doneRef = useRef(false);
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
@@ -54,7 +55,16 @@ export function LiveDemo() {
     }
   }
 
-  function reset() { setStep('input'); setContent(null); setResults({}); setFiring({}); setError(''); doneRef.current = false; }
+  function reset() { setStep('input'); setContent(null); setResults({}); setFiring({}); setError(''); setVoiceConfirm(null); doneRef.current = false; }
+
+  function fireWithVoiceCheck(channels) {
+    if (channels.includes('voice') && !voiceConfirm) {
+      setVoiceConfirm(channels);
+      return;
+    }
+    setVoiceConfirm(null);
+    fire(channels);
+  }
 
   const channelReady = (ch) => {
     if (ch === 'email') return !!form.email;
@@ -232,6 +242,17 @@ export function LiveDemo() {
                 <div style={{fontSize:11, fontWeight:700, letterSpacing:'0.1em', color:'var(--muted)', marginBottom:16, textTransform:'uppercase'}}>
                   Fire to {form.name} @ {form.company}
                 </div>
+                {/* Voice call confirm dialog */}
+                {voiceConfirm && (
+                  <div style={{background:'rgba(255,185,40,0.08)',border:'1px solid rgba(255,185,40,0.35)',borderRadius:10,padding:'14px 16px',marginBottom:12}}>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--amber)',marginBottom:6}}>📞 Confirm Real AI Voice Call</div>
+                    <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>This will place a real AI call to <strong style={{color:'var(--fg)'}}>{form.phone}</strong>. The call will connect immediately.</div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>fire(voiceConfirm)} style={{flex:1,padding:'8px',borderRadius:8,border:'none',background:'var(--amber)',color:'#03050a',fontSize:12,fontWeight:700,cursor:'pointer'}}>Yes, Call Now</button>
+                      <button onClick={()=>setVoiceConfirm(null)} style={{flex:1,padding:'8px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--muted)',fontSize:12,cursor:'pointer'}}>Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14}}>
                   {[
                     {ch:'whatsapp', icon:'💬', label:'WhatsApp', need:'phone'},
@@ -239,7 +260,7 @@ export function LiveDemo() {
                     {ch:'voice',    icon:'📞', label:'AI Call',   need:'phone'},
                   ].map(({ch,icon,label,need})=>(
                     <button key={ch}
-                      onClick={()=>fire([ch])}
+                      onClick={()=>fireWithVoiceCheck([ch])}
                       disabled={!channelReady(ch)||step==='firing'||step==='done'}
                       style={{padding:'11px 8px', borderRadius:10, border:`1px solid ${results[ch]?.ok?'var(--green)':results[ch]?.ok===false?'var(--red)':'var(--border)'}`, background:results[ch]?.ok?'rgba(0,255,128,0.08)':results[ch]?.ok===false?'rgba(255,80,80,0.06)':'transparent', color:'var(--fg)', cursor:(!channelReady(ch)||step==='firing'||step==='done')?'not-allowed':'pointer', opacity:(!channelReady(ch)&&step!=='done')?0.4:1, fontSize:12, fontWeight:600, display:'flex', flexDirection:'column', alignItems:'center', gap:5}}>
                       <span style={{fontSize:18}}>{icon}</span>
@@ -250,7 +271,7 @@ export function LiveDemo() {
                   ))}
                 </div>
                 <button
-                  onClick={()=>fire(['whatsapp','email','voice'].filter(channelReady))}
+                  onClick={()=>fireWithVoiceCheck(['whatsapp','email','voice'].filter(channelReady))}
                   disabled={step==='firing'||step==='done'||['whatsapp','email','voice'].filter(channelReady).length===0}
                   style={{width:'100%', padding:'13px', borderRadius:10, border:'none', background:step==='done'?'rgba(0,255,128,0.15)':'linear-gradient(135deg,oklch(68% 0.22 145),oklch(62% 0.2 185))', color:step==='done'?'var(--green)':'#03050a', fontSize:14, fontWeight:800, cursor:step==='done'?'default':'pointer', letterSpacing:'0.04em', display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
                   {step==='firing' ? <><Spinner /> Firing...</> : step==='done' ? '✓ Sent!' : '🔥 Fire All Channels'}

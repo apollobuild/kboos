@@ -256,8 +256,9 @@ export function NewCampaign() {
           <div style={{color:'var(--muted)',fontSize:13,textAlign:'center'}}>
             Awaiting approval — go to <strong>Approvals</strong> to activate.
           </div>
-          <div style={{display:'flex',gap:10}}>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}>
             <button className="btn btn-green" onClick={() => setPage('approval')}>Go to Approvals →</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>All Campaigns</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>View Leads</button>
           </div>
         </>

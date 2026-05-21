@@ -205,9 +205,9 @@ export function LeadManager() {
           <span style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 500 }}>{selected.length} leads selected</span>
           <div style={{ flex: 1 }} />
           <button className="btn btn-ghost btn-xs" onClick={handleExport}>⬇ Export</button>
-          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('email_sent')}>📧 Email</button>
-          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('wa_sent')}>💬 WA</button>
-          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('call_initiated')}>📞 Call</button>
+          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('email_sent')}>📧 Mark Emailed</button>
+          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('wa_sent')}>💬 Mark WA'd</button>
+          <button className="btn btn-ghost btn-xs" onClick={() => handleBulkStatus('call_initiated')}>📞 Mark Called</button>
           <button className="btn btn-danger btn-xs" onClick={() => handleBulkStatus('unsubscribed')}>Unsub</button>
           <button className="btn btn-ghost btn-xs" onClick={() => setSelected([])}>✕</button>
         </div>
@@ -248,9 +248,15 @@ export function LeadManager() {
                       <div style={{ fontWeight: 500, fontSize: 13, textDecoration: l.status === 'unsubscribed' ? 'line-through' : 'none' }}>{l.name}</div>
                       {l.title && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{l.title}</div>}
                       {l.phone && (
-                        <div style={{ fontSize: 11, color: 'var(--blue)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>
+                        <a
+                          href={`https://wa.me/${l.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{ fontSize: 11, color: 'var(--blue)', fontFamily: 'var(--font-mono)', marginTop: 1, textDecoration: 'none', display: 'block' }}
+                        >
                           💬 {l.phone}
-                        </div>
+                        </a>
                       )}
                     </td>
 

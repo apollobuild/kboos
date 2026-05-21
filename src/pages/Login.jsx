@@ -500,6 +500,9 @@ export function Login({ onLogin }) {
                   <button className="lp-btn" type="submit" disabled={loading}>
                     {loading ? 'Signing in...' : 'Sign In'}
                   </button>
+                  <div style={{textAlign:'center',marginTop:16,fontSize:11,color:'rgba(255,255,255,0.2)'}}>
+                    Forgot your password? Contact your admin to reset it.
+                  </div>
                 </form>
               </>
             )}
