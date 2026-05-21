@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../services/api.js';
 
+function fmtRM(n) {
+  if (n < 0.01) return 'RM 0.00';
+  if (n < 1)    return `RM ${n.toFixed(2)}`;
+  if (n < 10)   return `RM ${n.toFixed(1)}`;
+  return `RM ${Math.round(n)}`;
+}
+
 export function CreditWalletWidget({ onClick }) {
   const [spend, setSpend] = useState(null);
 
@@ -12,6 +19,7 @@ export function CreditWalletWidget({ onClick }) {
   const budget = spend?.budget || 1000;
   const pct    = Math.min((total / budget) * 100, 100);
   const color  = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--amber)' : 'var(--green)';
+  const pctLabel = pct < 1 && total > 0 ? '< 1%' : `${pct.toFixed(0)}%`;
 
   return (
     <div onClick={onClick} style={{
@@ -24,14 +32,14 @@ export function CreditWalletWidget({ onClick }) {
           This Month
         </span>
         <span className="mono" style={{ fontSize: 12, color, fontWeight: 600 }}>
-          RM {total.toFixed(0)}
+          {fmtRM(total)}
         </span>
       </div>
       <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.5s' }} />
       </div>
       <div style={{ fontSize: 10, color: pct > 80 ? color : 'var(--muted)' }}>
-        {spend ? `${pct.toFixed(0)}% of RM ${budget.toFixed(0)} budget` : 'API spend · click to view'}
+        {spend ? `${pctLabel} of ${fmtRM(budget)} budget` : 'API spend · click to view'}
       </div>
     </div>
   );
