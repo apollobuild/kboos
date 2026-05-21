@@ -1,12 +1,28 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../services/api.js';
 
-const INDUSTRIES = [
-  'Construction & Renovation','IT Services & Software','Property & Real Estate',
-  'Manufacturing','Logistics & Supply Chain','Healthcare & Clinic','F&B & Catering',
-  'Education & Training','Finance & Insurance','Legal & Consulting','Retail & E-commerce',
-  'Media & Marketing','HR & Recruitment','Security Services','Landscaping & Maintenance',
-];
+const INDUSTRY_CONFIG = {
+  'Automotive & Car Sales':    { verb:'sell',    unit:'cars',               goals:['Sell 5 cars/month','Sell 20 cars/month','Sell 50 cars/month','Sell 100+/month'] },
+  'Construction & Renovation': { verb:'land',    unit:'renovation projects', goals:['Land 5 jobs/month','Land 10 jobs/month','Land 20 jobs/month','Land 50+/month'] },
+  'IT Services & Software':    { verb:'sign',    unit:'new clients',         goals:['Sign 5 clients/month','Sign 10 clients/month','Sign 20 clients/month','Sign 50+/month'] },
+  'Property & Real Estate':    { verb:'close',   unit:'property deals',      goals:['Close 5 deals/month','Close 10 deals/month','Close 20 deals/month','Close 50+/month'] },
+  'Manufacturing':             { verb:'secure',  unit:'supply orders',       goals:['Secure 5 orders/month','Secure 10 orders/month','Secure 20 orders/month','Secure 50+/month'] },
+  'Logistics & Supply Chain':  { verb:'win',     unit:'delivery contracts',  goals:['Win 5 contracts/month','Win 10 contracts/month','Win 20 contracts/month','Win 50+/month'] },
+  'Healthcare & Clinic':       { verb:'attract', unit:'new patients',        goals:['Attract 20 patients/month','Attract 50 patients/month','Attract 100 patients/month','Attract 200+/month'] },
+  'F&B & Catering':            { verb:'book',    unit:'catering events',     goals:['Book 5 events/month','Book 10 events/month','Book 20 events/month','Book 50+/month'] },
+  'Education & Training':      { verb:'enroll',  unit:'new students',        goals:['Enroll 10 students/month','Enroll 20 students/month','Enroll 50 students/month','Enroll 100+/month'] },
+  'Finance & Insurance':       { verb:'close',   unit:'new policies',        goals:['Close 10 policies/month','Close 20 policies/month','Close 50 policies/month','Close 100+/month'] },
+  'Legal & Consulting':        { verb:'sign',    unit:'retainer clients',    goals:['Sign 5 clients/month','Sign 10 clients/month','Sign 20 clients/month','Sign 50+/month'] },
+  'Retail & E-commerce':       { verb:'acquire', unit:'new customers',       goals:['Acquire 50 customers/month','Acquire 100 customers/month','Acquire 200 customers/month','Acquire 500+/month'] },
+  'Media & Marketing':         { verb:'land',    unit:'new projects',        goals:['Land 5 projects/month','Land 10 projects/month','Land 20 projects/month','Land 50+/month'] },
+  'Video Production':          { verb:'land',    unit:'video projects',      goals:['Land 3 projects/month','Land 5 projects/month','Land 10 projects/month','Land 20+/month'] },
+  'HR & Recruitment':          { verb:'place',   unit:'candidates',          goals:['Place 5 candidates/month','Place 10 candidates/month','Place 20 candidates/month','Place 50+/month'] },
+  'Security Services':         { verb:'sign',    unit:'security contracts',  goals:['Sign 5 contracts/month','Sign 10 contracts/month','Sign 20 contracts/month','Sign 50+/month'] },
+  'Landscaping & Maintenance': { verb:'add',     unit:'recurring clients',   goals:['Add 5 clients/month','Add 10 clients/month','Add 20 clients/month','Add 50+/month'] },
+};
+const DEFAULT_CFG = { verb:'get', unit:'new clients', goals:['Get 5 clients/month','Get 10 clients/month','Get 20 clients/month','Get 50+/month'] };
+
+const INDUSTRIES = Object.keys(INDUSTRY_CONFIG);
 
 const METHODS = [
   { v:'referral',  l:'Referrals only' },
@@ -16,7 +32,6 @@ const METHODS = [
   { v:'nothing',   l:'Not actively — struggling with this' },
 ];
 
-const GOALS = ['5 meetings/month','10 meetings/month','20 meetings/month','50+ meetings/month'];
 const LANGS = [{ v:'EN', l:'English' },{ v:'MS', l:'Melayu' },{ v:'ZH', l:'中文' }];
 
 const LOG_KEY = 'kboos_demo_log';
@@ -28,11 +43,15 @@ function saveLog(entry) {
 }
 
 export function LiveDemo() {
-  const [form, setForm] = useState({
-    name: '', title: '', company: '', industry: 'IT Services & Software', city: 'Kuching',
-    phone: '+60', email: '',
-    currentMethod: 'referral', challenge: '', monthlyGoal: '10 meetings/month',
-    lang: 'EN',
+  const [form, setForm] = useState(() => {
+    const defaultIndustry = 'Automotive & Car Sales';
+    const cfg = INDUSTRY_CONFIG[defaultIndustry] || DEFAULT_CFG;
+    return {
+      name: '', title: '', company: '', industry: defaultIndustry, city: 'Kuching',
+      phone: '+60', email: '',
+      currentMethod: 'referral', challenge: '', monthlyGoal: cfg.goals[1],
+      lang: 'EN',
+    };
   });
 
   const [step, setStep] = useState('input');
@@ -43,6 +62,12 @@ export function LiveDemo() {
   const [error, setError] = useState('');
   const [log, setLog] = useState(loadLog);
   const [voiceConfirm, setVoiceConfirm] = useState(null);
+
+  const industryCfg = INDUSTRY_CONFIG[form.industry] || DEFAULT_CFG;
+
+  useEffect(() => {
+    setForm(f => ({ ...f, monthlyGoal: (INDUSTRY_CONFIG[f.industry] || DEFAULT_CFG).goals[1] }));
+  }, [form.industry]);
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -208,13 +233,13 @@ export function LiveDemo() {
                   placeholder="e.g. Can't scale beyond referrals, inconsistent pipeline..."
                   disabled={step==='generating'}/>
               </Field>
-              <Field label="Monthly meeting / client goal">
+              <Field label={`Their dream outcome — ${industryCfg.unit}`}>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                  {GOALS.map(g=>(
+                  {industryCfg.goals.map(g=>(
                     <button key={g} onClick={()=>set('monthlyGoal',g)} disabled={step==='generating'}
                       style={{padding:'6px 12px',borderRadius:6,border:`1px solid ${form.monthlyGoal===g?'var(--amber)':'var(--border)'}`,
                         background:form.monthlyGoal===g?'var(--amber-dim)':'transparent',
-                        color:form.monthlyGoal===g?'var(--amber)':'var(--muted)',fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                        color:form.monthlyGoal===g?'var(--amber)':'var(--muted)',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                       {g}
                     </button>
                   ))}
@@ -410,7 +435,14 @@ export function LiveDemo() {
                       );
                     })}
                     <div style={{marginTop:8,padding:'12px 14px',background:'var(--s2)',borderRadius:8,fontSize:12,color:'var(--muted)',lineHeight:1.7,border:'1px solid var(--border)'}}>
-                      <strong style={{color:'var(--text)'}}>What to say now:</strong> "That message you just got on WhatsApp — our AI wrote that specifically for you, {form.company}, and {form.industry} businesses in {form.city}. Every lead in your campaign gets the same level of personalisation. That's what gets replies."
+                      <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--amber)',marginBottom:6}}>What to say right now 👇</div>
+                      <em style={{color:'var(--text)'}}>
+                        "That WhatsApp you just received — our AI wrote that specifically for you, {form.company}, in {form.city}.
+                        Every business in your campaign gets the same treatment.
+                        Right now you're getting clients through {METHODS.find(m=>m.v===form.currentMethod)?.l?.toLowerCase() || 'your current method'}.
+                        With KBOOS, you could {form.monthlyGoal.toLowerCase()} — on autopilot, without lifting a finger.
+                        The AI handles every message, every follow-up. You just {industryCfg.verb} the deals."
+                      </em>
                     </div>
                   </div>
                 )}
