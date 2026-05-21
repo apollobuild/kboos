@@ -3,8 +3,8 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 
-const CH_ICON  = { WA:'💬', WhatsApp:'💬', Email:'📧', email:'📧', Call:'📞', call:'📞', LinkedIn:'🔗' };
-const CH_COLOR = { WA:'var(--green)', WhatsApp:'var(--green)', Email:'var(--blue)', email:'var(--blue)', Call:'var(--amber)', call:'var(--amber)' };
+const CH_ICON  = { WA:'💬', WhatsApp:'💬', wa:'💬', whatsapp:'💬', Email:'📧', email:'📧', Call:'📞', call:'📞', voice:'📞', LinkedIn:'🔗' };
+const CH_COLOR = { WA:'var(--green)', WhatsApp:'var(--green)', wa:'var(--green)', whatsapp:'var(--green)', Email:'var(--blue)', email:'var(--blue)', Call:'var(--amber)', call:'var(--amber)', voice:'var(--amber)' };
 
 function relTime(iso) {
   if (!iso) return '';

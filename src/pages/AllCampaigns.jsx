@@ -148,7 +148,7 @@ export function AllCampaigns() {
                     <td>
                       <div style={{display:'flex',gap:6,alignItems:'center'}}>
                         {c.status === 'awaiting_approval' && (
-                          <button className="btn btn-amber btn-xs" onClick={() => setPage('approval')}>Review</button>
+                          <button className="btn btn-amber btn-xs" onClick={() => setPage('approvals')}>Review</button>
                         )}
                         {(c.status === 'active' || c.status === 'paused') && (
                           <button

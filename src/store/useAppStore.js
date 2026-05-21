@@ -52,6 +52,10 @@ export const useAppStore = create((set, get) => ({
   },
 
   setPage: (page) => set({ page }),
+  loadCampaigns: async () => {
+    const campaigns = await campaignsService.getAll().catch(() => null);
+    if (campaigns) set({ campaigns });
+  },
   setSelectedBiz: (bizId) => set({ selectedBizId: bizId }),
 
   setTweak: (key, val) => {

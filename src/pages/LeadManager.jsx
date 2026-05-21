@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { LeadStatusBadge } from '../components/ui/LeadStatusBadge.jsx';
 import { ScoreDisplay } from '../components/ui/ScoreDisplay.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
-import { leadsService } from '../services/leads.js';
+import { leadsService, calculateScoreLabel } from '../services/leads.js';
 import { apiFetch } from '../services/api.js';
 
 const STATUS_TABS = [
@@ -76,17 +76,21 @@ export function LeadManager() {
   const toggle    = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const toggleAll = ()   => setSelected(s => s.length === filtered.length ? [] : filtered.map(l => l.id));
 
-  const filtered = leads.filter(l =>
-    (!selectedBizId || l.bizId === selectedBizId) &&
+  const filtered = leads.filter(l => {
+    const lBizId = l.bizId || campaigns.find(c => c.id === l.campaignId)?.bizId;
+    const lScoreLabel = calculateScoreLabel(l);
+    return (
+    (!selectedBizId || lBizId === selectedBizId) &&
     (statusFilter === 'All'   || l.status === statusFilter) &&
-    (scoreFilter  === 'All'   || l.scoreLabel === scoreFilter) &&
+    (scoreFilter  === 'All'   || lScoreLabel === scoreFilter) &&
     (campaignFilter === 'All' || String(l.campaignId) === campaignFilter) &&
     (search === '' ||
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.company.toLowerCase().includes(search.toLowerCase()) ||
       (l.phone || '').includes(search) ||
       (l.email || '').toLowerCase().includes(search.toLowerCase()))
-  );
+    );
+  });
 
   const rowStyle = (l) => {
     if (l.status === 'bounced')      return { borderLeft: '2px solid var(--red)', background: 'oklch(55% 0.22 25 / 0.04)' };
