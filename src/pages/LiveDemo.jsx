@@ -280,13 +280,24 @@ export function LiveDemo() {
                 {/* Results */}
                 {step==='done' && Object.keys(results).length > 0 && (
                   <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:7}}>
-                    {Object.entries(results).map(([ch,r])=>(
-                      <div key={ch} style={{display:'flex', alignItems:'center', gap:10, fontSize:13, padding:'8px 12px', borderRadius:8, background:r.ok?'rgba(0,255,128,0.06)':'rgba(255,80,80,0.06)', border:`1px solid ${r.ok?'rgba(0,255,128,0.2)':'rgba(255,80,80,0.2)'}`}}>
-                        <span style={{color:r.ok?'var(--green)':'var(--red)', fontWeight:700}}>{r.ok?'✓':'✗'}</span>
-                        <span style={{textTransform:'capitalize', fontWeight:600}}>{ch}</span>
-                        <span style={{color:'var(--muted)', fontSize:12}}>{r.ok ? 'Sent successfully' : r.error}</span>
-                      </div>
-                    ))}
+                    {Object.entries(results).map(([ch,r])=>{
+                      const isIntlLimit = !r.ok && r.error?.toLowerCase().includes('international');
+                      return (
+                        <div key={ch} style={{flexDirection:'column', display:'flex', gap:6, fontSize:13, padding:'10px 12px', borderRadius:8, background:r.ok?'rgba(0,255,128,0.06)':'rgba(255,80,80,0.06)', border:`1px solid ${r.ok?'rgba(0,255,128,0.2)':'rgba(255,80,80,0.2)'}`}}>
+                          <div style={{display:'flex', alignItems:'center', gap:10}}>
+                            <span style={{color:r.ok?'var(--green)':'var(--red)', fontWeight:700}}>{r.ok?'✓':'✗'}</span>
+                            <span style={{textTransform:'capitalize', fontWeight:600}}>{ch}</span>
+                            <span style={{color:'var(--muted)', fontSize:12}}>{r.ok ? 'Sent successfully' : r.error}</span>
+                          </div>
+                          {isIntlLimit && (
+                            <div style={{marginLeft:22, padding:'8px 12px', background:'rgba(255,185,40,0.08)', border:'1px solid rgba(255,185,40,0.3)', borderRadius:6, fontSize:12, color:'var(--amber)', lineHeight:1.6}}>
+                              <strong>Free Vapi numbers only call US/Canada.</strong> To call Malaysian (+60) numbers you need a paid number:<br/>
+                              <a href="https://dashboard.vapi.ai/phone-numbers" target="_blank" rel="noreferrer" style={{color:'var(--amber)', fontWeight:700}}>1. Buy a Twilio +60 number (~$2/mo) ↗</a> then import it in Vapi → Phone Numbers → Import Twilio.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
