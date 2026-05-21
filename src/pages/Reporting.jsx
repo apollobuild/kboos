@@ -39,7 +39,18 @@ export function Reporting() {
 
   useEffect(() => {
     setSpendData(null);
-    apiFetch(`/wallet/spend-summary?period=${period}`).then(setSpendData).catch(() => {});
+    const now = new Date();
+    let monthParam;
+    if (period === 'month') {
+      monthParam = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    } else if (period === 'last') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      monthParam = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } else {
+      monthParam = null; // all time — backend handles no param
+    }
+    const url = monthParam ? `/wallet/spend-summary?month=${monthParam}` : '/wallet/spend-summary?all=1';
+    apiFetch(url).then(setSpendData).catch(() => {});
   }, [period]);
 
   // Date boundary for period filter
@@ -160,13 +171,13 @@ export function Reporting() {
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <select value={period} onChange={e => setPeriod(e.target.value)}
-            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'6px 12px', borderRadius:6, fontSize:13 }}>
+            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13, colorScheme:'dark' }}>
             <option value="month">This Month</option>
             <option value="last">Last Month</option>
             <option value="all">All Time</option>
           </select>
           <select value={bizKey} onChange={e => setBizKey(e.target.value)}
-            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'6px 12px', borderRadius:6, fontSize:13 }}>
+            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13, colorScheme:'dark' }}>
             <option value="all">All Businesses</option>
             {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
