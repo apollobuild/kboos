@@ -275,9 +275,17 @@ export function Settings() {
               {/* Special UI for Vapi phone number — fetch & pick from list */}
               {api === 'vapi_phone_number_id' ? (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  <div style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
-                    Enter a phone number ID from your Vapi dashboard, or click <strong style={{color:'var(--text)'}}>Fetch Numbers</strong> to load your list.
-                    Don't have one yet? In Vapi dashboard → <strong style={{color:'var(--text)'}}>Phone Numbers → Create Phone Number</strong> — Vapi provides a <span style={{color:'var(--green)'}}>free number</span> for testing.
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'10px 14px', background:'var(--amber-dim)', border:'1px solid oklch(72% 0.18 65 / 0.35)', borderRadius:8 }}>
+                    <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.6 }}>
+                      No Vapi number yet? Create a <strong>free</strong> one directly in Vapi — takes 10 seconds.
+                    </div>
+                    <a href="https://dashboard.vapi.ai/phone-numbers" target="_blank" rel="noreferrer"
+                      style={{ flexShrink:0, display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:6, background:'var(--amber)', color:'#000', fontSize:12, fontWeight:700, textDecoration:'none', whiteSpace:'nowrap' }}>
+                      📞 Create Free Number ↗
+                    </a>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>
+                    After creating, click <strong style={{color:'var(--text)'}}>📱 Fetch Numbers</strong> below to load it here.
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
                     <div style={{ position:'relative', flex:1 }}>
