@@ -27,19 +27,26 @@ const CSS = `
 
   .lp-card {
     position:relative; z-index:100;
-    background:linear-gradient(145deg,rgba(13,22,40,0.97) 0%,rgba(17,28,56,0.97) 100%);
+    background:
+      linear-gradient(160deg, rgba(255,255,255,0.032) 0%, transparent 28%),
+      linear-gradient(145deg,rgba(13,22,40,0.97) 0%,rgba(17,28,56,0.97) 100%);
     backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
     border:1px solid rgba(80,120,255,0.18);
     border-radius:28px; padding:46px 42px 42px;
     width:100%; max-width:420px;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.07),
-      inset 0 -1px 0 rgba(0,0,0,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.13),
+      inset 0 -1px 0 rgba(0,0,0,0.28),
+      inset 1px 0 0 rgba(255,255,255,0.04),
       0 0 60px oklch(65% 0.22 145 / 0.18),
       0 0 0 1px rgba(80,120,255,0.08),
       0 32px 80px rgba(0,0,20,0.85),
       0 8px 32px rgba(0,0,20,0.6);
     transform:translateZ(0);
+  }
+  .lp-card::before {
+    content:''; position:absolute; inset:0; border-radius:28px; pointer-events:none;
+    background:linear-gradient(135deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.01) 35%, transparent 60%);
   }
 
   .lp-logo { text-align:center; margin-bottom:38px; }
