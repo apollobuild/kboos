@@ -6,7 +6,7 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
 
   .lp-body {
-    min-height:100vh; background:#03050a;
+    min-height:100vh; background:linear-gradient(145deg,#060a18 0%,#04080f 100%);
     display:flex; align-items:center; justify-content:center;
     font-family:'Outfit',-apple-system,sans-serif; overflow:hidden; position:relative;
   }
@@ -27,15 +27,18 @@ const CSS = `
 
   .lp-card {
     position:relative; z-index:100;
-    background:rgba(6,10,16,0.96);
-    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    background:linear-gradient(145deg,rgba(13,22,40,0.97) 0%,rgba(17,28,56,0.97) 100%);
+    backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+    border:1px solid rgba(80,120,255,0.18);
     border-radius:28px; padding:46px 42px 42px;
     width:100%; max-width:420px;
     box-shadow:
-      0 0 60px oklch(65% 0.22 145 / 0.28),
-      0 0 120px oklch(65% 0.22 145 / 0.12),
       inset 0 1px 0 rgba(255,255,255,0.07),
-      inset 0 -1px 0 rgba(0,0,0,0.3);
+      inset 0 -1px 0 rgba(0,0,0,0.3),
+      0 0 60px oklch(65% 0.22 145 / 0.18),
+      0 0 0 1px rgba(80,120,255,0.08),
+      0 32px 80px rgba(0,0,20,0.85),
+      0 8px 32px rgba(0,0,20,0.6);
     transform:translateZ(0);
   }
 
@@ -62,13 +65,14 @@ const CSS = `
   .lp-label { display:block; font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); margin-bottom:7px; letter-spacing:0.09em; text-transform:uppercase; }
   .lp-input-wrap { margin-bottom:18px; }
   .lp-input {
-    width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    width:100%; background:rgba(8,12,28,0.75); border:1px solid rgba(80,120,255,0.18);
     color:#fff; padding:13px 16px; border-radius:13px; font-size:14px;
     font-family:'Outfit',sans-serif; outline:none;
     transition:border-color 0.25s,box-shadow 0.25s,background 0.25s;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.03);
   }
-  .lp-input:focus { border-color:oklch(68% 0.22 145 / 0.6); background:rgba(255,255,255,0.06); box-shadow:0 0 0 3px oklch(65% 0.22 145 / 0.12); }
-  .lp-input::placeholder { color:rgba(255,255,255,0.15); }
+  .lp-input:focus { border-color:oklch(62% 0.19 245 / 0.65); background:rgba(10,16,36,0.9); box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 0 0 3px oklch(62% 0.19 245 / 0.12); }
+  .lp-input::placeholder { color:rgba(255,255,255,0.18); }
   .lp-btn {
     position:relative; width:100%; padding:14px;
     background:linear-gradient(135deg,#ffffff 0%,#dfffee 100%);
