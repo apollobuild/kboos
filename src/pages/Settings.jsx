@@ -81,6 +81,23 @@ export function Settings() {
   });
   const [brandingSaving, setBrandingSaving] = useState(false);
 
+  // Vapi phone numbers
+  const [vapiNumbers, setVapiNumbers] = useState([]);
+  const [vapiNumLoading, setVapiNumLoading] = useState(false);
+
+  async function fetchVapiNumbers() {
+    setVapiNumLoading(true);
+    try {
+      const nums = await apiFetch('/voice/phone-numbers');
+      setVapiNumbers(nums);
+      if (nums.length === 0) showToast('No phone numbers found — create a free number in Vapi dashboard first', 'amber');
+    } catch (e) {
+      showToast(e.message || 'Failed to fetch Vapi numbers', 'red');
+    } finally {
+      setVapiNumLoading(false);
+    }
+  }
+
   useEffect(() => {
     const pendingTab = sessionStorage.getItem('settingsTab');
     if (pendingTab) { setTab(pendingTab); sessionStorage.removeItem('settingsTab'); }
@@ -250,24 +267,85 @@ export function Settings() {
             <div key={api} className="card fade-up">
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
                 <div style={{ fontWeight:600 }}>{API_LABELS[api]}</div>
-                <button className="btn" style={{ fontSize:12, padding:'3px 10px' }} onClick={() => testConnection(api)}>Test Connection</button>
+                {api !== 'vapi_phone_number_id' && (
+                  <button className="btn" style={{ fontSize:12, padding:'3px 10px' }} onClick={() => testConnection(api)}>Test Connection</button>
+                )}
               </div>
-              <div style={{ display:'flex', gap:8 }}>
-                <div style={{ position:'relative', flex:1 }}>
-                  <input
-                    type={showKey[api] ? 'text' : 'password'}
-                    value={apiKeys[api] || ''}
-                    onChange={e => setApiKeys(prev => ({ ...prev, [api]: e.target.value }))}
-                    placeholder={`Enter ${API_LABELS[api]} API key`}
-                    style={{ width:'100%', background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 36px 8px 12px', borderRadius:6, fontSize:13, fontFamily: showKey[api] ? 'var(--font-mono)' : 'inherit' }}
-                  />
-                  <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:14 }}
-                    onClick={() => setShowKey(prev => ({ ...prev, [api]: !prev[api] }))}>
-                    {showKey[api] ? '🙈' : '👁'}
-                  </button>
+
+              {/* Special UI for Vapi phone number — fetch & pick from list */}
+              {api === 'vapi_phone_number_id' ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <div style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
+                    Enter a phone number ID from your Vapi dashboard, or click <strong style={{color:'var(--text)'}}>Fetch Numbers</strong> to load your list.
+                    Don't have one yet? In Vapi dashboard → <strong style={{color:'var(--text)'}}>Phone Numbers → Create Phone Number</strong> — Vapi provides a <span style={{color:'var(--green)'}}>free number</span> for testing.
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <div style={{ position:'relative', flex:1 }}>
+                      <input
+                        type={showKey[api] ? 'text' : 'password'}
+                        value={apiKeys[api] || ''}
+                        onChange={e => setApiKeys(prev => ({ ...prev, [api]: e.target.value }))}
+                        placeholder="e.g. ph_xxxxxxxxxxxxxxxxxxxxxxxx"
+                        className="input"
+                        style={{ fontFamily: showKey[api] ? 'var(--font-mono)' : 'inherit', paddingRight:36 }}
+                      />
+                      <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:14 }}
+                        onClick={() => setShowKey(prev => ({ ...prev, [api]: !prev[api] }))}>
+                        {showKey[api] ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                    <button className="btn btn-ghost" style={{ flexShrink:0, whiteSpace:'nowrap' }}
+                      disabled={vapiNumLoading} onClick={fetchVapiNumbers}>
+                      {vapiNumLoading ? '◌' : '📱 Fetch Numbers'}
+                    </button>
+                    <button className="btn btn-green" style={{ flexShrink:0 }} onClick={() => saveApiKey(api)}>Save</button>
+                  </div>
+                  {vapiNumbers.length > 0 && (
+                    <div style={{ background:'var(--s1)', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
+                      <div style={{ fontSize:11, color:'var(--muted)', padding:'8px 12px', borderBottom:'1px solid var(--border)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>
+                        Your Vapi Phone Numbers — click to select
+                      </div>
+                      {vapiNumbers.map(n => (
+                        <div key={n.id}
+                          onClick={() => setApiKeys(prev => ({ ...prev, vapi_phone_number_id: n.id }))}
+                          style={{
+                            display:'flex', alignItems:'center', gap:12, padding:'10px 12px',
+                            cursor:'pointer', borderBottom:'1px solid var(--border)',
+                            background: apiKeys.vapi_phone_number_id === n.id ? 'var(--green-dim)' : 'transparent',
+                            transition:'background 0.15s',
+                          }}>
+                          <span style={{ fontSize:16 }}>📞</span>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontWeight:500, fontSize:13 }}>{n.number}</div>
+                            {n.name && <div style={{ fontSize:11, color:'var(--muted)' }}>{n.name}</div>}
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span style={{ fontSize:10, background:'var(--blue-dim)', color:'var(--blue)', borderRadius:4, padding:'2px 6px', fontWeight:600, textTransform:'uppercase' }}>{n.provider}</span>
+                            {apiKeys.vapi_phone_number_id === n.id && <span style={{ color:'var(--green)', fontSize:13 }}>✓</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <button className="btn btn-green" style={{ flexShrink:0 }} onClick={() => saveApiKey(api)}>Save</button>
-              </div>
+              ) : (
+                <div style={{ display:'flex', gap:8 }}>
+                  <div style={{ position:'relative', flex:1 }}>
+                    <input
+                      type={showKey[api] ? 'text' : 'password'}
+                      value={apiKeys[api] || ''}
+                      onChange={e => setApiKeys(prev => ({ ...prev, [api]: e.target.value }))}
+                      placeholder={`Enter ${API_LABELS[api]} API key`}
+                      style={{ width:'100%', background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 36px 8px 12px', borderRadius:6, fontSize:13, fontFamily: showKey[api] ? 'var(--font-mono)' : 'inherit' }}
+                    />
+                    <button style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', fontSize:14 }}
+                      onClick={() => setShowKey(prev => ({ ...prev, [api]: !prev[api] }))}>
+                      {showKey[api] ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                  <button className="btn btn-green" style={{ flexShrink:0 }} onClick={() => saveApiKey(api)}>Save</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
