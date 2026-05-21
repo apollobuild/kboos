@@ -38,12 +38,34 @@ export function Reporting() {
   const [spendData,  setSpendData]  = useState(null);
 
   useEffect(() => {
-    apiFetch('/wallet/spend-summary').then(setSpendData).catch(() => {});
-  }, []);
+    setSpendData(null);
+    apiFetch(`/wallet/spend-summary?period=${period}`).then(setSpendData).catch(() => {});
+  }, [period]);
 
-  const filteredCampaigns = bizKey === 'all' ? campaigns : campaigns.filter(c => c.bizId === bizKey);
+  // Date boundary for period filter
+  const periodStart = (() => {
+    const now = new Date();
+    if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
+    if (period === 'last') return new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return null; // 'all' — no filter
+  })();
+  const periodEnd = period === 'last'
+    ? new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    : null;
+
+  const inPeriod = (dateStr) => {
+    if (!periodStart) return true;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return true;
+    if (periodEnd && d >= periodEnd) return false;
+    return d >= periodStart;
+  };
+
+  const filteredCampaigns = campaigns.filter(c =>
+    (bizKey === 'all' || c.bizId === bizKey) && inPeriod(c.createdAt)
+  );
   const campaignIds = new Set(filteredCampaigns.map(c => c.id));
-  const filteredLeads = leads.filter(l => campaignIds.has(l.campaignId));
+  const filteredLeads = leads.filter(l => campaignIds.has(l.campaignId) && inPeriod(l.createdAt));
 
   // Funnel counts
   const scraped     = filteredCampaigns.reduce((s, c) => s + (c.total || 0), 0);

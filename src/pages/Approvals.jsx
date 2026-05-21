@@ -16,6 +16,8 @@ export function Approvals() {
   const [launchLimits, setLaunchLimits] = useState({});
   const [approving, setApproving] = useState({});
   const [launching, setLaunching] = useState({});
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const stage1 = campaigns.filter(c => c.status === 'awaiting_approval');
   const enriching = campaigns.filter(c => c.status === 'enriching');
@@ -49,9 +51,24 @@ export function Approvals() {
 
   async function handleReject(campaignId) {
     try {
-      await updateCampaign(campaignId, { status: 'paused' });
-      showToast('Campaign rejected', 'amber');
+      await updateCampaign(campaignId, {
+        status: 'paused',
+        ...(rejectReason.trim() ? { rejectReason: rejectReason.trim() } : {}),
+      });
+      showToast(rejectReason.trim() ? 'Campaign rejected with reason' : 'Campaign rejected', 'amber');
+      setRejectingId(null);
+      setRejectReason('');
     } catch (e) { showToast(e.message, 'red'); }
+  }
+
+  function startReject(id) {
+    setRejectingId(id);
+    setRejectReason('');
+  }
+
+  function cancelReject() {
+    setRejectingId(null);
+    setRejectReason('');
   }
 
   async function handleLaunch(campaignId) {
@@ -129,12 +146,27 @@ export function Approvals() {
                     {' '}Apollo Professional plan — people search is unlimited.
                   </div>
 
-                  <div style={{display:'flex', gap:8}}>
-                    <button className="btn" onClick={() => handleReject(c.id)} style={{fontSize:13}}>Reject</button>
-                    <button className="btn btn-blue" onClick={() => handleApproveEnrich(c.id)} disabled={approving[c.id]} style={{fontSize:13}}>
-                      {approving[c.id] ? 'Starting…' : 'Approve & Enrich with Apollo →'}
-                    </button>
-                  </div>
+                  {rejectingId === c.id ? (
+                    <div style={{background:'rgba(255,80,80,0.06)',border:'1px solid rgba(255,80,80,0.25)',borderRadius:8,padding:'12px 14px'}}>
+                      <div style={{fontSize:12,color:'var(--red)',fontWeight:600,marginBottom:8}}>Reason for rejection (optional)</div>
+                      <textarea
+                        className="input" rows={2} placeholder="e.g. Leads look off-target — try 'restaurant manager' instead of 'F&B director'"
+                        value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                        style={{fontSize:12,marginBottom:10,resize:'none'}}
+                      />
+                      <div style={{display:'flex',gap:8}}>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleReject(c.id)} style={{fontSize:12}}>Confirm Reject</button>
+                        <button className="btn btn-ghost btn-sm" onClick={cancelReject} style={{fontSize:12}}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{display:'flex', gap:8}}>
+                      <button className="btn" onClick={() => startReject(c.id)} style={{fontSize:13}}>Reject</button>
+                      <button className="btn btn-blue" onClick={() => handleApproveEnrich(c.id)} disabled={approving[c.id]} style={{fontSize:13}}>
+                        {approving[c.id] ? 'Starting…' : 'Approve & Enrich with Apollo →'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -228,12 +260,27 @@ export function Approvals() {
                       </div>
                     </div>
 
-                    <div style={{display:'flex', gap:8}}>
-                      <button className="btn" onClick={() => handleReject(c.id)} style={{fontSize:13}}>Reject</button>
-                      <button className="btn btn-green" onClick={() => handleLaunch(c.id)} disabled={launching[c.id]} style={{fontSize:13}}>
-                        {launching[c.id] ? 'Launching…' : '🚀 Launch Campaign'}
-                      </button>
-                    </div>
+                    {rejectingId === c.id ? (
+                      <div style={{background:'rgba(255,80,80,0.06)',border:'1px solid rgba(255,80,80,0.25)',borderRadius:8,padding:'12px 14px'}}>
+                        <div style={{fontSize:12,color:'var(--red)',fontWeight:600,marginBottom:8}}>Reason for rejection (optional)</div>
+                        <textarea
+                          className="input" rows={2} placeholder="e.g. Sequence needs tweaking before launch"
+                          value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                          style={{fontSize:12,marginBottom:10,resize:'none'}}
+                        />
+                        <div style={{display:'flex',gap:8}}>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleReject(c.id)} style={{fontSize:12}}>Confirm Reject</button>
+                          <button className="btn btn-ghost btn-sm" onClick={cancelReject} style={{fontSize:12}}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{display:'flex', gap:8}}>
+                        <button className="btn" onClick={() => startReject(c.id)} style={{fontSize:13}}>Reject</button>
+                        <button className="btn btn-green" onClick={() => handleLaunch(c.id)} disabled={launching[c.id]} style={{fontSize:13}}>
+                          {launching[c.id] ? 'Launching…' : '🚀 Launch Campaign'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

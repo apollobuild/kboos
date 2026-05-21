@@ -30,11 +30,27 @@ const DEFAULT_TEMPLATES = [
 ];
 
 const VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{title}}', '{{phone}}'];
+const WA_VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{phone}}'];
 const LANGS = [
   { v: 'all', l: 'All' },
   { v: 'EN', l: 'English' },
   { v: 'MS', l: 'Melayu' },
   { v: 'ZH', l: '中文' },
+];
+
+const DEFAULT_WA_BODY = `Hi {{first_name}}, saya dari KOBIS — kami bantu {{company}} dalam perkhidmatan outreach B2B di {{city}}. Boleh saya share info lebih? 🙏`;
+
+const DEFAULT_WA_TEMPLATES = [
+  {
+    id: 'default-wa-v1',
+    label: 'v1 — WA Starter',
+    active: true,
+    body: DEFAULT_WA_BODY,
+    lang: 'all',
+    type: 'whatsapp',
+    stats: { opens: 0, replies: 0 },
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 function parseTemplateFields(v) {
@@ -62,6 +78,7 @@ export function PromptStudio() {
     campaigns: s.campaigns,
   })));
 
+  const [templateType, setTemplateType] = useState('email'); // 'email' | 'whatsapp'
   const [versions, setVersions] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [editSubject, setEditSubject] = useState('');
@@ -75,30 +92,38 @@ export function PromptStudio() {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [testSending, setTestSending] = useState(false);
+  const isWA = templateType === 'whatsapp';
 
   useEffect(() => {
-    apiFetch('/settings/prompt-templates')
+    setLoading(true);
+    setVersions([]);
+    setSelectedId(null);
+    setSubjectVariants([]);
+    setPreviewMode(false);
+    const endpoint = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
+    const defaults = isWA ? DEFAULT_WA_TEMPLATES : DEFAULT_TEMPLATES;
+    apiFetch(endpoint)
       .then(data => {
-        const list = data.length === 0 ? DEFAULT_TEMPLATES : data;
+        const list = (!data || data.length === 0) ? defaults : data;
         setVersions(list);
         const active = list.find(t => t.active) || list[0];
         setSelectedId(active.id);
         const { subject, body, lang } = parseTemplateFields(active);
-        setEditSubject(subject);
+        setEditSubject(isWA ? '' : subject);
         setEditBody(body);
         setEditLang(lang);
         setEditLabel(active.label);
       })
       .catch(() => {
-        setVersions(DEFAULT_TEMPLATES);
-        setSelectedId(DEFAULT_TEMPLATES[0].id);
-        setEditSubject(DEFAULT_SUBJECT);
-        setEditBody(DEFAULT_BODY);
+        setVersions(defaults);
+        setSelectedId(defaults[0].id);
+        setEditSubject(isWA ? '' : DEFAULT_SUBJECT);
+        setEditBody(isWA ? DEFAULT_WA_BODY : DEFAULT_BODY);
         setEditLang('all');
-        setEditLabel(DEFAULT_TEMPLATES[0].label);
+        setEditLabel(defaults[0].label);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [templateType]);
 
   useEffect(() => {
     if (leads?.length > 0) setPreviewLead(leads[0]);
@@ -118,8 +143,9 @@ export function PromptStudio() {
   }
 
   async function handleSetActive(id) {
+    const base = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
     try {
-      await apiFetch(`/settings/prompt-templates/${id}`, { method: 'PATCH', body: { active: true } });
+      await apiFetch(`${base}/${id}`, { method: 'PATCH', body: { active: true } });
       setVersions(prev => prev.map(v => ({ ...v, active: v.id === id })));
       showToast('Template set as active', 'green');
     } catch (e) { showToast(e.message, 'red'); }
@@ -129,14 +155,16 @@ export function PromptStudio() {
     if (!editBody.trim()) return;
     setSaving(true);
     try {
-      const saved = await apiFetch('/settings/prompt-templates', {
+      const endpoint = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
+      const saved = await apiFetch(endpoint, {
         method: 'POST',
         body: {
           label: editLabel || `Version ${versions.length + 1}`,
-          subject: editSubject,
+          subject: isWA ? undefined : editSubject,
           body: editBody,
-          content: `Subject: ${editSubject}\n\n${editBody}`,
+          content: isWA ? editBody : `Subject: ${editSubject}\n\n${editBody}`,
           lang: editLang,
+          type: templateType,
         },
       });
       setVersions(prev => [saved, ...prev]);
@@ -149,8 +177,9 @@ export function PromptStudio() {
 
   async function handleDelete(id) {
     if (versions.length <= 1) { showToast("Can't delete the last template", 'amber'); return; }
+    const base = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
     try {
-      await apiFetch(`/settings/prompt-templates/${id}`, { method: 'DELETE' });
+      await apiFetch(`${base}/${id}`, { method: 'DELETE' });
       const remaining = versions.filter(v => v.id !== id);
       setVersions(remaining);
       if (selectedId === id) handleSelect(remaining[0]);
@@ -225,7 +254,20 @@ export function PromptStudio() {
       <div className="flex items-center justify-between mb-4 fade-up">
         <div>
           <div className="breadcrumb">Campaigns / <span>Prompt Studio</span></div>
-          <h1 className="page-title" style={{marginTop:4}}>Prompt Studio</h1>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginTop:4}}>
+            <h1 className="page-title" style={{margin:0}}>Prompt Studio</h1>
+            <div style={{display:'flex',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:3,gap:2}}>
+              {[{v:'email',icon:'📧',l:'Email'},{v:'whatsapp',icon:'💬',l:'WhatsApp'}].map(t=>(
+                <button key={t.v} onClick={()=>setTemplateType(t.v)}
+                  style={{padding:'5px 14px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
+                    background:templateType===t.v?'var(--accent-bg)':'transparent',
+                    color:templateType===t.v?'var(--accent)':'var(--muted)',
+                    transition:'all 0.15s'}}>
+                  {t.icon} {t.l}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
           <button className="btn" onClick={() => setPreviewMode(p => !p)} style={{fontSize:13}}>
@@ -344,65 +386,76 @@ export function PromptStudio() {
             )}
           </div>
 
-          {/* Subject line */}
-          <div style={{marginBottom:10}}>
-            <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5}}>Subject Line</div>
-            {previewMode ? (
-              <div style={{fontFamily:'var(--font-mono)', fontSize:13, color:'var(--fg)', padding:'8px 10px', background:'var(--bg)', borderRadius:6, border:'1px solid var(--border)'}}>
-                {previewSubject}
-              </div>
-            ) : (
-              <input
-                value={editSubject}
-                onChange={e => setEditSubject(e.target.value)}
-                style={{width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, outline:'none', boxSizing:'border-box'}}
-                placeholder="Subject line (under 7 words)…"
-              />
-            )}
-
-            {/* Subject variants from AI Improve */}
-            {subjectVariants.length > 1 && !previewMode && (
-              <div style={{marginTop:8}}>
-                <div style={{fontSize:10, color:'var(--muted)', marginBottom:5}}>AI suggested — pick one:</div>
-                <div style={{display:'flex', flexDirection:'column', gap:5}}>
-                  {subjectVariants.map((s, i) => (
-                    <div key={i} onClick={() => { setEditSubject(s); setSubjectVariants([]); }}
-                      style={{
-                        padding:'6px 10px', borderRadius:5, cursor:'pointer', fontSize:12,
-                        fontFamily:'var(--font-mono)',
-                        border: editSubject === s ? '1px solid var(--green)' : '1px solid var(--border)',
-                        color: editSubject === s ? 'var(--green)' : 'var(--fg)',
-                        background: editSubject === s ? 'rgba(0,255,128,0.05)' : 'var(--bg)',
-                      }}>
-                      {s}
-                    </div>
-                  ))}
+          {/* Subject line — email only */}
+          {!isWA && (
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5}}>Subject Line</div>
+              {previewMode ? (
+                <div style={{fontFamily:'var(--font-mono)', fontSize:13, color:'var(--fg)', padding:'8px 10px', background:'var(--bg)', borderRadius:6, border:'1px solid var(--border)'}}>
+                  {previewSubject}
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                <input
+                  value={editSubject}
+                  onChange={e => setEditSubject(e.target.value)}
+                  style={{width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, outline:'none', boxSizing:'border-box'}}
+                  placeholder="Subject line (under 7 words)…"
+                />
+              )}
+
+              {subjectVariants.length > 1 && !previewMode && (
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:10, color:'var(--muted)', marginBottom:5}}>AI suggested — pick one:</div>
+                  <div style={{display:'flex', flexDirection:'column', gap:5}}>
+                    {subjectVariants.map((s, i) => (
+                      <div key={i} onClick={() => { setEditSubject(s); setSubjectVariants([]); }}
+                        style={{
+                          padding:'6px 10px', borderRadius:5, cursor:'pointer', fontSize:12,
+                          fontFamily:'var(--font-mono)',
+                          border: editSubject === s ? '1px solid var(--green)' : '1px solid var(--border)',
+                          color: editSubject === s ? 'var(--green)' : 'var(--fg)',
+                          background: editSubject === s ? 'rgba(0,255,128,0.05)' : 'var(--bg)',
+                        }}>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Body */}
           <div style={{flex:1, display:'flex', flexDirection:'column'}}>
-            <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5}}>Email Body</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+              <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em'}}>
+                {isWA ? 'WhatsApp Message' : 'Email Body'}
+              </div>
+              {isWA && (
+                <div style={{fontSize:10,color: editBody.length > 1024 ? 'var(--red)' : editBody.length > 800 ? 'var(--amber)' : 'var(--muted)', fontFamily:'var(--font-mono)'}}>
+                  {editBody.length} / 1024 chars
+                </div>
+              )}
+            </div>
             {previewMode ? (
-              <div style={{flex:1, fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, color:'var(--fg)', whiteSpace:'pre-wrap', padding:4, minHeight:300}}>
+              <div style={{flex:1, fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, color:'var(--fg)', whiteSpace:'pre-wrap', padding:4, minHeight: isWA ? 120 : 300}}>
                 {previewBody}
               </div>
             ) : (
               <textarea
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
-                style={{flex:1, background:'transparent', border:'none', outline:'none', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, resize:'none', minHeight:300}}
+                style={{flex:1, background:'transparent', border:'none', outline:'none', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, resize:'none', minHeight: isWA ? 120 : 300}}
+                placeholder={isWA ? 'Hi {{first_name}}, …' : undefined}
               />
             )}
           </div>
 
           <div style={{borderTop:'1px solid var(--border)', paddingTop:10, marginTop:10, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
             <span style={{fontSize:11, color:'var(--muted)', marginRight:4}}>Insert:</span>
-            {VARIABLES.map(tag => (
+            {(isWA ? WA_VARIABLES : VARIABLES).map(tag => (
               <span key={tag}
-                style={{background:'var(--bg)', border:'1px solid var(--border)', padding:'3px 8px', borderRadius:4, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:11, color:'var(--blue)'}}
+                style={{background:'var(--bg)', border:'1px solid var(--border)', padding:'3px 8px', borderRadius:4, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:11, color: isWA ? 'var(--green)' : 'var(--blue)'}}
                 onClick={() => !previewMode && insertVariable(tag)}>
                 {tag}
               </span>
