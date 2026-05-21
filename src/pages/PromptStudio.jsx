@@ -3,6 +3,13 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 
+const LANG_LABELS = {
+  'all': 'English',
+  'EN':  'English',
+  'MS':  'Bahasa Malaysia',
+  'ZH':  'Mandarin Chinese (简体中文)',
+};
+
 const DEFAULT_SUBJECT = 'Quick question about {{company}}';
 const DEFAULT_BODY = `Hi {{first_name}},
 
@@ -53,6 +60,33 @@ const DEFAULT_WA_TEMPLATES = [
   },
 ];
 
+const DEFAULT_VOICE_BODY = `Hello, may I speak with {{first_name}}?
+
+Hi {{first_name}}, this is [Your Name] calling from KOBIS Berhad. I'm reaching out to businesses in {{city}}, particularly in the {{industry}} sector.
+
+We help companies like {{company}} generate qualified B2B leads and book meetings — without your team having to do manual cold outreach.
+
+I'd love to share how we've helped similar businesses here in Malaysia. Is this a good time for a quick 2-minute chat?
+
+[If YES → continue pitch]
+[If BUSY → "No problem — when would be a better time for me to call back?"]
+[If NOT INTERESTED → "Understood, I appreciate your time {{first_name}}. Have a great day!"]`;
+
+const DEFAULT_VOICE_TEMPLATES = [
+  {
+    id: 'default-voice-v1',
+    label: 'v1 — Voice Starter Script',
+    active: true,
+    body: DEFAULT_VOICE_BODY,
+    lang: 'EN',
+    type: 'voice',
+    stats: { opens: 0, replies: 0 },
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const VOICE_VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{title}}'];
+
 function parseTemplateFields(v) {
   if (v.subject !== undefined) return { subject: v.subject || '', body: v.body || '', lang: v.lang || 'all' };
   // Legacy: extract from "Subject: ...\n\n..." content format
@@ -78,7 +112,7 @@ export function PromptStudio() {
     campaigns: s.campaigns,
   })));
 
-  const [templateType, setTemplateType] = useState('email'); // 'email' | 'whatsapp'
+  const [templateType, setTemplateType] = useState('email'); // 'email' | 'whatsapp' | 'voice'
   const [versions, setVersions] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [editSubject, setEditSubject] = useState('');
@@ -92,7 +126,8 @@ export function PromptStudio() {
   const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [testSending, setTestSending] = useState(false);
-  const isWA = templateType === 'whatsapp';
+  const isWA    = templateType === 'whatsapp';
+  const isVoice = templateType === 'voice';
 
   useEffect(() => {
     setLoading(true);
@@ -100,8 +135,8 @@ export function PromptStudio() {
     setSelectedId(null);
     setSubjectVariants([]);
     setPreviewMode(false);
-    const endpoint = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
-    const defaults = isWA ? DEFAULT_WA_TEMPLATES : DEFAULT_TEMPLATES;
+    const endpoint = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
+    const defaults = isWA ? DEFAULT_WA_TEMPLATES : isVoice ? DEFAULT_VOICE_TEMPLATES : DEFAULT_TEMPLATES;
     apiFetch(endpoint)
       .then(data => {
         const list = (!data || data.length === 0) ? defaults : data;
@@ -109,7 +144,7 @@ export function PromptStudio() {
         const active = list.find(t => t.active) || list[0];
         setSelectedId(active.id);
         const { subject, body, lang } = parseTemplateFields(active);
-        setEditSubject(isWA ? '' : subject);
+        setEditSubject(isWA || isVoice ? '' : subject);
         setEditBody(body);
         setEditLang(lang);
         setEditLabel(active.label);
@@ -117,8 +152,8 @@ export function PromptStudio() {
       .catch(() => {
         setVersions(defaults);
         setSelectedId(defaults[0].id);
-        setEditSubject(isWA ? '' : DEFAULT_SUBJECT);
-        setEditBody(isWA ? DEFAULT_WA_BODY : DEFAULT_BODY);
+        setEditSubject(isWA || isVoice ? '' : DEFAULT_SUBJECT);
+        setEditBody(isVoice ? DEFAULT_VOICE_BODY : isWA ? DEFAULT_WA_BODY : DEFAULT_BODY);
         setEditLang('all');
         setEditLabel(defaults[0].label);
       })
@@ -143,7 +178,7 @@ export function PromptStudio() {
   }
 
   async function handleSetActive(id) {
-    const base = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
+    const base = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
     try {
       await apiFetch(`${base}/${id}`, { method: 'PATCH', body: { active: true } });
       setVersions(prev => prev.map(v => ({ ...v, active: v.id === id })));
@@ -155,14 +190,14 @@ export function PromptStudio() {
     if (!editBody.trim()) return;
     setSaving(true);
     try {
-      const endpoint = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
+      const endpoint = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
       const saved = await apiFetch(endpoint, {
         method: 'POST',
         body: {
           label: editLabel || `Version ${versions.length + 1}`,
-          subject: isWA ? undefined : editSubject,
+          subject: isWA || isVoice ? undefined : editSubject,
           body: editBody,
-          content: isWA ? editBody : `Subject: ${editSubject}\n\n${editBody}`,
+          content: isWA || isVoice ? editBody : `Subject: ${editSubject}\n\n${editBody}`,
           lang: editLang,
           type: templateType,
         },
@@ -177,7 +212,7 @@ export function PromptStudio() {
 
   async function handleDelete(id) {
     if (versions.length <= 1) { showToast("Can't delete the last template", 'amber'); return; }
-    const base = isWA ? '/settings/wa-templates' : '/settings/prompt-templates';
+    const base = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
     try {
       await apiFetch(`${base}/${id}`, { method: 'DELETE' });
       const remaining = versions.filter(v => v.id !== id);
@@ -196,22 +231,50 @@ export function PromptStudio() {
   async function handleAIImprove() {
     setImproving(true);
     setSubjectVariants([]);
+    const langName = LANG_LABELS[editLang] || 'English';
+    const langInstruction = editLang === 'all'
+      ? 'Write in English.'
+      : `IMPORTANT: The entire output MUST be written in ${langName}. Do not switch to any other language.`;
+
     try {
       const campaign = campaigns?.[0];
+
+      if (isVoice) {
+        const res = await apiFetch('/ai/generate-email', {
+          method: 'POST',
+          body: {
+            bizName: campaign?.bizName || 'KOBIS Berhad',
+            campaignName: campaign?.name || 'Outreach Campaign',
+            prompt: `You are rewriting a voice call script for a B2B outreach agent calling Malaysian businesses. ${langInstruction}\n\nKeep all {{variables}} exactly as-is. Make the script natural, conversational, and suitable for a real phone call. Include natural pause points and objection handling branches.\n\nCurrent script:\n${editBody}`,
+            lead: { name: 'Ahmad', company: 'Sample Corp', title: 'Manager', lang: editLang === 'all' ? 'EN' : editLang },
+          },
+        });
+        setEditBody(res.body || editBody);
+        showToast('AI improved the voice script ✓', 'green');
+        return;
+      }
+
+      const channelInstruction = isWA
+        ? `You are rewriting a WhatsApp outreach message. ${langInstruction}\nKeep it under 160 characters. Casual, friendly, ends with a question. Keep all {{variables}} intact.`
+        : `You are rewriting a cold email template for Malaysian B2B outreach. ${langInstruction}\nApply cold email best practices. Keep all {{variables}} intact.\n\nSubject: ${editSubject}\n\n${editBody}`;
+
       const res = await apiFetch('/ai/generate-email', {
         method: 'POST',
         body: {
           bizName: campaign?.bizName || 'KOBIS Berhad',
           campaignName: campaign?.name || 'Outreach Campaign',
-          prompt: `Improve this email template while keeping {{variables}} intact. Apply cold email best practices for Malaysian B2B:\n\nSubject: ${editSubject}\n\n${editBody}`,
+          prompt: channelInstruction,
           lead: { name: 'Ahmad', company: 'Sample Corp', title: 'Manager', lang: editLang === 'all' ? 'EN' : editLang },
         },
       });
-      if (Array.isArray(res.subjects) && res.subjects.length > 1) {
-        setSubjectVariants(res.subjects);
-        setEditSubject(res.subjects[0]);
-      } else {
-        setEditSubject(res.subject || editSubject);
+
+      if (!isWA) {
+        if (Array.isArray(res.subjects) && res.subjects.length > 1) {
+          setSubjectVariants(res.subjects);
+          setEditSubject(res.subjects[0]);
+        } else {
+          setEditSubject(res.subject || editSubject);
+        }
       }
       setEditBody(res.body || editBody);
       showToast('AI improved the template ✓', 'green');
@@ -257,7 +320,7 @@ export function PromptStudio() {
           <div style={{display:'flex',alignItems:'center',gap:12,marginTop:4}}>
             <h1 className="page-title" style={{margin:0}}>Prompt Studio</h1>
             <div style={{display:'flex',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:3,gap:2}}>
-              {[{v:'email',icon:'📧',l:'Email'},{v:'whatsapp',icon:'💬',l:'WhatsApp'}].map(t=>(
+              {[{v:'email',icon:'📧',l:'Email'},{v:'whatsapp',icon:'💬',l:'WhatsApp'},{v:'voice',icon:'📞',l:'Voice Agent'}].map(t=>(
                 <button key={t.v} onClick={()=>setTemplateType(t.v)}
                   style={{padding:'5px 14px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
                     background:templateType===t.v?'var(--accent-bg)':'transparent',
@@ -276,9 +339,11 @@ export function PromptStudio() {
           <button className="btn" onClick={handleClone} style={{fontSize:13}} title="Duplicate this version to edit">
             ⎘ Clone
           </button>
-          <button className="btn" onClick={handleTestSend} disabled={testSending} style={{fontSize:13}} title="Send test email to yourself">
-            {testSending ? 'Sending…' : '✉ Test Send'}
-          </button>
+          {!isVoice && (
+            <button className="btn" onClick={handleTestSend} disabled={testSending} style={{fontSize:13}} title="Send test email to yourself">
+              {testSending ? 'Sending…' : '✉ Test Send'}
+            </button>
+          )}
           <button className="btn" onClick={handleAIImprove} disabled={improving} style={{fontSize:13, color:'var(--green)', borderColor:'rgba(0,255,128,0.3)'}}>
             {improving ? '⏳ Improving…' : '⚡ AI Improve'}
           </button>
@@ -387,7 +452,7 @@ export function PromptStudio() {
           </div>
 
           {/* Subject line — email only */}
-          {!isWA && (
+          {!isWA && !isVoice && (
             <div style={{marginBottom:10}}>
               <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5}}>Subject Line</div>
               {previewMode ? (
@@ -429,11 +494,16 @@ export function PromptStudio() {
           <div style={{flex:1, display:'flex', flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
               <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em'}}>
-                {isWA ? 'WhatsApp Message' : 'Email Body'}
+                {isVoice ? 'Voice Call Script' : isWA ? 'WhatsApp Message' : 'Email Body'}
               </div>
               {isWA && (
                 <div style={{fontSize:10,color: editBody.length > 1024 ? 'var(--red)' : editBody.length > 800 ? 'var(--amber)' : 'var(--muted)', fontFamily:'var(--font-mono)'}}>
                   {editBody.length} / 1024 chars
+                </div>
+              )}
+              {isVoice && (
+                <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--font-mono)'}}>
+                  ~{Math.ceil(editBody.trim().split(/\s+/).length / 130)} min · {editBody.trim().split(/\s+/).length} words
                 </div>
               )}
             </div>
@@ -446,16 +516,16 @@ export function PromptStudio() {
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
                 style={{flex:1, background:'transparent', border:'none', outline:'none', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, resize:'none', minHeight: isWA ? 120 : 300}}
-                placeholder={isWA ? 'Hi {{first_name}}, …' : undefined}
+                placeholder={isVoice ? 'Hello, may I speak with {{first_name}}?…' : isWA ? 'Hi {{first_name}}, …' : undefined}
               />
             )}
           </div>
 
           <div style={{borderTop:'1px solid var(--border)', paddingTop:10, marginTop:10, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
             <span style={{fontSize:11, color:'var(--muted)', marginRight:4}}>Insert:</span>
-            {(isWA ? WA_VARIABLES : VARIABLES).map(tag => (
+            {(isVoice ? VOICE_VARIABLES : isWA ? WA_VARIABLES : VARIABLES).map(tag => (
               <span key={tag}
-                style={{background:'var(--bg)', border:'1px solid var(--border)', padding:'3px 8px', borderRadius:4, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:11, color: isWA ? 'var(--green)' : 'var(--blue)'}}
+                style={{background:'var(--bg)', border:'1px solid var(--border)', padding:'3px 8px', borderRadius:4, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:11, color: isVoice ? 'var(--amber)' : isWA ? 'var(--green)' : 'var(--blue)'}}
                 onClick={() => !previewMode && insertVariable(tag)}>
                 {tag}
               </span>
