@@ -215,23 +215,28 @@ export function LiveDemo() {
           { n:'6',        l:'Industries served' },
           { n:'7 days',   l:'First deal guarantee' },
         ];
+        const ITEM_W  = 150;
+        const TOTAL_W = STATS.length * ITEM_W; // exact px to scroll one full set
         const doubled = [...STATS, ...STATS];
         return (
-          <div style={{display:'flex',alignItems:'center',marginBottom:20,borderRadius:10,overflow:'hidden',border:'1px solid var(--border)',background:'var(--s1)'}}>
-            <div style={{padding:'0 14px',flexShrink:0,borderRight:'1px solid var(--border)',display:'flex',alignItems:'center',alignSelf:'stretch'}}>
-              <span style={{fontSize:9,fontFamily:'var(--font-mono)',color:'var(--green)',letterSpacing:'0.12em',fontWeight:700}}>LIVE</span>
-            </div>
-            <div style={{overflow:'hidden',flex:1}}>
-              <div className="ticker-inner" style={{gap:0}}>
-                {doubled.map((s,i) => (
-                  <div key={i} style={{flexShrink:0,width:150,padding:'10px 14px',borderRight:'1px solid var(--border)',textAlign:'center'}}>
-                    <div style={{fontSize:17,fontWeight:900,color:'var(--green)'}}>{s.n}</div>
-                    <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:'0.04em'}}>{s.l}</div>
-                  </div>
-                ))}
+          <>
+            <style>{`@keyframes proofTicker{0%{transform:translateX(0)}100%{transform:translateX(-${TOTAL_W}px)}}`}</style>
+            <div style={{display:'flex',alignItems:'center',marginBottom:20,borderRadius:10,overflow:'hidden',border:'1px solid var(--border)',background:'var(--s1)'}}>
+              <div style={{padding:'0 14px',flexShrink:0,borderRight:'1px solid var(--border)',display:'flex',alignItems:'center',alignSelf:'stretch'}}>
+                <span style={{fontSize:9,fontFamily:'var(--font-mono)',color:'var(--green)',letterSpacing:'0.12em',fontWeight:700}}>LIVE</span>
+              </div>
+              <div style={{overflow:'hidden',flex:1}}>
+                <div style={{display:'flex',gap:0,animation:`proofTicker 28s linear infinite`,willChange:'transform'}}>
+                  {doubled.map((s,i) => (
+                    <div key={i} style={{flexShrink:0,width:ITEM_W,padding:'10px 14px',borderRight:'1px solid var(--border)',textAlign:'center'}}>
+                      <div style={{fontSize:17,fontWeight:900,color:'var(--green)'}}>{s.n}</div>
+                      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:'0.04em'}}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          </>
         );
       })()}
 
