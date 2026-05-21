@@ -171,7 +171,7 @@ export function Dashboard() {
     { icon: '💬', label: 'Unread Replies', val: unreadReplies, color: unreadReplies > 0 ? 'blue' : 'muted', page: 'replies', pulse: unreadReplies > 0 },
     { icon: '⏳', label: 'Pending Approval', val: pendingApprovals, color: pendingApprovals > 0 ? 'amber' : 'muted', page: 'approval', pulse: pendingApprovals > 0 },
     { icon: '📬', label: 'Open Rate', val: avgOpen, color: parseFloat(avgOpen) > 30 ? 'green' : avgOpen === '—' ? 'muted' : 'red', page: 'reporting' },
-    { icon: '💰', label: 'API Spend', val: spendVal, color: 'muted', page: 'settings' },
+    { icon: '💰', label: 'API Spend', val: spendVal, color: 'muted', page: 'settings', tab: 'wallet' },
   ];
 
   // Compute per-biz lead counts from actual leads data
@@ -204,7 +204,7 @@ export function Dashboard() {
           <div
             key={s.label}
             className="card-sm"
-            onClick={() => setPage(s.page)}
+            onClick={() => { if (s.tab) sessionStorage.setItem('settingsTab', s.tab); setPage(s.page); }}
             style={{
               textAlign: 'center', padding: '12px 8px', cursor: 'pointer',
               transition: 'transform 0.12s, box-shadow 0.12s',
