@@ -42,9 +42,10 @@ const NAV = [
 ];
 
 export function Sidebar() {
-  const { page, setPage, businesses, campaigns, replies } = useAppStore(useShallow(s => ({
+  const { page, setPage, businesses, campaigns, replies, sidebarOpen, closeSidebar } = useAppStore(useShallow(s => ({
     page: s.page, setPage: s.setPage,
     businesses: s.businesses, campaigns: s.campaigns, replies: s.replies,
+    sidebarOpen: s.sidebarOpen, closeSidebar: s.closeSidebar,
   })));
   const { canAccess, role, user } = useRole();
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : 'KO';
@@ -60,6 +61,11 @@ export function Sidebar() {
   const totalCampaigns = campaigns.length;
   const totalBusinesses = businesses.length;
 
+  function navTo(id) {
+    setPage(id);
+    closeSidebar();
+  }
+
   function getBadge(id) {
     if (id === 'businesses') return totalBusinesses || null;
     if (id === 'replies') return unreadReplies || null;
@@ -69,7 +75,7 @@ export function Sidebar() {
   }
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar${sidebarOpen ? ' mobile-open' : ''}`}>
       <style>{SIDEBAR_STYLE}</style>
       <div className="sidebar-logo">
         <div className="logo-mark">
@@ -89,7 +95,7 @@ export function Sidebar() {
                 <div
                   key={item.id}
                   className={`nav-item${page === item.id ? ' active' : ''}`}
-                  onClick={() => setPage(item.id)}
+                  onClick={() => navTo(item.id)}
                 >
                   <span className="nav-icon" style={item.id==='live-demo'?{color:'var(--green)',fontSize:8,animation:'livePulse 2s ease-in-out infinite'}:{}}>{item.icon}</span>
                   <span style={{flex:1}}>{item.label}</span>

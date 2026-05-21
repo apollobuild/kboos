@@ -55,8 +55,13 @@ const PAGE_MAP = {
   'client-portal': ClientPortal,
 };
 
+const MAX_RETRIES = 3;
+
 export default function App() {
-  const { page, init } = useAppStore(useShallow(s => ({ page: s.page, init: s.init })));
+  const { page, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({
+    page: s.page, init: s.init,
+    sidebarOpen: s.sidebarOpen, toggleSidebar: s.toggleSidebar, closeSidebar: s.closeSidebar,
+  })));
 
   const initWallet = useWalletStore(s => s.init);
 
@@ -66,10 +71,25 @@ export default function App() {
   });
   const token = localStorage.getItem('kboos_token');
   const [loading, setLoading] = useState(!!(user && token));
+  const [retryCount, setRetryCount] = useState(0);
+
+  async function loadWithRetry(attempt = 0) {
+    try {
+      await Promise.all([init(), initWallet()]);
+      setLoading(false);
+    } catch {
+      if (attempt < MAX_RETRIES - 1) {
+        setRetryCount(attempt + 1);
+        setTimeout(() => loadWithRetry(attempt + 1), 1500 * (attempt + 1));
+      } else {
+        setLoading(false);
+      }
+    }
+  }
 
   useEffect(() => {
     if (user && token) {
-      Promise.all([init(), initWallet()]).finally(() => setLoading(false));
+      loadWithRetry(0);
     }
   }, []);
 
@@ -79,7 +99,8 @@ export default function App() {
       setUser(u);
       if (u.role === 'client') { setLoading(false); return; }
       setLoading(true);
-      Promise.all([init(), initWallet()]).finally(() => setLoading(false));
+      setRetryCount(0);
+      loadWithRetry(0);
     }} />;
   }
 
@@ -97,13 +118,21 @@ export default function App() {
 
   if (loading) {
     return (
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)',flexDirection:'column',gap:16}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--page)',flexDirection:'column',gap:16}}>
         <svg width="36" height="26" viewBox="0 0 28 20" fill="none" style={{opacity:0.8}}>
           <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
           <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(62% 0.19 245 / 0.7)" />
           <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(62% 0.19 245 / 0.5)" />
         </svg>
-        <div style={{fontSize:12,color:'var(--muted)',fontFamily:'var(--font-mono)',letterSpacing:'0.08em'}}>Loading...</div>
+        <div style={{fontSize:12,color:'var(--muted)',fontFamily:'var(--font-mono)',letterSpacing:'0.08em'}}>
+          {retryCount > 0 ? `Reconnecting... (${retryCount}/${MAX_RETRIES - 1})` : 'Loading...'}
+        </div>
+        {/* Skeleton shimmer cards */}
+        <div style={{display:'flex',gap:12,marginTop:8}}>
+          {[80,110,90,100].map((w,i) => (
+            <div key={i} className="shimmer" style={{width:w,height:56,borderRadius:8,opacity:0.35}}/>
+          ))}
+        </div>
       </div>
     );
   }
@@ -113,8 +142,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="app-shell">
+        {sidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar}/>}
+        <button className="hamburger-btn" onClick={toggleSidebar} aria-label="Menu">☰</button>
         <Sidebar />
-        <main className="main-content">
+        <main className="main-content" onClick={() => sidebarOpen && closeSidebar()}>
           <ErrorBoundary key={page}>
             <PageComponent />
           </ErrorBoundary>

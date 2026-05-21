@@ -34,6 +34,7 @@ export const useAppStore = create((set, get) => ({
   activity: [],
   tweaks: { accent:'violet', density:'default', mood:'realistic' },
   toast: null,
+  sidebarOpen: false,
 
   init: async () => {
     try {
@@ -52,6 +53,8 @@ export const useAppStore = create((set, get) => ({
   },
 
   setPage: (page) => set({ page }),
+  toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
+  closeSidebar: () => set({ sidebarOpen: false }),
   loadCampaigns: async () => {
     const campaigns = await campaignsService.getAll().catch(() => null);
     if (campaigns) set({ campaigns });
