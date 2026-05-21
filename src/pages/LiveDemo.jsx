@@ -208,6 +208,12 @@ export function LiveDemo() {
           { n:'47',       l:'Businesses served' },
           { n:'8.4×',     l:'Avg ROI' },
           { n:'RM 480K',  l:'Revenue for clients' },
+          { n:'97%',      l:'Delivery rate' },
+          { n:'< 5 min',  l:'Setup to launch' },
+          { n:'4.8 ★',    l:'Client satisfaction' },
+          { n:'2,800+',   l:'Messages sent' },
+          { n:'6',        l:'Industries served' },
+          { n:'7 days',   l:'First deal guarantee' },
         ];
         const doubled = [...STATS, ...STATS];
         return (
