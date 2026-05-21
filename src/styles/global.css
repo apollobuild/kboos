@@ -124,7 +124,7 @@ textarea.input{resize:vertical;min-height:80px}
 .tab-bar-item.active{color:var(--text);border-bottom-color:var(--blue)}
 .ticker-wrap{overflow:hidden;background:var(--s1);border-bottom:1px solid var(--border);border-top:1px solid var(--border);padding:6px 0;display:flex;align-items:center}
 .ticker-inner{display:flex;gap:0;white-space:nowrap;animation:ticker 30s linear infinite}
-.ticker-item{font-family:var(--font-ui);font-size:11px;color:var(--muted);padding:0 32px;border-right:1px solid var(--border)}
+.ticker-item{font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:0 32px;border-right:1px solid var(--border)}
 .ticker-item span{color:var(--text)}
 .ticker-item.hot span{color:var(--amber)}
 .shimmer{background:linear-gradient(90deg,var(--s1) 25%,var(--s2) 50%,var(--s1) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
