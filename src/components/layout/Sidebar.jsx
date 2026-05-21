@@ -98,7 +98,7 @@ export function Sidebar() {
                   onClick={() => navTo(item.id)}
                 >
                   <span className="nav-icon" style={item.id==='live-demo'?{color:'var(--green)',fontSize:8,animation:'livePulse 2s ease-in-out infinite'}:{}}>{item.icon}</span>
-                  <span style={{flex:1}}>{item.label}</span>
+                  <span style={{flex:1,textTransform:'uppercase',fontSize:10,letterSpacing:'0.07em',fontWeight:600}}>{item.label}</span>
                   {badge != null && (
                     <span className={`nav-badge ${item.badgeColor || ''}${pulse ? ' pulse' : ''}`}>
                       {pulse && <span className="pulse-dot" style={{width:4,height:4,marginRight:2}}/>}

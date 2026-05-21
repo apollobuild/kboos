@@ -256,7 +256,7 @@ export function Dashboard() {
       )}
 
       {/* Business filter */}
-      <div className="fade-up-2 mt-4" style={{ overflowX: 'auto', paddingBottom: 8 }}>
+      <div className="fade-up-2 mt-4" style={{ overflowX: 'auto', paddingBottom: 8, paddingTop: 6 }}>
         <div style={{ display: 'flex', gap: 10, minWidth: 'max-content' }}>
           {businesses.map(b => {
             const bLeads = bizLeadCounts[b.id] || 0;
@@ -269,8 +269,8 @@ export function Dashboard() {
                 style={{
                   minWidth: 160, cursor: 'pointer',
                   border: `1px solid ${isActive ? `var(--${b.color})` : 'var(--border)'}`,
-                  transition: 'all 0.15s', transform: isActive ? 'translateY(-2px)' : 'none',
-                  boxShadow: isActive ? `0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px var(--${b.color})` : '',
+                  transition: 'all 0.15s',
+                  boxShadow: isActive ? `0 0 0 1px var(--${b.color}), 0 0 20px var(--${b.color})44, 0 4px 16px rgba(0,0,0,0.4)` : '',
                 }}
                 onClick={() => setBizFilter(isActive ? null : b.id)}
               >
