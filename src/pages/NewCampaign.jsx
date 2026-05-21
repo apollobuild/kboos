@@ -95,8 +95,47 @@ export function NewCampaign() {
   const [recycleLeads, setRecycleLeads] = useState(false);
 
   // Lead sources
-  const [sources, setSources] = useState({ google_maps: true, apollo: false });
+  const [sources, setSources] = useState({ google_maps: true, apollo: false, manual: false });
   const toggleSource = (src) => setSources(s => ({ ...s, [src]: !s[src] }));
+
+  // CSV upload
+  const [csvLeads, setCsvLeads] = useState([]);
+  const [csvError, setCsvError] = useState('');
+  const [csvDragging, setCsvDragging] = useState(false);
+
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) return { error: 'CSV must have a header row and at least one data row.' };
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, '_'));
+    const rows = lines.slice(1).map(line => {
+      const vals = [];
+      let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      vals.push(cur.trim());
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+      return obj;
+    }).filter(r => Object.values(r).some(v => v));
+    if (rows.length === 0) return { error: 'No data rows found in CSV.' };
+    return { rows, headers };
+  }
+
+  function handleCSVFile(file) {
+    if (!file) return;
+    if (!file.name.endsWith('.csv')) { setCsvError('Please upload a .csv file.'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = parseCSV(e.target.result);
+      if (result.error) { setCsvError(result.error); setCsvLeads([]); return; }
+      setCsvError('');
+      setCsvLeads(result.rows);
+    };
+    reader.readAsText(file);
+  }
   const [keyword, setKeyword] = useState('');
   const [gmCity, setGmCity] = useState('Kuching');
   const [radius, setRadius] = useState(50);
@@ -156,7 +195,7 @@ export function NewCampaign() {
         user: smtpUser,
         pass: smtpPass,
       } : undefined,
-      leadSource: sources.google_maps ? 'google_maps' : sources.apollo ? 'apollo' : 'manual',
+      leadSource: sources.google_maps ? 'google_maps' : sources.apollo ? 'apollo' : sources.manual ? 'manual' : 'manual',
       keyword, city: gmCity, tags, seniority,
       emailPrompt: prompt,
     };
@@ -192,6 +231,23 @@ export function NewCampaign() {
     if (!newCampaign?.id) return;
     const hasMaps = sources.google_maps && keyword;
     const hasApollo = sources.apollo;
+    const hasCSV = sources.manual && csvLeads.length > 0;
+
+    if (hasCSV) {
+      setScraping(true);
+      setScrapeLog([{ src: 'csv', status: 'running' }]);
+      try {
+        const result = await apiFetch('/leads/bulk-import', {
+          method: 'POST',
+          body: { campaignId: newCampaign.id, leads: csvLeads },
+        });
+        setScrapeLog([{ src: 'csv', status: 'done', count: result.count }]);
+      } catch (e) {
+        setScrapeLog([{ src: 'csv', status: 'error', error: e.message }]);
+      }
+      setScraping(false);
+    }
+
     if (!hasMaps && !hasApollo) return;
 
     setScraping(true);
@@ -240,8 +296,8 @@ export function NewCampaign() {
           <div style={{fontSize:12,fontWeight:600,marginBottom:8,color:'var(--muted)'}}>IMPORTING LEADS</div>
           {scrapeLog.map(entry => (
             <div key={entry.src} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6,fontSize:13}}>
-              <span>{entry.src === 'google_maps' ? '📍' : entry.src === 'apollo' ? '🔭' : '📍🔭'}</span>
-              <span style={{flex:1}}>{entry.src === 'google_maps' ? 'Google Maps' : entry.src === 'apollo' ? 'Apollo' : 'Google Maps + Apollo (parallel)'}</span>
+              <span>{entry.src === 'google_maps' ? '📍' : entry.src === 'apollo' ? '🔭' : entry.src === 'csv' ? '📋' : '📍🔭'}</span>
+              <span style={{flex:1}}>{entry.src === 'google_maps' ? 'Google Maps' : entry.src === 'apollo' ? 'Apollo' : entry.src === 'csv' ? 'CSV Import' : 'Google Maps + Apollo (parallel)'}</span>
               {entry.status === 'running' && <span style={{animation:'spin 1s linear infinite',display:'inline-block',color:'var(--blue)'}}>◌</span>}
               {entry.status === 'done' && <span style={{color:'var(--green)',fontWeight:600}}>✓ {entry.count} leads{entry.merged ? ` (${entry.merged} fully matched)` : ''}</span>}
               {entry.status === 'error' && <span style={{color:'var(--red)',fontSize:11}}>{entry.error}</span>}
@@ -556,9 +612,77 @@ export function NewCampaign() {
               </div>
 
               {/* Manual CSV */}
-              <div style={{border:'1px solid var(--border)',borderRadius:10,padding:'12px 16px',color:'var(--muted)',fontSize:12,display:'flex',gap:10,alignItems:'center'}}>
-                <span>📋</span>
-                <span><strong style={{color:'var(--text)'}}>Manual / CSV</strong> — You can always import a CSV file from Lead Manager after launching.</span>
+              <div style={{border:`2px solid ${sources.manual?'var(--amber)':'var(--border)'}`,borderRadius:10,padding:'14px 16px',cursor:'pointer',transition:'all 0.15s'}}
+                onClick={() => toggleSource('manual')}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
+                  <input type="checkbox" checked={sources.manual} onChange={() => toggleSource('manual')} style={{accentColor:'var(--amber)',marginTop:3}} onClick={e=>e.stopPropagation()}/>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                      <span style={{fontSize:16}}>📋</span>
+                      <span style={{fontWeight:600,fontSize:13}}>Manual / CSV</span>
+                      <span style={{fontSize:10,background:'var(--amber-dim)',color:'var(--amber)',borderRadius:4,padding:'2px 6px',fontWeight:600}}>UPLOAD YOUR OWN LIST</span>
+                    </div>
+                    <div style={{fontSize:12,color:'var(--muted)',marginBottom: sources.manual ? 12 : 0}}>
+                      Import your own contact list. Accepted columns: name, company, title, email, phone.
+                    </div>
+                    {sources.manual && (
+                      <div onClick={e=>e.stopPropagation()}>
+                        {/* Drop zone */}
+                        <div
+                          onDragOver={e=>{e.preventDefault();setCsvDragging(true);}}
+                          onDragLeave={()=>setCsvDragging(false)}
+                          onDrop={e=>{e.preventDefault();setCsvDragging(false);handleCSVFile(e.dataTransfer.files[0]);}}
+                          onClick={()=>document.getElementById('csv-file-input').click()}
+                          style={{
+                            border:`2px dashed ${csvDragging?'var(--amber)':'rgba(255,200,80,0.3)'}`,
+                            borderRadius:8,padding:'20px 16px',textAlign:'center',cursor:'pointer',
+                            background: csvDragging?'var(--amber-dim)':'rgba(255,200,80,0.04)',
+                            transition:'all 0.15s',marginBottom:8,
+                          }}>
+                          <div style={{fontSize:22,marginBottom:6}}>📂</div>
+                          <div style={{fontSize:12,color:'var(--text)',fontWeight:500}}>
+                            {csvLeads.length > 0 ? `✓ ${csvLeads.length} leads loaded` : 'Click or drag & drop your CSV here'}
+                          </div>
+                          <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>
+                            {csvLeads.length > 0 ? 'Click to replace file' : 'name, company, title, email, phone'}
+                          </div>
+                          <input id="csv-file-input" type="file" accept=".csv" style={{display:'none'}}
+                            onChange={e=>{handleCSVFile(e.target.files[0]);e.target.value='';}}/>
+                        </div>
+                        {csvError && <div style={{fontSize:12,color:'var(--red)',marginBottom:8}}>⚠ {csvError}</div>}
+                        {csvLeads.length > 0 && (
+                          <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:6,overflow:'hidden',maxHeight:160,overflowY:'auto',fontSize:11}}>
+                            <table style={{width:'100%',borderCollapse:'collapse'}}>
+                              <thead>
+                                <tr style={{background:'var(--s2)'}}>
+                                  {['name','company','title','email','phone'].map(h=>(
+                                    <th key={h} style={{padding:'5px 8px',textAlign:'left',fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {csvLeads.slice(0,5).map((row,i)=>(
+                                  <tr key={i} style={{borderTop:'1px solid var(--border)'}}>
+                                    {['name','company','title','email','phone'].map(h=>(
+                                      <td key={h} style={{padding:'4px 8px',color:'var(--text)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                        {row[h]||row[h.charAt(0).toUpperCase()+h.slice(1)]||'—'}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {csvLeads.length > 5 && (
+                              <div style={{padding:'5px 8px',color:'var(--muted)',fontSize:10,background:'var(--s2)'}}>
+                                +{csvLeads.length - 5} more rows…
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -620,7 +744,7 @@ export function NewCampaign() {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,fontSize:12}}>
                 <div><span style={{color:'var(--muted)'}}>Business: </span><strong>{selBiz?.name || '—'}</strong></div>
                 <div><span style={{color:'var(--muted)'}}>Channels: </span><strong>{channelDef?.label}</strong> <span style={{fontSize:14}}>{channelDef?.icon}</span></div>
-                <div><span style={{color:'var(--muted)'}}>Lead sources: </span><strong>{[sources.google_maps&&'Google Maps',sources.apollo&&'Apollo'].filter(Boolean).join(' + ') || 'Manual'}</strong></div>
+                <div><span style={{color:'var(--muted)'}}>Lead sources: </span><strong>{[sources.google_maps&&'Google Maps',sources.apollo&&'Apollo',sources.manual&&`CSV (${csvLeads.length} leads)`].filter(Boolean).join(' + ') || 'Manual'}</strong></div>
                 <div><span style={{color:'var(--muted)'}}>From: </span><strong>{fromName} &lt;{fromEmail}&gt;</strong></div>
                 <div><span style={{color:'var(--muted)'}}>Sequence: </span><strong>{seqSteps.length} steps over {seqSteps[seqSteps.length-1]?.day || 0} days</strong></div>
                 <div><span style={{color:'var(--muted)'}}>Region: </span><strong>{region}</strong></div>
