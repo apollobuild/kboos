@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
@@ -103,38 +104,43 @@ export function NewCampaign() {
   const [csvError, setCsvError] = useState('');
   const [csvDragging, setCsvDragging] = useState(false);
 
-  function parseCSV(text) {
-    const lines = text.trim().split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2) return { error: 'CSV must have a header row and at least one data row.' };
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, '_'));
-    const rows = lines.slice(1).map(line => {
-      const vals = [];
-      let cur = '', inQ = false;
-      for (const ch of line) {
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-        else cur += ch;
-      }
-      vals.push(cur.trim());
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
-      return obj;
-    }).filter(r => Object.values(r).some(v => v));
-    if (rows.length === 0) return { error: 'No data rows found in CSV.' };
-    return { rows, headers };
+  function parseSheetRows(rows) {
+    if (rows.length < 2) return { error: 'File must have a header row and at least one data row.' };
+    const headers = rows[0].map(h => String(h || '').trim().toLowerCase().replace(/\s+/g, '_'));
+    const data = rows.slice(1)
+      .filter(r => r.some(v => v !== null && v !== undefined && v !== ''))
+      .map(r => {
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = r[i] !== undefined && r[i] !== null ? String(r[i]).trim() : ''; });
+        return obj;
+      });
+    if (data.length === 0) return { error: 'No data rows found in file.' };
+    return { rows: data };
   }
 
   function handleCSVFile(file) {
     if (!file) return;
-    if (!file.name.endsWith('.csv')) { setCsvError('Please upload a .csv file.'); return; }
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(ext)) {
+      setCsvError('Please upload a .xlsx, .xls, or .csv file.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const result = parseCSV(e.target.result);
-      if (result.error) { setCsvError(result.error); setCsvLeads([]); return; }
-      setCsvError('');
-      setCsvLeads(result.rows);
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const result = parseSheetRows(rows);
+        if (result.error) { setCsvError(result.error); setCsvLeads([]); return; }
+        setCsvError('');
+        setCsvLeads(result.rows);
+      } catch {
+        setCsvError('Could not read file. Make sure it\'s a valid Excel or CSV file.');
+        setCsvLeads([]);
+      }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   }
   const [keyword, setKeyword] = useState('');
   const [gmCity, setGmCity] = useState('Kuching');
@@ -644,9 +650,9 @@ export function NewCampaign() {
                             {csvLeads.length > 0 ? `✓ ${csvLeads.length} leads loaded` : 'Click or drag & drop your CSV here'}
                           </div>
                           <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>
-                            {csvLeads.length > 0 ? 'Click to replace file' : 'name, company, title, email, phone'}
+                            {csvLeads.length > 0 ? 'Click to replace file' : '.xlsx · .xls · .csv — columns: name, company, title, email, phone'}
                           </div>
-                          <input id="csv-file-input" type="file" accept=".csv" style={{display:'none'}}
+                          <input id="csv-file-input" type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}}
                             onChange={e=>{handleCSVFile(e.target.files[0]);e.target.value='';}}/>
                         </div>
                         {csvError && <div style={{fontSize:12,color:'var(--red)',marginBottom:8}}>⚠ {csvError}</div>}
