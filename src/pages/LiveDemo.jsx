@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
 
 const INDUSTRY_CONFIG = {
   'Automotive & Car Sales':    { verb:'sell',    unit:'cars',               avgDealRM:3000,  closeRate:0.12, goals:['Sell 5 cars/month','Sell 20 cars/month','Sell 50 cars/month','Sell 100+/month'] },
@@ -235,9 +236,9 @@ export function LiveDemo() {
               </Field>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                 <Field label="Industry">
-                  <select className="input" value={form.industry} onChange={e=>set('industry',e.target.value)} disabled={step==='generating'}>
-                    {Object.keys(INDUSTRY_CONFIG).map(i=><option key={i}>{i}</option>)}
-                  </select>
+                  <Select className="input" value={form.industry} onChange={v=>set('industry',v)} disabled={step==='generating'}
+                    options={Object.keys(INDUSTRY_CONFIG).map(i=>({value:i,label:i}))}
+                  />
                 </Field>
                 <Field label="City">
                   <input className="input" value={form.city} onChange={e=>set('city',e.target.value)} placeholder="Kuching" disabled={step==='generating'}/>
@@ -276,9 +277,9 @@ export function LiveDemo() {
             <div style={{fontSize:11,color:'var(--muted)',marginBottom:14}}>The more specific, the more personal the AI copy feels — the "how did you know?!" moment that closes the deal.</div>
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               <Field label="How they currently get clients">
-                <select className="input" value={form.currentMethod} onChange={e=>set('currentMethod',e.target.value)} disabled={step==='generating'}>
-                  {METHODS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
-                </select>
+                <Select className="input" value={form.currentMethod} onChange={v=>set('currentMethod',v)} disabled={step==='generating'}
+                  options={METHODS.map(m=>({value:m.v,label:m.l}))}
+                />
               </Field>
               <Field label="Their biggest challenge (optional)">
                 <input className="input" value={form.challenge} onChange={e=>set('challenge',e.target.value)} placeholder="e.g. Inconsistent pipeline, slow season, can't scale…" disabled={step==='generating'}/>

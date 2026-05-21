@@ -6,6 +6,15 @@ import { useRole } from '../hooks/useRole.js';
 import { settingsService } from '../services/settings.js';
 import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
+
+function timeAgoShort(iso) {
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
 
 const APIS = ['claude', 'sendgrid', 'wati', 'apollo', 'outscraper', 'billplz_api_key', 'billplz_collection_id', 'billplz_x_signature_key', 'vapi', 'vapi_phone_number_id'];
 const API_LABELS = {
@@ -62,9 +71,10 @@ export function Settings() {
   const [driveUploading,setDriveUploading] = useState(false);
   const [newMember,     setNewMember]    = useState({ name:'', email:'', role:'Operator' });
   const [newClient,     setNewClient]    = useState({ name:'', email:'', bizId:'' });
-  const [spend,         setSpend]        = useState({ total:0, budget:1000, breakdown:{}, usdRmRate:4.70 });
+  const [spend,         setSpend]        = useState({ total:0, budget:1000, breakdown:{}, usdRmRate:4.70, rateUpdatedAt:null });
   const [budget,        setBudget]       = useState(1000);
   const [budgetSaving,  setBudgetSaving] = useState(false);
+  const [fxRefreshing,  setFxRefreshing] = useState(false);
   const [inviteLink,    setInviteLink]   = useState('');
   const [users,         setUsers]        = useState([]);
   const [openMember,    setOpenMember]   = useState(null);
@@ -369,10 +379,10 @@ export function Settings() {
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }} />
               <input placeholder="Email" value={newMember.email} onChange={e => setNewMember(p => ({ ...p, email:e.target.value }))}
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }} />
-              <select value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role:e.target.value }))}
-                style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }}>
-                <option>Admin</option><option>Operator</option><option>Viewer</option>
-              </select>
+              <Select value={newMember.role} onChange={v => setNewMember(p => ({ ...p, role:v }))}
+                options={['Admin','Operator','Viewer']}
+                style={{ background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', padding:'8px 12px', borderRadius:6, fontSize:13 }}
+              />
               <button className="btn btn-blue" onClick={addTeamMember}>Invite</button>
             </div>
           </div>
@@ -413,11 +423,10 @@ export function Settings() {
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }} />
               <input placeholder="Email address" value={newClient.email} onChange={e => setNewClient(p => ({ ...p, email:e.target.value }))}
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }} />
-              <select value={newClient.bizId} onChange={e => setNewClient(p => ({ ...p, bizId:e.target.value }))}
-                style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, fontSize:13 }}>
-                <option value="">— Select Business —</option>
-                {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <Select value={newClient.bizId} onChange={v => setNewClient(p => ({ ...p, bizId:v }))}
+                options={[{value:'',label:'— Select Business —'}, ...businesses.map(b => ({value:b.id,label:b.name}))]}
+                style={{ background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', padding:'8px 12px', borderRadius:6, fontSize:13 }}
+              />
               <button className="btn btn-green" onClick={addClient}>Send Invite</button>
             </div>
           </div>
@@ -568,15 +577,21 @@ export function Settings() {
                 <span style={{ fontSize:12, color:'var(--muted)' }}>Usage cost this month (excl. fixed subscriptions)</span>
                 <span style={{ fontFamily:'var(--font-mono)', fontSize:15, fontWeight:700 }}>RM {spend.total.toFixed(2)}</span>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--muted)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--muted)', flexWrap:'wrap' }}>
                 <span>USD/RM rate:</span>
-                <input type="number" step="0.01" min="1" value={rmRate}
-                  onChange={e => setSpend(p => ({ ...p, usdRmRate: parseFloat(e.target.value) }))}
-                  style={{ width:70, background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'3px 6px', borderRadius:4, fontFamily:'var(--font-mono)', fontSize:12 }} />
-                <button className="btn btn-sm" style={{ fontSize:11 }} onClick={async () => {
-                  await apiFetch('/wallet/budget', { method:'PATCH', body:{ budget, usdRmRate: rmRate } }).catch(()=>{});
-                  showToast('Rate saved', 'green');
-                }}>Save rate</button>
+                <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--text)', fontWeight:600 }}>{rmRate.toFixed(4)}</span>
+                <span style={{ opacity:0.45, fontSize:11 }}>
+                  · auto-updated{spend.rateUpdatedAt ? ` ${timeAgoShort(spend.rateUpdatedAt)}` : ''} via ECB
+                </span>
+                <button className="btn btn-sm" style={{ fontSize:11, padding:'2px 8px' }} disabled={fxRefreshing} onClick={async () => {
+                  setFxRefreshing(true);
+                  try {
+                    const r = await apiFetch('/wallet/fx-rate');
+                    setSpend(p => ({ ...p, usdRmRate: r.rate, rateUpdatedAt: r.updatedAt }));
+                    showToast(`Rate updated: 1 USD = RM ${r.rate.toFixed(4)}`, 'green');
+                  } catch { showToast('Could not fetch rate', 'red'); }
+                  setFxRefreshing(false);
+                }}>{fxRefreshing ? '…' : '↻ Refresh'}</button>
                 <span style={{ opacity:0.5 }}>· WATI RM 245 + Apollo RM 465 billed directly to your card</span>
               </div>
             </div>

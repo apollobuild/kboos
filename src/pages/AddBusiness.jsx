@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
 
 export function AddBusiness() {
   const { setPage, addBusiness, showToast } = useAppStore(useShallow(s => ({ setPage:s.setPage, addBusiness:s.addBusiness, showToast:s.showToast })));
@@ -166,12 +167,9 @@ export function AddBusiness() {
                 <div>
                   <label className="label">Commission Structure</label>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                    <select className="input" value={form.commissionType} onChange={e=>setForm(p=>({...p,commissionType:e.target.value}))}>
-                      <option value="percent">% per sale</option>
-                      <option value="flat_lead">Flat / lead</option>
-                      <option value="flat_sale">Flat / sale</option>
-                      <option value="retainer">Retainer</option>
-                    </select>
+                    <Select className="input" value={form.commissionType} onChange={v=>setForm(p=>({...p,commissionType:v}))}
+                      options={[{value:'percent',label:'% per sale'},{value:'flat_lead',label:'Flat / lead'},{value:'flat_sale',label:'Flat / sale'},{value:'retainer',label:'Retainer'}]}
+                    />
                     <div style={{position:'relative'}}>
                       <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:12,pointerEvents:'none'}}>
                         {form.commissionType==='percent' ? '%' : 'RM'}

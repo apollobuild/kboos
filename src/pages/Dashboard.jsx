@@ -6,6 +6,7 @@ import { TickerBar } from '../components/layout/TickerBar.jsx';
 import { CampaignBadge } from '../components/ui/CampaignBadge.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -101,15 +102,12 @@ function ActivityFeed({ activity }) {
       <div className="flex items-center justify-between mb-3">
         <div style={{ fontWeight: 600, fontSize: 13 }}>Activity Feed</div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <select
+          <Select
             value={period}
-            onChange={e => setPeriod(e.target.value)}
-            style={{ fontSize: 11, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 5, padding: '3px 6px', cursor: 'pointer' }}
-          >
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="all">All Time</option>
-          </select>
+            onChange={v => setPeriod(v)}
+            options={[{value:'today',label:'Today'},{value:'week',label:'This Week'},{value:'all',label:'All Time'}]}
+            style={{ fontSize: 11, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 5, padding: '3px 6px' }}
+          />
           <div className="tabs">
             {tabs.map(t => (
               <div key={t} className={`tab${filter === t ? ' active' : ''}`} onClick={() => setFilter(t)} style={{ padding: '4px 10px', fontSize: 11 }}>{t}</div>

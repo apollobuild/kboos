@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 import { generateCampaignPDF } from '../services/reports.js';
+import { Select } from '../components/ui/Select.jsx';
 
 function fmtRM(n) {
   if (!n || n === 0) return '—';
@@ -170,17 +171,14 @@ export function Reporting() {
           <h1 className="page-title" style={{ marginTop: 4 }}>Reporting & ROI</h1>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <select value={period} onChange={e => setPeriod(e.target.value)}
-            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13, colorScheme:'dark' }}>
-            <option value="month">This Month</option>
-            <option value="last">Last Month</option>
-            <option value="all">All Time</option>
-          </select>
-          <select value={bizKey} onChange={e => setBizKey(e.target.value)}
-            style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13, colorScheme:'dark' }}>
-            <option value="all">All Businesses</option>
-            {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          <Select value={period} onChange={v => setPeriod(v)}
+            options={[{value:'month',label:'This Month'},{value:'last',label:'Last Month'},{value:'all',label:'All Time'}]}
+            style={{ background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13 }}
+          />
+          <Select value={bizKey} onChange={v => setBizKey(v)}
+            options={[{value:'all',label:'All Businesses'}, ...businesses.map(b => ({value:b.id, label:b.name}))]}
+            style={{ background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:13 }}
+          />
           <button className="btn btn-blue" onClick={handlePDF} disabled={generating}>
             {generating ? 'Generating…' : '↓ PDF Report'}
           </button>

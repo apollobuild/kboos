@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ScoreDisplay } from '../ui/ScoreDisplay.jsx';
 import { LeadStatusBadge } from '../ui/LeadStatusBadge.jsx';
 import { apiFetch } from '../../services/api.js';
+import { Select } from '../ui/Select.jsx';
 import { calculateScoreLabel } from '../../services/leads.js';
 
 const TYPE_ICON  = { wa: '💬', email: '📧', call: '📞' };
@@ -130,15 +131,12 @@ export function LeadSlideOver({ lead: initialLead, onClose }) {
         <div style={{ padding: '18px 20px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <button className="btn btn-ghost btn-xs" onClick={onClose}>✕ Close</button>
-            <select
+            <Select
               value={status}
-              onChange={e => handleStatusChange(e.target.value)}
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-1)', padding: '4px 8px', borderRadius: 6, fontSize: 12 }}
-            >
-              {['new','wa_sent','email_sent','call_initiated','replied','hot','meeting_booked','bounced','unsubscribed'].map(s => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+              onChange={v => handleStatusChange(v)}
+              options={['new','wa_sent','email_sent','call_initiated','replied','hot','meeting_booked','bounced','unsubscribed'].map(s => ({value:s, label:s.replace(/_/g,' ')}))}
+              style={{ background: 'var(--s1)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 8px', borderRadius: 6, fontSize: 12 }}
+            />
           </div>
 
           {/* Lead identity */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
 
 const CH_ICON  = { WA:'💬', WhatsApp:'💬', wa:'💬', whatsapp:'💬', Email:'📧', email:'📧', Call:'📞', call:'📞', voice:'📞', LinkedIn:'🔗' };
 const CH_COLOR = { WA:'var(--green)', WhatsApp:'var(--green)', wa:'var(--green)', whatsapp:'var(--green)', Email:'var(--blue)', email:'var(--blue)', Call:'var(--amber)', call:'var(--amber)', voice:'var(--amber)' };
@@ -175,10 +176,10 @@ export function ReplyInbox() {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {channels.length > 2 && (
-            <select value={channelFilter} onChange={e => setChannelFilter(e.target.value)}
-              style={{ background:'var(--card)', border:'1px solid var(--border)', color:'var(--text)', padding:'5px 10px', borderRadius:6, fontSize:12 }}>
-              {channels.map(c => <option key={c}>{c}</option>)}
-            </select>
+            <Select value={channelFilter} onChange={v => setChannelFilter(v)}
+              options={channels}
+              style={{ background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', padding:'5px 10px', borderRadius:6, fontSize:12 }}
+            />
           )}
           <div className="tabs">
             {tabs.map(t => (

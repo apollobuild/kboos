@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
+import { Select } from '../components/ui/Select.jsx';
 
 const LANG_LABELS = {
   'all': 'English',
@@ -605,13 +606,12 @@ export function PromptStudio() {
               ))}
             </div>
             {previewLead && previewMode && (
-              <select
-                style={{background:'var(--surface)', border:'1px solid var(--border)', color:'var(--fg)', borderRadius:6, padding:'2px 6px', fontSize:11}}
-                onChange={e => setPreviewLead(leads.find(l=>l.id===parseInt(e.target.value)))}
-                value={previewLead?.id}
-              >
-                {leads?.slice(0,10).map(l => <option key={l.id} value={l.id}>{l.name} · {l.company}</option>)}
-              </select>
+              <Select
+                style={{background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'2px 6px', fontSize:11}}
+                onChange={v => setPreviewLead(leads.find(l=>l.id===parseInt(v)))}
+                value={String(previewLead?.id)}
+                options={leads?.slice(0,10).map(l => ({value:String(l.id), label:`${l.name} · ${l.company}`})) || []}
+              />
             )}
           </div>
 

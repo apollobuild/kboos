@@ -6,6 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { LeadStatusBadge } from '../components/ui/LeadStatusBadge.jsx';
 import { ScoreDisplay } from '../components/ui/ScoreDisplay.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
+import { Select } from '../components/ui/Select.jsx';
 import { leadsService, calculateScoreLabel } from '../services/leads.js';
 import { apiFetch } from '../services/api.js';
 
@@ -165,16 +166,12 @@ export function LeadManager() {
 
           {/* Campaign filter */}
           {leadCampaigns.length > 1 && (
-            <select
+            <Select
               value={campaignFilter}
-              onChange={e => setCampaignFilter(e.target.value)}
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-1)', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}
-            >
-              <option value="All">All Campaigns</option>
-              {leadCampaigns.map(c => (
-                <option key={c.id} value={String(c.id)}>{c.name}</option>
-              ))}
-            </select>
+              onChange={v => setCampaignFilter(v)}
+              options={[{value:'All',label:'All Campaigns'}, ...leadCampaigns.map(c => ({value:String(c.id), label:c.name}))]}
+              style={{ background: 'var(--s1)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}
+            />
           )}
 
           {/* Score filter */}
