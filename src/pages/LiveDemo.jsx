@@ -227,9 +227,11 @@ export function LiveDemo() {
                   )}
                   {tab === 'voice' && (
                     <>
-                      <div style={{fontSize:11, color:'var(--muted)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:700}}>AI Voice Script</div>
-                      <div style={{fontSize:12, color:'var(--muted)', marginBottom:10}}>What the AI agent will say when the call connects:</div>
-                      <textarea className="input" rows={6} style={{resize:'vertical', fontFamily:'inherit', fontSize:13, lineHeight:1.7}}
+                      <div style={{fontSize:11, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:700}}>Voice Agent System Prompt</div>
+                      <div style={{fontSize:12, color:'var(--blue)', marginBottom:10, padding:'6px 10px', background:'var(--blue-dim)', borderRadius:6}}>
+                        This is the full behavioral guide for the AI agent — not a script. It handles objections, re-engages off-topic conversations, and aims to book the call or transfer to your specialist.
+                      </div>
+                      <textarea className="input" rows={10} style={{resize:'vertical', fontFamily:'inherit', fontSize:12, lineHeight:1.7}}
                         value={content.voiceScript}
                         onChange={e=>setContent(c=>({...c, voiceScript:e.target.value}))} />
                     </>

@@ -112,6 +112,64 @@ export function PromptStudio() {
     campaigns: s.campaigns,
   })));
 
+  // Hormozi Offer Builder state
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerBiz, setOfferBiz] = useState('');
+  const [offerIndustry, setOfferIndustry] = useState('');
+  const [offerService, setOfferService] = useState('');
+  const [offerDream, setOfferDream] = useState('');
+  const [offerProof, setOfferProof] = useState('');
+  const [offerTime, setOfferTime] = useState('');
+  const [offerEffort, setOfferEffort] = useState('');
+  const [offerRisk, setOfferRisk] = useState('');
+  const [offerLang, setOfferLang] = useState('EN');
+  const [generatingOffer, setGeneratingOffer] = useState(false);
+  const [offerResult, setOfferResult] = useState(null);
+
+  async function generateFromOffer() {
+    if (!offerDream.trim()) { showToast('Fill in the Dream Outcome at minimum', 'amber'); return; }
+    setGeneratingOffer(true);
+    setOfferResult(null);
+    try {
+      const result = await apiFetch('/ai/generate-from-offer', {
+        method: 'POST',
+        body: {
+          bizName: offerBiz || campaigns?.[0]?.bizName || 'KOBIS Berhad',
+          industry: offerIndustry || 'B2B Services',
+          service: offerService || '',
+          dreamOutcome: offerDream,
+          proof: offerProof,
+          timeToResult: offerTime,
+          effortRemoved: offerEffort,
+          riskReversal: offerRisk,
+          lang: offerLang,
+        },
+      });
+      setOfferResult(result);
+      showToast('Offer copy generated for all 3 channels ✓', 'green');
+    } catch (e) {
+      showToast('Generation failed: ' + e.message, 'red');
+    } finally {
+      setGeneratingOffer(false);
+    }
+  }
+
+  function applyOfferToEditor(channel) {
+    if (!offerResult) return;
+    if (channel === 'email') {
+      setEditSubject(offerResult.emailSubject || '');
+      setEditBody(offerResult.emailBody || '');
+      setTemplateType('email');
+    } else if (channel === 'whatsapp') {
+      setEditBody(offerResult.whatsapp || '');
+      setTemplateType('whatsapp');
+    } else if (channel === 'voice') {
+      setEditBody(offerResult.voiceSystemPrompt || '');
+      setTemplateType('voice');
+    }
+    showToast(`Loaded into ${channel} editor — review and save`, 'blue');
+  }
+
   const [templateType, setTemplateType] = useState('email'); // 'email' | 'whatsapp' | 'voice'
   const [versions, setVersions] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -371,6 +429,112 @@ export function PromptStudio() {
             <div style={{fontSize:22, fontWeight:800, fontFamily:'var(--font-mono)', color:s.color}}>{s.val}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Hormozi Offer Builder ── */}
+      <div className="card fade-up-2 mb-4" style={{border:'1px solid oklch(72% 0.18 65 / 0.35)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={() => setOfferOpen(o => !o)}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:18}}>🎯</span> Hormozi Offer Builder
+            </div>
+            <div style={{fontSize:12,color:'var(--muted)',marginTop:2}}>Fill in 5 fields → AI generates optimised Email + WhatsApp + Voice Agent for all 3 channels at once</div>
+          </div>
+          <span style={{fontSize:18,color:'var(--amber)',transform:offerOpen?'rotate(180deg)':'none',transition:'transform 0.2s'}}>▾</span>
+        </div>
+
+        {offerOpen && (
+          <div style={{marginTop:16}}>
+            {/* Hormozi Value Equation explainer */}
+            <div style={{background:'var(--amber-dim)',border:'1px solid oklch(72% 0.18 65 / 0.3)',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:'var(--amber)'}}>
+              <strong>Hormozi's Value Equation:</strong> Value = (Dream Outcome × Proof) ÷ (Time Delay × Effort) — fill each field to maximise perceived value.
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
+              <div>
+                <label className="label">Business Name</label>
+                <input className="input" placeholder="e.g. KOBIS Berhad" value={offerBiz} onChange={e=>setOfferBiz(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label">Industry You Serve</label>
+                <input className="input" placeholder="e.g. IT Services, Construction" value={offerIndustry} onChange={e=>setOfferIndustry(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label">Your Service / Product</label>
+                <input className="input" placeholder="e.g. AI-powered B2B outreach automation" value={offerService} onChange={e=>setOfferService(e.target.value)}/>
+              </div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              <div>
+                <label className="label" style={{color:'var(--green)'}}>① Dream Outcome <span style={{color:'var(--red)'}}>*</span></label>
+                <input className="input" placeholder="e.g. Book 10 qualified meetings/month without cold calling" value={offerDream} onChange={e=>setOfferDream(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label" style={{color:'var(--blue)'}}>② Proof / Results</label>
+                <input className="input" placeholder="e.g. Helped 3 Kuching IT firms book 40+ meetings in 60 days" value={offerProof} onChange={e=>setOfferProof(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label" style={{color:'var(--blue)'}}>③ Time to First Result</label>
+                <input className="input" placeholder="e.g. First leads within 48 hours" value={offerTime} onChange={e=>setOfferTime(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label" style={{color:'var(--amber)'}}>④ What We Handle (Effort Removed)</label>
+                <input className="input" placeholder="e.g. We write, send, follow up — you just take the call" value={offerEffort} onChange={e=>setOfferEffort(e.target.value)}/>
+              </div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:10,marginBottom:14,alignItems:'end'}}>
+              <div>
+                <label className="label" style={{color:'var(--green)'}}>⑤ Risk Reversal / Guarantee</label>
+                <input className="input" placeholder="e.g. No meetings in 30 days — full refund, no questions" value={offerRisk} onChange={e=>setOfferRisk(e.target.value)}/>
+              </div>
+              <div>
+                <label className="label">Language</label>
+                <div style={{display:'flex',gap:4}}>
+                  {[{v:'EN',l:'EN'},{v:'MS',l:'BM'},{v:'ZH',l:'中文'}].map(l=>(
+                    <button key={l.v} onClick={()=>setOfferLang(l.v)}
+                      style={{padding:'7px 12px',borderRadius:6,border:'1px solid',cursor:'pointer',fontSize:11,fontWeight:700,
+                        borderColor:offerLang===l.v?'var(--blue)':'var(--border)',
+                        color:offerLang===l.v?'var(--blue)':'var(--muted)',
+                        background:offerLang===l.v?'var(--blue-dim)':'transparent'}}>
+                      {l.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button className="btn btn-green" style={{width:'100%',padding:'12px',fontSize:14,fontWeight:700,justifyContent:'center'}}
+              onClick={generateFromOffer} disabled={generatingOffer || !offerDream.trim()}>
+              {generatingOffer
+                ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block',marginRight:8}}>◌</span>Claude is generating all 3 channels…</>
+                : '⚡ Generate Email + WhatsApp + Voice Agent from Offer'}
+            </button>
+
+            {/* Results */}
+            {offerResult && (
+              <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Generated — click a channel to load into editor</div>
+                {[
+                  {key:'email',icon:'📧',label:'Email',preview:`Subject: ${offerResult.emailSubject}\n\n${offerResult.emailBody}`},
+                  {key:'whatsapp',icon:'💬',label:'WhatsApp',preview:offerResult.whatsapp},
+                  {key:'voice',icon:'📞',label:'Voice Agent System Prompt',preview:offerResult.voiceSystemPrompt},
+                ].map(ch => (
+                  <div key={ch.key} style={{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:'var(--s2)'}}>
+                      <span style={{fontWeight:600,fontSize:12}}>{ch.icon} {ch.label}</span>
+                      <button className="btn btn-primary btn-xs" onClick={() => applyOfferToEditor(ch.key)}>Load into Editor →</button>
+                    </div>
+                    <div style={{padding:'10px 12px',fontSize:12,fontFamily:'var(--font-mono)',color:'var(--muted)',whiteSpace:'pre-wrap',maxHeight:120,overflowY:'auto',lineHeight:1.6}}>
+                      {ch.preview}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'260px 1fr', gap:16}}>
