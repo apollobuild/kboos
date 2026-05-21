@@ -199,22 +199,35 @@ export function LiveDemo() {
         {step !== 'input' && <button className="btn btn-ghost btn-sm" onClick={reset}>↺ New Demo</button>}
       </div>
 
-      {/* Social proof bar */}
-      <div style={{display:'flex',gap:0,marginBottom:20,borderRadius:10,overflow:'hidden',border:'1px solid var(--border)',background:'var(--s1)'}}>
-        {[
+      {/* Social proof ticker */}
+      {(() => {
+        const STATS = [
           { n:'23%',      l:'Avg reply rate' },
           { n:'3×',       l:'Industry average' },
           { n:'48 hrs',   l:'First replies' },
           { n:'47',       l:'Businesses served' },
           { n:'8.4×',     l:'Avg ROI' },
           { n:'RM 480K',  l:'Revenue for clients' },
-        ].map((s,i,arr) => (
-          <div key={i} style={{flex:1,padding:'10px 14px',borderRight:i<arr.length-1?'1px solid var(--border)':'none',textAlign:'center'}}>
-            <div style={{fontSize:17,fontWeight:900,color:'var(--green)'}}>{s.n}</div>
-            <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:'0.04em'}}>{s.l}</div>
+        ];
+        const doubled = [...STATS, ...STATS];
+        return (
+          <div style={{display:'flex',alignItems:'center',marginBottom:20,borderRadius:10,overflow:'hidden',border:'1px solid var(--border)',background:'var(--s1)'}}>
+            <div style={{padding:'0 14px',flexShrink:0,borderRight:'1px solid var(--border)',display:'flex',alignItems:'center',alignSelf:'stretch'}}>
+              <span style={{fontSize:9,fontFamily:'var(--font-mono)',color:'var(--green)',letterSpacing:'0.12em',fontWeight:700}}>LIVE</span>
+            </div>
+            <div style={{overflow:'hidden',flex:1}}>
+              <div className="ticker-inner" style={{gap:0}}>
+                {doubled.map((s,i) => (
+                  <div key={i} style={{flexShrink:0,width:150,padding:'10px 14px',borderRight:'1px solid var(--border)',textAlign:'center'}}>
+                    <div style={{fontSize:17,fontWeight:900,color:'var(--green)'}}>{s.n}</div>
+                    <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:'0.04em'}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       <div style={{display:'grid', gridTemplateColumns:'400px 1fr', gap:20, alignItems:'start'}}>
 
