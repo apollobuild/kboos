@@ -76,9 +76,17 @@ export function Reporting() {
     { label: 'Meetings',  val: meetingsCnt,color: 'var(--green)' },
   ];
 
-  // Real costs from spend-summary
+  // Real costs from spend-summary — server returns breakdown as object, convert to array
   const realTotal = spendData?.total || 0;
-  const breakdown = spendData?.breakdown || [];
+  const bd = spendData?.breakdown || {};
+  const breakdown = spendData ? [
+    { label: 'Claude AI',            rm: bd.claude?.costRm  || 0, source: bd.claude?.source  || 'exact' },
+    { label: 'SendGrid (email)',      rm: bd.email?.costRm   || 0, source: bd.email?.source   || 'calculated' },
+    { label: 'WATI (WhatsApp)',       rm: bd.wa?.costRm      || 0, source: bd.wa?.source      || 'calculated' },
+    { label: 'Vapi (calls)',          rm: bd.call?.costRm    || 0, source: bd.call?.source    || 'none' },
+    { label: 'Apollo (enrichment)',   rm: bd.enrich?.costRm  || 0, source: bd.enrich?.source  || 'subscription' },
+    { label: 'Outscraper (scraping)', rm: bd.scraper?.costRm || 0, source: bd.scraper?.source || 'exact' },
+  ] : [];
 
   const revenue = meetings * dealVal;
   const roi = realTotal > 0 ? Math.round(((revenue - realTotal) / realTotal) * 100) : 0;

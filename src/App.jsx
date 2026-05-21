@@ -115,7 +115,7 @@ export default function App() {
       <div className="app-shell">
         <Sidebar />
         <main className="main-content">
-          <ErrorBoundary>
+          <ErrorBoundary key={page}>
             <PageComponent />
           </ErrorBoundary>
         </main>
