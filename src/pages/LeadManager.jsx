@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const PAGE_SIZE = 25;
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { LeadStatusBadge } from '../components/ui/LeadStatusBadge.jsx';
@@ -53,6 +55,7 @@ export function LeadManager() {
   const [campaignFilter, setCampaignFilter] = useState('All');
   const [search, setSearch]             = useState('');
   const [callingId, setCallingId]       = useState(null);
+  const [page, setPage]                 = useState(0);
 
   const handleVoiceCall = async (e, lead) => {
     e.stopPropagation();
@@ -66,6 +69,9 @@ export function LeadManager() {
       setCallingId(null);
     }
   };
+
+  // Reset to page 0 whenever filters change
+  useEffect(() => { setPage(0); }, [statusFilter, scoreFilter, campaignFilter, search, selectedBizId]);
 
   const toggle    = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const toggleAll = ()   => setSelected(s => s.length === filtered.length ? [] : filtered.map(l => l.id));
@@ -105,6 +111,9 @@ export function LeadManager() {
     bulkUpdateLeads(selected, { status });
     setSelected([]);
   };
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   // Build campaign lookup map
   const campaignMap = {};
@@ -225,7 +234,7 @@ export function LeadManager() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(l => {
+              {paged.map(l => {
                 const campaign = l.campaignId ? campaignMap[l.campaignId] : null;
                 const actionIcon = LAST_ACTION_ICON[l.status] || '·';
                 return (
@@ -312,17 +321,25 @@ export function LeadManager() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            Showing {filtered.length} of {leads.length} leads
-            {campaignFilter !== 'All' && ` · ${campaignMap[campaignFilter]?.name || ''}`}
-            {statusFilter !== 'All' && ` · ${statusFilter.replace(/_/g, ' ')}`}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>
+            {filtered.length === 0 ? 'No leads' : `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, filtered.length)} of ${filtered.length} leads`}
+            {filtered.length !== leads.length && ` (${leads.length} total)`}
           </span>
-          {filtered.length !== leads.length && (
-            <button className="btn btn-ghost btn-xs" onClick={() => { setStatusFilter('All'); setScoreFilter('All'); setCampaignFilter('All'); setSearch(''); }}>
-              Clear filters
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {filtered.length !== leads.length && (
+              <button className="btn btn-ghost btn-xs" onClick={() => { setStatusFilter('All'); setScoreFilter('All'); setCampaignFilter('All'); setSearch(''); }}>
+                Clear filters
+              </button>
+            )}
+            {totalPages > 1 && (
+              <>
+                <button className="btn btn-ghost btn-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
+                <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{page + 1} / {totalPages}</span>
+                <button className="btn btn-ghost btn-xs" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next →</button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
