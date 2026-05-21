@@ -205,9 +205,9 @@ export function LiveDemo() {
           { n:'23%',      l:'Avg reply rate' },
           { n:'3×',       l:'Industry average' },
           { n:'48 hrs',   l:'First replies' },
-          { n:'500+',     l:'Businesses served' },
+          { n:'47',       l:'Businesses served' },
           { n:'8.4×',     l:'Avg ROI' },
-          { n:'RM 2.4M',  l:'Revenue generated' },
+          { n:'RM 480K',  l:'Revenue for clients' },
         ].map((s,i,arr) => (
           <div key={i} style={{flex:1,padding:'10px 14px',borderRight:i<arr.length-1?'1px solid var(--border)':'none',textAlign:'center'}}>
             <div style={{fontSize:17,fontWeight:900,color:'var(--green)'}}>{s.n}</div>
