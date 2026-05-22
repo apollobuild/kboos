@@ -4,14 +4,31 @@ import { useWalletStore } from '../../store/useWalletStore.js';
 import { CreditWalletWidget } from '../ui/CreditWalletWidget.jsx';
 import { useRole } from '../../hooks/useRole.js';
 
-const SIDEBAR_STYLE = `@keyframes livePulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.6)} }`;
+const SIDEBAR_STYLE = `
+  @keyframes livePulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.6)} }
+  @keyframes sbIconPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
+  @keyframes sbGradShift { from{background-position:0% center} to{background-position:200% center} }
+`;
 
-const LogoMark = () => (
-  <svg width="28" height="20" viewBox="0 0 28 20" fill="none">
-    <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
-    <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(62% 0.19 245 / 0.7)" />
-    <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(62% 0.19 245 / 0.5)" />
-  </svg>
+const KboosLogo = () => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <span style={{ display: 'block', animation: 'sbIconPulse 4s ease-in-out infinite', flexShrink: 0 }}>
+      <svg width="32" height="23" viewBox="0 0 28 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 0 10px oklch(70% 0.24 145 / 0.8))' }}>
+        <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(75% 0.24 145 / 0.95)" />
+        <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(65% 0.2 210 / 0.8)" />
+        <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(60% 0.2 260 / 0.55)" />
+      </svg>
+    </span>
+    <div>
+      <div style={{
+        fontSize: 18, fontWeight: 900, letterSpacing: '0.12em', lineHeight: 1,
+        background: 'linear-gradient(90deg,oklch(78% 0.22 145) 0%,oklch(72% 0.2 185) 40%,oklch(65% 0.2 245) 70%,oklch(78% 0.22 145) 100%)',
+        backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text', animation: 'sbGradShift 4s linear infinite',
+      }}>KBOOS</div>
+      <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1 }}>by KOBIS Berhad</div>
+    </div>
+  </div>
 );
 
 const NAV = [
@@ -78,11 +95,7 @@ export function Sidebar() {
     <div className={`sidebar${sidebarOpen ? ' mobile-open' : ''}`}>
       <style>{SIDEBAR_STYLE}</style>
       <div className="sidebar-logo">
-        <div className="logo-mark">
-          <LogoMark />
-          <span className="logo-text serif">OUTREACH OS</span>
-        </div>
-        <div className="logo-sub">by KOBIS Berhad</div>
+        <KboosLogo />
       </div>
       <div className="nav-scroll">
         {NAV.map(section => (
