@@ -1,702 +1,919 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
 
-const LANG_LABELS = {
-  'all': 'English',
-  'EN':  'English',
-  'MS':  'Bahasa Malaysia',
-  'ZH':  'Mandarin Chinese (简体中文)',
-};
+// ─── constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_SUBJECT = 'Quick question about {{company}}';
-const DEFAULT_BODY = `Hi {{first_name}},
+const CHANNEL_COLORS = { email: 'blue', whatsapp: 'green', voice: 'amber' };
+const CHANNEL_ICONS  = { email: '✉', whatsapp: '💬', voice: '📞' };
+const STATUS_COLORS  = { draft: 'muted', review: 'amber', active: 'green', empty: 'muted' };
 
-Noticed {{company}} is in the {{industry}} space — we've been helping similar businesses in {{city}} book more meetings through personalised outreach.
-
-Would you be open to a quick 10-minute call this week to see if there's a fit?
-
-Best regards,
-[Your Name]
-KOBIS Berhad
-
-P.S. Takes less than 10 minutes — happy to work around your schedule.`;
-
-const DEFAULT_TEMPLATES = [
-  {
-    id: 'default-v1',
-    label: 'v1 — Starter Template',
-    active: true,
-    subject: DEFAULT_SUBJECT,
-    body: DEFAULT_BODY,
-    lang: 'all',
-    stats: { opens: 0, replies: 0 },
-    createdAt: new Date().toISOString(),
-  },
+const BRIEF_FIELDS = [
+  { key: 'service',           label: 'Offer / Service',         type: 'textarea', rows: 2 },
+  { key: 'dreamOutcome',      label: 'Dream Outcome',           type: 'textarea', rows: 2 },
+  { key: 'bestCustomer',      label: 'Best Customer Profile',   type: 'textarea', rows: 2 },
+  { key: 'industry',          label: 'Target Industry',         type: 'input' },
+  { key: 'companySize',       label: 'Company Size',            type: 'input' },
+  { key: 'geography',         label: 'Geography Focus',         type: 'input' },
+  { key: 'proof',             label: 'Proof / Results',         type: 'textarea', rows: 2 },
+  { key: 'timeToResult',      label: 'Time to First Result',    type: 'input' },
+  { key: 'effortRemoved',     label: 'Effort We Remove',        type: 'input' },
+  { key: 'riskReversal',      label: 'Guarantee / Risk Reversal', type: 'input' },
+  { key: 'goals',             label: 'Campaign Goals',          type: 'textarea', rows: 2 },
+  { key: 'style',             label: 'Communication Style',     type: 'input' },
+  { key: 'lang',              label: 'Language',                type: 'select', opts: ['EN','MS','ZH','MIXED'] },
+  { key: 'doNot',             label: 'Do NOT Say / Do',         type: 'textarea', rows: 2 },
+  { key: 'additionalNotes',   label: 'Additional Notes',        type: 'textarea', rows: 2 },
 ];
 
-const VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{title}}', '{{phone}}'];
-const WA_VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{phone}}'];
-const LANGS = [
-  { v: 'all', l: 'All' },
-  { v: 'EN', l: 'English' },
-  { v: 'MS', l: 'Melayu' },
-  { v: 'ZH', l: '中文' },
-];
-
-const DEFAULT_WA_BODY = `Hi {{first_name}}, saya dari KOBIS — kami bantu {{company}} dalam perkhidmatan outreach B2B di {{city}}. Boleh saya share info lebih? 🙏`;
-
-const DEFAULT_WA_TEMPLATES = [
-  {
-    id: 'default-wa-v1',
-    label: 'v1 — WA Starter',
-    active: true,
-    body: DEFAULT_WA_BODY,
-    lang: 'all',
-    type: 'whatsapp',
-    stats: { opens: 0, replies: 0 },
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const DEFAULT_VOICE_BODY = `Hello, may I speak with {{first_name}}?
-
-Hi {{first_name}}, this is [Your Name] calling from KOBIS Berhad. I'm reaching out to businesses in {{city}}, particularly in the {{industry}} sector.
-
-We help companies like {{company}} generate qualified B2B leads and book meetings — without your team having to do manual cold outreach.
-
-I'd love to share how we've helped similar businesses here in Malaysia. Is this a good time for a quick 2-minute chat?
-
-[If YES → continue pitch]
-[If BUSY → "No problem — when would be a better time for me to call back?"]
-[If NOT INTERESTED → "Understood, I appreciate your time {{first_name}}. Have a great day!"]`;
-
-const DEFAULT_VOICE_TEMPLATES = [
-  {
-    id: 'default-voice-v1',
-    label: 'v1 — Voice Starter Script',
-    active: true,
-    body: DEFAULT_VOICE_BODY,
-    lang: 'EN',
-    type: 'voice',
-    stats: { opens: 0, replies: 0 },
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const VOICE_VARIABLES = ['{{first_name}}', '{{company}}', '{{industry}}', '{{city}}', '{{title}}'];
-
-function parseTemplateFields(v) {
-  if (v.subject !== undefined) return { subject: v.subject || '', body: v.body || '', lang: v.lang || 'all' };
-  // Legacy: extract from "Subject: ...\n\n..." content format
-  const content = v.content || '';
-  const m = content.match(/^Subject:\s*(.+?)\n\n([\s\S]*)$/);
-  return { subject: m ? m[1].trim() : '', body: m ? m[2] : content, lang: v.lang || 'all' };
-}
-
-function fillVars(text, lead) {
-  return (text || '')
-    .replace(/\{\{first_name\}\}/g, lead?.name?.split(' ')[0] || 'Ahmad')
-    .replace(/\{\{company\}\}/g, lead?.company || 'Naim Holdings')
-    .replace(/\{\{industry\}\}/g, lead?.title?.includes('Manager') ? 'Construction' : 'Services')
-    .replace(/\{\{city\}\}/g, 'Kuching')
-    .replace(/\{\{title\}\}/g, lead?.title || 'Director')
-    .replace(/\{\{phone\}\}/g, lead?.phone || '+601X-XXXXXXX');
-}
+// ─── main component ───────────────────────────────────────────────────────────
 
 export function PromptStudio() {
-  const { showToast, leads, campaigns } = useAppStore(useShallow(s => ({
+  const { showToast, businesses } = useAppStore(useShallow(s => ({
     showToast: s.showToast,
-    leads: s.leads,
-    campaigns: s.campaigns,
+    businesses: s.businesses,
   })));
 
-  // Hormozi Offer Builder state
-  const [offerOpen, setOfferOpen] = useState(false);
-  const [offerBiz, setOfferBiz] = useState('');
-  const [offerIndustry, setOfferIndustry] = useState('');
-  const [offerService, setOfferService] = useState('');
-  const [offerDream, setOfferDream] = useState('');
-  const [offerProof, setOfferProof] = useState('');
-  const [offerTime, setOfferTime] = useState('');
-  const [offerEffort, setOfferEffort] = useState('');
-  const [offerRisk, setOfferRisk] = useState('');
-  const [offerLang, setOfferLang] = useState('EN');
-  const [generatingOffer, setGeneratingOffer] = useState(false);
-  const [offerResult, setOfferResult] = useState(null);
+  const [selectedBizId, setSelectedBizId] = useState(null);
+  const [subTab, setSubTab] = useState('sequence'); // sequence | brief | objections | link
+  const [seq, setSeq] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [linkData, setLinkData] = useState(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [briefEdit, setBriefEdit] = useState({});
+  const [briefDirty, setBriefDirty] = useState(false);
+  const [savingBrief, setSavingBrief] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [editingTp, setEditingTp] = useState(null);
+  const [regenId, setRegenId] = useState(null);
 
-  async function generateFromOffer() {
-    if (!offerDream.trim()) { showToast('Fill in the Dream Outcome at minimum', 'amber'); return; }
-    setGeneratingOffer(true);
-    setOfferResult(null);
+  const biz = businesses.find(b => b.id === selectedBizId);
+
+  // Auto-select first business
+  useEffect(() => {
+    if (businesses.length && !selectedBizId) setSelectedBizId(businesses[0].id);
+  }, [businesses]);
+
+  // Load sequence when biz changes
+  useEffect(() => {
+    if (!selectedBizId) return;
+    setSeq(null);
+    setLoading(true);
+    setBriefDirty(false);
+    apiFetch(`/sequences/${selectedBizId}`)
+      .then(d => {
+        setSeq(d);
+        setBriefEdit(d.brief || {});
+      })
+      .catch(() => {
+        setSeq({ bizId: selectedBizId, status: 'empty', brief: {}, touchpoints: [], objections: [] });
+      })
+      .finally(() => setLoading(false));
+
+    // Load existing link
+    apiFetch(`/onboard/link/${selectedBizId}`)
+      .then(d => setLinkData(d.url ? d : null))
+      .catch(() => setLinkData(null));
+  }, [selectedBizId]);
+
+  async function generateSequence() {
+    if (!selectedBizId) return;
+    setGenerating(true);
     try {
-      const result = await apiFetch('/ai/generate-from-offer', {
+      const d = await apiFetch(`/sequences/${selectedBizId}/generate`, {
         method: 'POST',
-        body: {
-          bizName: offerBiz || campaigns?.[0]?.bizName || 'KOBIS Berhad',
-          industry: offerIndustry || 'B2B Services',
-          service: offerService || '',
-          dreamOutcome: offerDream,
-          proof: offerProof,
-          timeToResult: offerTime,
-          effortRemoved: offerEffort,
-          riskReversal: offerRisk,
-          lang: offerLang,
-        },
+        body: { brief: briefEdit, persona: seq?.persona || {} },
       });
-      setOfferResult(result);
-      showToast('Offer copy generated for all 3 channels ✓', 'green');
+      setSeq(d);
+      showToast('Sequence generated — review each touchpoint', 'green');
     } catch (e) {
       showToast('Generation failed: ' + e.message, 'red');
     } finally {
-      setGeneratingOffer(false);
+      setGenerating(false);
     }
   }
 
-  function applyOfferToEditor(channel) {
-    if (!offerResult) return;
-    if (channel === 'email') {
-      setEditSubject(offerResult.emailSubject || '');
-      setEditBody(offerResult.emailBody || '');
-      setTemplateType('email');
-    } else if (channel === 'whatsapp') {
-      setEditBody(offerResult.whatsapp || '');
-      setTemplateType('whatsapp');
-    } else if (channel === 'voice') {
-      setEditBody(offerResult.voiceSystemPrompt || '');
-      setTemplateType('voice');
+  async function approveSequence() {
+    setApproving(true);
+    try {
+      const d = await apiFetch(`/sequences/${selectedBizId}/approve`, { method: 'POST' });
+      setSeq(d);
+      showToast('Sequence activated ✓', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setApproving(false);
     }
-    showToast(`Loaded into ${channel} editor — review and save`, 'blue');
   }
 
-  const [templateType, setTemplateType] = useState('email'); // 'email' | 'whatsapp' | 'voice'
-  const [versions, setVersions] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-  const [editSubject, setEditSubject] = useState('');
-  const [editBody, setEditBody] = useState('');
-  const [editLabel, setEditLabel] = useState('');
-  const [editLang, setEditLang] = useState('all');
-  const [subjectVariants, setSubjectVariants] = useState([]);
-  const [previewMode, setPreviewMode] = useState(false);
-  const [previewLead, setPreviewLead] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [improving, setImproving] = useState(false);
-  const [testSending, setTestSending] = useState(false);
-  const isWA    = templateType === 'whatsapp';
-  const isVoice = templateType === 'voice';
-
-  useEffect(() => {
-    setLoading(true);
-    setVersions([]);
-    setSelectedId(null);
-    setSubjectVariants([]);
-    setPreviewMode(false);
-    const endpoint = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
-    const defaults = isWA ? DEFAULT_WA_TEMPLATES : isVoice ? DEFAULT_VOICE_TEMPLATES : DEFAULT_TEMPLATES;
-    apiFetch(endpoint)
-      .then(data => {
-        const list = (!data || data.length === 0) ? defaults : data;
-        setVersions(list);
-        const active = list.find(t => t.active) || list[0];
-        setSelectedId(active.id);
-        const { subject, body, lang } = parseTemplateFields(active);
-        setEditSubject(isWA || isVoice ? '' : subject);
-        setEditBody(body);
-        setEditLang(lang);
-        setEditLabel(active.label);
-      })
-      .catch(() => {
-        setVersions(defaults);
-        setSelectedId(defaults[0].id);
-        setEditSubject(isWA || isVoice ? '' : DEFAULT_SUBJECT);
-        setEditBody(isVoice ? DEFAULT_VOICE_BODY : isWA ? DEFAULT_WA_BODY : DEFAULT_BODY);
-        setEditLang('all');
-        setEditLabel(defaults[0].label);
-      })
-      .finally(() => setLoading(false));
-  }, [templateType]);
-
-  useEffect(() => {
-    if (leads?.length > 0) setPreviewLead(leads[0]);
-  }, [leads]);
-
-  const selected = versions.find(v => v.id === selectedId) || versions[0];
-
-  function handleSelect(v) {
-    setSelectedId(v.id);
-    const { subject, body, lang } = parseTemplateFields(v);
-    setEditSubject(subject);
-    setEditBody(body);
-    setEditLang(lang);
-    setEditLabel(v.label);
-    setPreviewMode(false);
-    setSubjectVariants([]);
-  }
-
-  async function handleSetActive(id) {
-    const base = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
+  async function resetSequence() {
     try {
-      await apiFetch(`${base}/${id}`, { method: 'PATCH', body: { active: true } });
-      setVersions(prev => prev.map(v => ({ ...v, active: v.id === id })));
-      showToast('Template set as active', 'green');
-    } catch (e) { showToast(e.message, 'red'); }
+      const d = await apiFetch(`/sequences/${selectedBizId}/reset`, { method: 'POST' });
+      setSeq(d);
+      showToast('Sequence reset to draft', 'amber');
+    } catch (e) {
+      showToast(e.message, 'red');
+    }
   }
 
-  async function handleSaveNew() {
-    if (!editBody.trim()) return;
-    setSaving(true);
+  async function regenTouchpoint(tp) {
+    setRegenId(tp.id);
     try {
-      const endpoint = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
-      const saved = await apiFetch(endpoint, {
-        method: 'POST',
-        body: {
-          label: editLabel || `Version ${versions.length + 1}`,
-          subject: isWA || isVoice ? undefined : editSubject,
-          body: editBody,
-          content: isWA || isVoice ? editBody : `Subject: ${editSubject}\n\n${editBody}`,
-          lang: editLang,
-          type: templateType,
-        },
+      const d = await apiFetch(`/sequences/${selectedBizId}/regenerate/${tp.id}`, { method: 'POST' });
+      setSeq(d.sequence);
+      showToast('Touchpoint rewritten ↺', 'blue');
+    } catch (e) {
+      showToast('Regen failed: ' + e.message, 'red');
+    } finally {
+      setRegenId(null);
+    }
+  }
+
+  async function saveTouchpoint(tp) {
+    try {
+      const d = await apiFetch(`/sequences/${selectedBizId}/touchpoint/${tp.id}`, {
+        method: 'PATCH',
+        body: tp,
       });
-      setVersions(prev => [saved, ...prev]);
-      setSelectedId(saved.id);
-      setSubjectVariants([]);
-      showToast('New version saved', 'blue');
-    } catch (e) { showToast(e.message, 'red'); }
-    finally { setSaving(false); }
+      setSeq(d);
+      setEditingTp(null);
+      showToast('Saved ✓', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    }
   }
 
-  async function handleDelete(id) {
-    if (versions.length <= 1) { showToast("Can't delete the last template", 'amber'); return; }
-    const base = isWA ? '/settings/wa-templates' : isVoice ? '/settings/voice-templates' : '/settings/prompt-templates';
+  async function saveBrief() {
+    setSavingBrief(true);
     try {
-      await apiFetch(`${base}/${id}`, { method: 'DELETE' });
-      const remaining = versions.filter(v => v.id !== id);
-      setVersions(remaining);
-      if (selectedId === id) handleSelect(remaining[0]);
-      showToast('Version deleted', 'amber');
-    } catch (e) { showToast(e.message, 'red'); }
-  }
-
-  function handleClone() {
-    setEditLabel(`${editLabel} (copy)`);
-    setSubjectVariants([]);
-    showToast('Cloned — edit and save as new version', 'blue');
-  }
-
-  async function handleAIImprove() {
-    setImproving(true);
-    setSubjectVariants([]);
-    const langName = LANG_LABELS[editLang] || 'English';
-    const langInstruction = editLang === 'all'
-      ? 'Write in English.'
-      : `IMPORTANT: The entire output MUST be written in ${langName}. Do not switch to any other language.`;
-
-    try {
-      const campaign = campaigns?.[0];
-
-      if (isVoice) {
-        const res = await apiFetch('/ai/generate-email', {
-          method: 'POST',
-          body: {
-            bizName: campaign?.bizName || 'KOBIS Berhad',
-            campaignName: campaign?.name || 'Outreach Campaign',
-            prompt: `You are rewriting a voice call script for a B2B outreach agent calling Malaysian businesses. ${langInstruction}\n\nKeep all {{variables}} exactly as-is. Make the script natural, conversational, and suitable for a real phone call. Include natural pause points and objection handling branches.\n\nCurrent script:\n${editBody}`,
-            lead: { name: 'Ahmad', company: 'Sample Corp', title: 'Manager', lang: editLang === 'all' ? 'EN' : editLang },
-          },
-        });
-        setEditBody(res.body || editBody);
-        showToast('AI improved the voice script ✓', 'green');
-        return;
-      }
-
-      const channelInstruction = isWA
-        ? `You are rewriting a WhatsApp outreach message. ${langInstruction}\nKeep it under 160 characters. Casual, friendly, ends with a question. Keep all {{variables}} intact.`
-        : `You are rewriting a cold email template for Malaysian B2B outreach. ${langInstruction}\nApply cold email best practices. Keep all {{variables}} intact.\n\nSubject: ${editSubject}\n\n${editBody}`;
-
-      const res = await apiFetch('/ai/generate-email', {
-        method: 'POST',
-        body: {
-          bizName: campaign?.bizName || 'KOBIS Berhad',
-          campaignName: campaign?.name || 'Outreach Campaign',
-          prompt: channelInstruction,
-          lead: { name: 'Ahmad', company: 'Sample Corp', title: 'Manager', lang: editLang === 'all' ? 'EN' : editLang },
-        },
+      const d = await apiFetch(`/sequences/${selectedBizId}/brief`, {
+        method: 'PATCH',
+        body: { brief: briefEdit },
       });
-
-      if (!isWA) {
-        if (Array.isArray(res.subjects) && res.subjects.length > 1) {
-          setSubjectVariants(res.subjects);
-          setEditSubject(res.subjects[0]);
-        } else {
-          setEditSubject(res.subject || editSubject);
-        }
-      }
-      setEditBody(res.body || editBody);
-      showToast('AI improved the template ✓', 'green');
-    } catch (e) { showToast('AI improve failed: ' + e.message, 'red'); }
-    finally { setImproving(false); }
+      setSeq(d);
+      setBriefDirty(false);
+      showToast('Brief saved ✓', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setSavingBrief(false);
+    }
   }
 
-  async function handleTestSend() {
-    if (!selectedId) return;
-    setTestSending(true);
+  async function saveInternalBrief() {
+    setSavingBrief(true);
     try {
-      const res = await apiFetch(`/settings/prompt-templates/${selectedId}/test-send`, { method: 'POST' });
-      showToast(`Test sent to ${res.sentTo}`, 'green');
-    } catch (e) { showToast('Test send failed: ' + e.message, 'red'); }
-    finally { setTestSending(false); }
+      await apiFetch(`/onboard/internal/${selectedBizId}`, {
+        method: 'POST',
+        body: { ...briefEdit, bizName: biz?.name },
+      });
+      const d = await apiFetch(`/sequences/${selectedBizId}`);
+      setSeq(d);
+      setBriefDirty(false);
+      showToast('Brief saved and ready for generation', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setSavingBrief(false);
+    }
   }
 
-  function insertVariable(tag) {
-    setEditBody(prev => prev + tag);
+  async function generateLink() {
+    setGeneratingLink(true);
+    try {
+      const d = await apiFetch('/onboard/generate-token', { method: 'POST', body: { bizId: selectedBizId } });
+      setLinkData(d);
+      showToast('Link created — copy and send to client', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setGeneratingLink(false);
+    }
   }
 
-  const previewSubject = fillVars(editSubject, previewLead);
-  const previewBody = fillVars(editBody, previewLead);
+  async function saveObjections(objections) {
+    try {
+      const d = await apiFetch(`/sequences/${selectedBizId}/objections`, {
+        method: 'PATCH',
+        body: { objections },
+      });
+      setSeq(d);
+      showToast('Objections saved ✓', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    }
+  }
 
-  // Real stats from leads (global — fallback when per-template stats are empty)
-  const totalLeads = leads?.length || 0;
-  const openedLeads = leads?.filter(l => ['opened','replied','hot'].includes(l.status)).length || 0;
-  const repliedLeads = leads?.filter(l => ['replied','hot'].includes(l.status)).length || 0;
-  const realOpenRate = totalLeads > 0 ? ((openedLeads / totalLeads) * 100).toFixed(1) + '%' : '—';
-  const realReplyRate = totalLeads > 0 ? ((repliedLeads / totalLeads) * 100).toFixed(1) + '%' : '—';
+  const touchpoints = Array.isArray(seq?.touchpoints) ? seq.touchpoints : [];
+  const objections  = Array.isArray(seq?.objections)  ? seq.objections  : [];
+  const status      = seq?.status || 'empty';
 
-  if (loading) return (
-    <div className="page" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:300}}>
-      <div style={{color:'var(--muted)',fontSize:13}}>Loading templates…</div>
+  if (!businesses.length) return (
+    <div style={{ padding: 32, color: 'var(--muted)', fontSize: 13 }}>
+      No businesses found. Add a business first.
     </div>
   );
 
   return (
-    <div className="page">
-      <div className="flex items-center justify-between mb-4 fade-up">
-        <div>
-          <div className="breadcrumb">Campaigns / <span>Prompt Studio</span></div>
-          <div style={{display:'flex',alignItems:'center',gap:12,marginTop:4}}>
-            <h1 className="page-title" style={{margin:0}}>Prompt Studio</h1>
-            <div style={{display:'flex',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:3,gap:2}}>
-              {[{v:'email',icon:'📧',l:'Email'},{v:'whatsapp',icon:'💬',l:'WhatsApp'},{v:'voice',icon:'📞',l:'Voice Agent'}].map(t=>(
-                <button key={t.v} onClick={()=>setTemplateType(t.v)}
-                  style={{padding:'5px 14px',borderRadius:6,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
-                    background:templateType===t.v?'var(--accent-bg)':'transparent',
-                    color:templateType===t.v?'var(--accent)':'var(--muted)',
-                    transition:'all 0.15s'}}>
-                  {t.icon} {t.l}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-          <button className="btn" onClick={() => setPreviewMode(p => !p)} style={{fontSize:13}}>
-            {previewMode ? '✎ Edit' : '👁 Preview'}
-          </button>
-          <button className="btn" onClick={handleClone} style={{fontSize:13}} title="Duplicate this version to edit">
-            ⎘ Clone
-          </button>
-          {!isVoice && (
-            <button className="btn" onClick={handleTestSend} disabled={testSending} style={{fontSize:13}} title="Send test email to yourself">
-              {testSending ? 'Sending…' : '✉ Test Send'}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Business tabs */}
+      <div style={{
+        display: 'flex', gap: 6, padding: '12px 20px 0', overflowX: 'auto',
+        borderBottom: '1px solid var(--border)', background: 'var(--s1)', flexShrink: 0,
+        scrollbarWidth: 'none',
+      }}>
+        {businesses.map(b => {
+          const active = b.id === selectedBizId;
+          return (
+            <button key={b.id} onClick={() => setSelectedBizId(b.id)} style={{
+              padding: '7px 16px', borderRadius: '8px 8px 0 0', fontSize: 12, fontWeight: active ? 600 : 400,
+              background: active ? 'var(--bg)' : 'transparent',
+              border: `1px solid ${active ? 'var(--border)' : 'transparent'}`,
+              borderBottom: active ? '1px solid var(--bg)' : '1px solid transparent',
+              color: active ? 'var(--text)' : 'var(--muted)',
+              cursor: 'pointer', flexShrink: 0, position: 'relative', top: 1,
+              transition: 'all 0.15s',
+            }}>
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: `var(--${b.color || 'blue'})`, marginRight: 7, verticalAlign: 'middle' }} />
+              {b.name}
             </button>
-          )}
-          <button className="btn" onClick={handleAIImprove} disabled={improving} style={{fontSize:13, color:'var(--green)', borderColor:'rgba(0,255,128,0.3)'}}>
-            {improving ? '⏳ Improving…' : '⚡ AI Improve'}
-          </button>
-          <button className="btn btn-blue" onClick={handleSaveNew} disabled={saving} style={{fontSize:13}}>
-            {saving ? 'Saving…' : 'Save as New Version'}
-          </button>
-          {selected && !selected.active && (
-            <button className="btn btn-green" onClick={() => handleSetActive(selectedId)} style={{fontSize:13}}>
-              Set as Active
-            </button>
-          )}
-        </div>
+          );
+        })}
       </div>
 
-      {/* Live stats banner */}
-      <div style={{display:'flex', gap:12, marginBottom:16}} className="fade-up">
-        {[
-          { label:'Total Leads', val: totalLeads.toLocaleString(), color:'var(--fg)' },
-          { label:'Open Rate (live)', val: realOpenRate, color:'var(--green)' },
-          { label:'Reply Rate (live)', val: realReplyRate, color:'var(--blue)' },
-          { label:'Active Campaigns', val: campaigns?.filter(c=>c.status==='active').length || 0, color:'var(--amber)' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{flex:1, padding:'12px 16px'}}>
-            <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4}}>{s.label}</div>
-            <div style={{fontSize:22, fontWeight:800, fontFamily:'var(--font-mono)', color:s.color}}>{s.val}</div>
-          </div>
-        ))}
-      </div>
+      {/* Workspace */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-      {/* ── Hormozi Offer Builder ── */}
-      <div className="card fade-up-2 mb-4" style={{border:'1px solid oklch(72% 0.18 65 / 0.35)'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={() => setOfferOpen(o => !o)}>
-          <div>
-            <div style={{fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:18}}>🎯</span> Hormozi Offer Builder
-            </div>
-            <div style={{fontSize:12,color:'var(--muted)',marginTop:2}}>Fill in 5 fields → AI generates optimised Email + WhatsApp + Voice Agent for all 3 channels at once</div>
-          </div>
-          <span style={{fontSize:18,color:'var(--amber)',transform:offerOpen?'rotate(180deg)':'none',transition:'transform 0.2s'}}>▾</span>
-        </div>
-
-        {offerOpen && (
-          <div style={{marginTop:16}}>
-            {/* Hormozi Value Equation explainer */}
-            <div style={{background:'var(--amber-dim)',border:'1px solid oklch(72% 0.18 65 / 0.3)',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:'var(--amber)'}}>
-              <strong>Hormozi's Value Equation:</strong> Value = (Dream Outcome × Proof) ÷ (Time Delay × Effort) — fill each field to maximise perceived value.
-            </div>
-
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
-              <div>
-                <label className="label">Business Name</label>
-                <input className="input" placeholder="e.g. KOBIS Berhad" value={offerBiz} onChange={e=>setOfferBiz(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label">Industry You Serve</label>
-                <input className="input" placeholder="e.g. IT Services, Construction" value={offerIndustry} onChange={e=>setOfferIndustry(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label">Your Service / Product</label>
-                <input className="input" placeholder="e.g. AI-powered B2B outreach automation" value={offerService} onChange={e=>setOfferService(e.target.value)}/>
-              </div>
-            </div>
-
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-              <div>
-                <label className="label" style={{color:'var(--green)'}}>① Dream Outcome <span style={{color:'var(--red)'}}>*</span></label>
-                <input className="input" placeholder="e.g. Book 10 qualified meetings/month without cold calling" value={offerDream} onChange={e=>setOfferDream(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label" style={{color:'var(--blue)'}}>② Proof / Results</label>
-                <input className="input" placeholder="e.g. Helped 3 Kuching IT firms book 40+ meetings in 60 days" value={offerProof} onChange={e=>setOfferProof(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label" style={{color:'var(--blue)'}}>③ Time to First Result</label>
-                <input className="input" placeholder="e.g. First leads within 48 hours" value={offerTime} onChange={e=>setOfferTime(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label" style={{color:'var(--amber)'}}>④ What We Handle (Effort Removed)</label>
-                <input className="input" placeholder="e.g. We write, send, follow up — you just take the call" value={offerEffort} onChange={e=>setOfferEffort(e.target.value)}/>
-              </div>
-            </div>
-
-            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:10,marginBottom:14,alignItems:'end'}}>
-              <div>
-                <label className="label" style={{color:'var(--green)'}}>⑤ Risk Reversal / Guarantee</label>
-                <input className="input" placeholder="e.g. No meetings in 30 days — full refund, no questions" value={offerRisk} onChange={e=>setOfferRisk(e.target.value)}/>
-              </div>
-              <div>
-                <label className="label">Language</label>
-                <div style={{display:'flex',gap:4}}>
-                  {[{v:'EN',l:'EN'},{v:'MS',l:'BM'},{v:'ZH',l:'中文'}].map(l=>(
-                    <button key={l.v} onClick={()=>setOfferLang(l.v)}
-                      style={{padding:'7px 12px',borderRadius:6,border:'1px solid',cursor:'pointer',fontSize:11,fontWeight:700,
-                        borderColor:offerLang===l.v?'var(--blue)':'var(--border)',
-                        color:offerLang===l.v?'var(--blue)':'var(--muted)',
-                        background:offerLang===l.v?'var(--blue-dim)':'transparent'}}>
-                      {l.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button className="btn btn-green" style={{width:'100%',padding:'12px',fontSize:14,fontWeight:700,justifyContent:'center'}}
-              onClick={generateFromOffer} disabled={generatingOffer || !offerDream.trim()}>
-              {generatingOffer
-                ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block',marginRight:8}}>◌</span>Claude is generating all 3 channels…</>
-                : '⚡ Generate Email + WhatsApp + Voice Agent from Offer'}
-            </button>
-
-            {/* Results */}
-            {offerResult && (
-              <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Generated — click a channel to load into editor</div>
-                {[
-                  {key:'email',icon:'📧',label:'Email',preview:`Subject: ${offerResult.emailSubject}\n\n${offerResult.emailBody}`},
-                  {key:'whatsapp',icon:'💬',label:'WhatsApp',preview:offerResult.whatsapp},
-                  {key:'voice',icon:'📞',label:'Voice Agent System Prompt',preview:offerResult.voiceSystemPrompt},
-                ].map(ch => (
-                  <div key={ch.key} style={{border:'1px solid var(--border)',borderRadius:8,overflow:'hidden'}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:'var(--s2)'}}>
-                      <span style={{fontWeight:600,fontSize:12}}>{ch.icon} {ch.label}</span>
-                      <button className="btn btn-primary btn-xs" onClick={() => applyOfferToEditor(ch.key)}>Load into Editor →</button>
-                    </div>
-                    <div style={{padding:'10px 12px',fontSize:12,fontFamily:'var(--font-mono)',color:'var(--muted)',whiteSpace:'pre-wrap',maxHeight:120,overflowY:'auto',lineHeight:1.6}}>
-                      {ch.preview}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div style={{display:'grid', gridTemplateColumns:'260px 1fr', gap:16}}>
-        {/* Version list */}
-        <div style={{display:'flex', flexDirection:'column', gap:8}}>
-          {versions.map((v, i) => {
-            const opens = v.stats?.opens || 0;
-            const replies = v.stats?.replies || 0;
-            const langTag = v.lang && v.lang !== 'all' ? v.lang : null;
-            return (
-              <div
-                key={v.id}
-                className={`card fade-up-${Math.min(i,4)}`}
-                onClick={() => handleSelect(v)}
-                style={{cursor:'pointer', border: selectedId===v.id ? '1px solid var(--blue)' : '1px solid var(--border)', padding:'12px'}}
-              >
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4}}>
-                  <span style={{fontWeight:600, fontSize:12, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{v.label}</span>
-                  <div style={{display:'flex', gap:4, flexShrink:0, alignItems:'center'}}>
-                    {langTag && <span style={{fontSize:9, padding:'1px 5px', borderRadius:3, border:'1px solid var(--border)', color:'var(--muted)'}}>{langTag}</span>}
-                    {v.active && <span className="badge badge-green" style={{fontSize:9}}>ACTIVE</span>}
-                    {selectedId === v.id && !v.active && (
-                      <span onClick={e=>{e.stopPropagation();handleDelete(v.id)}} style={{fontSize:10,color:'var(--muted)',cursor:'pointer',padding:'0 4px'}} title="Delete">✕</span>
-                    )}
-                  </div>
-                </div>
-                <div style={{display:'flex', gap:12}}>
-                  <div>
-                    <div style={{fontSize:9, color:'var(--muted)', marginBottom:2}}>Opens</div>
-                    <div style={{fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green)'}}>{opens > 0 ? opens : '—'}</div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:9, color:'var(--muted)', marginBottom:2}}>Replies</div>
-                    <div style={{fontFamily:'var(--font-mono)', fontSize:12, color:'var(--blue)'}}>{replies > 0 ? replies : '—'}</div>
-                  </div>
-                </div>
-                {v.createdAt && (
-                  <div style={{fontSize:9,color:'var(--muted)',marginTop:4}}>
-                    {new Date(v.createdAt).toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'})}
-                  </div>
+        {/* Main area */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+          {/* Sub-tab bar */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+            {[
+              { id: 'sequence',   label: 'Sequence' },
+              { id: 'brief',      label: 'Brief' },
+              { id: 'objections', label: 'Objections' },
+              { id: 'link',       label: 'Onboard Link' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setSubTab(t.id)} style={{
+                padding: '7px 14px', fontSize: 12, fontWeight: subTab === t.id ? 600 : 400,
+                borderRadius: '6px 6px 0 0', cursor: 'pointer', border: 'none',
+                background: subTab === t.id ? 'var(--s2)' : 'transparent',
+                color: subTab === t.id ? 'var(--text)' : 'var(--muted)',
+                borderBottom: subTab === t.id ? '2px solid var(--blue)' : '2px solid transparent',
+                transition: 'all 0.15s',
+              }}>
+                {t.label}
+                {t.id === 'sequence' && touchpoints.length > 0 && (
+                  <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--s2)', color: 'var(--muted)' }}>
+                    {touchpoints.length}
+                  </span>
                 )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Editor */}
-        <div className="card fade-up-1" style={{display:'flex', flexDirection:'column', gap:0}}>
-          {/* Header row: label + lang tags */}
-          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid var(--border)', paddingBottom:12, marginBottom:12, gap:12}}>
-            <input
-              value={editLabel}
-              onChange={e => setEditLabel(e.target.value)}
-              style={{background:'transparent', border:'none', outline:'none', fontWeight:600, fontSize:14, color:'var(--fg)', flex:1}}
-              placeholder="Version name…"
-              disabled={previewMode}
-            />
-            <div style={{display:'flex', gap:4}}>
-              {LANGS.map(l => (
-                <button key={l.v} onClick={() => !previewMode && setEditLang(l.v)}
-                  style={{fontSize:10, padding:'2px 8px', borderRadius:4, border:'1px solid', cursor: previewMode ? 'default' : 'pointer',
-                    borderColor: editLang===l.v ? 'var(--blue)' : 'var(--border)',
-                    color: editLang===l.v ? 'var(--blue)' : 'var(--muted)',
-                    background: editLang===l.v ? 'rgba(0,120,255,0.08)' : 'transparent',
-                  }}>
-                  {l.l}
-                </button>
-              ))}
-            </div>
-            {previewLead && previewMode && (
-              <Select
-                style={{background:'var(--s1)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'2px 6px', fontSize:11}}
-                onChange={v => setPreviewLead(leads.find(l=>l.id===parseInt(v)))}
-                value={String(previewLead?.id)}
-                options={leads?.slice(0,10).map(l => ({value:String(l.id), label:`${l.name} · ${l.company}`})) || []}
-              />
-            )}
+              </button>
+            ))}
           </div>
 
-          {/* Subject line — email only */}
-          {!isWA && !isVoice && (
-            <div style={{marginBottom:10}}>
-              <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5}}>Subject Line</div>
-              {previewMode ? (
-                <div style={{fontFamily:'var(--font-mono)', fontSize:13, color:'var(--fg)', padding:'8px 10px', background:'var(--bg)', borderRadius:6, border:'1px solid var(--border)'}}>
-                  {previewSubject}
-                </div>
-              ) : (
-                <input
-                  value={editSubject}
-                  onChange={e => setEditSubject(e.target.value)}
-                  style={{width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, outline:'none', boxSizing:'border-box'}}
-                  placeholder="Subject line (under 7 words)…"
+          {loading ? (
+            <div style={{ display: 'flex', gap: 10, flexDirection: 'column', padding: 20 }}>
+              {[1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 80, borderRadius: 8 }} />)}
+            </div>
+          ) : (
+            <>
+              {subTab === 'sequence' && (
+                <SequenceTab
+                  touchpoints={touchpoints}
+                  status={status}
+                  expandedId={expandedId}
+                  setExpandedId={setExpandedId}
+                  editingTp={editingTp}
+                  setEditingTp={setEditingTp}
+                  regenId={regenId}
+                  onRegen={regenTouchpoint}
+                  onSave={saveTouchpoint}
+                  bizName={biz?.name}
                 />
               )}
 
-              {subjectVariants.length > 1 && !previewMode && (
-                <div style={{marginTop:8}}>
-                  <div style={{fontSize:10, color:'var(--muted)', marginBottom:5}}>AI suggested — pick one:</div>
-                  <div style={{display:'flex', flexDirection:'column', gap:5}}>
-                    {subjectVariants.map((s, i) => (
-                      <div key={i} onClick={() => { setEditSubject(s); setSubjectVariants([]); }}
-                        style={{
-                          padding:'6px 10px', borderRadius:5, cursor:'pointer', fontSize:12,
-                          fontFamily:'var(--font-mono)',
-                          border: editSubject === s ? '1px solid var(--green)' : '1px solid var(--border)',
-                          color: editSubject === s ? 'var(--green)' : 'var(--fg)',
-                          background: editSubject === s ? 'rgba(0,255,128,0.05)' : 'var(--bg)',
-                        }}>
-                        {s}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {subTab === 'brief' && (
+                <BriefTab
+                  briefEdit={briefEdit}
+                  setBriefEdit={(k, v) => { setBriefEdit(f => ({ ...f, [k]: v })); setBriefDirty(true); }}
+                  briefDirty={briefDirty}
+                  saving={savingBrief}
+                  onSave={saveInternalBrief}
+                  bizName={biz?.name}
+                />
               )}
+
+              {subTab === 'objections' && (
+                <ObjectionsTab
+                  objections={objections}
+                  onSave={saveObjections}
+                />
+              )}
+
+              {subTab === 'link' && (
+                <LinkTab
+                  bizName={biz?.name}
+                  linkData={linkData}
+                  generatingLink={generatingLink}
+                  onGenerate={generateLink}
+                  showToast={showToast}
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Right panel */}
+        <div style={{
+          width: 240, flexShrink: 0, borderLeft: '1px solid var(--border)',
+          padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 16,
+          background: 'var(--s1)', overflow: 'auto',
+        }}>
+          {/* Status badge */}
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 6 }}>STATUS</div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+              background: `rgba(var(--${STATUS_COLORS[status]}-rgb, 120,120,120), 0.12)`,
+              color: `var(--${STATUS_COLORS[status]})`,
+              border: `1px solid var(--${STATUS_COLORS[status]})`,
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: `var(--${STATUS_COLORS[status]})`, display: 'inline-block' }} />
+              {status === 'empty' ? 'No Brief' : status}
             </div>
+          </div>
+
+          <div style={{ height: 1, background: 'var(--border)' }} />
+
+          {/* Primary action */}
+          {(status === 'draft' || status === 'review' || status === 'empty') && (
+            <button
+              onClick={generateSequence}
+              disabled={generating}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: 'var(--blue)', color: '#fff', border: 'none', cursor: generating ? 'wait' : 'pointer',
+                opacity: generating ? 0.7 : 1, lineHeight: 1.4,
+              }}>
+              {generating ? '⏳ Generating…' : touchpoints.length ? '↺ Re-generate All' : '⚡ Generate Sequence'}
+            </button>
           )}
 
-          {/* Body */}
-          <div style={{flex:1, display:'flex', flexDirection:'column'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
-              <div style={{fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em'}}>
-                {isVoice ? 'Voice Call Script' : isWA ? 'WhatsApp Message' : 'Email Body'}
+          {status === 'review' && touchpoints.length > 0 && (
+            <button
+              onClick={approveSequence}
+              disabled={approving}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: 'var(--green)', color: '#fff', border: 'none', cursor: 'pointer',
+              }}>
+              {approving ? '…' : '✓ Approve & Activate'}
+            </button>
+          )}
+
+          {status === 'active' && (
+            <>
+              <div style={{ fontSize: 11, color: 'var(--green)', textAlign: 'center', padding: '4px 0' }}>
+                ✓ Sequence is live
               </div>
-              {isWA && (
-                <div style={{fontSize:10,color: editBody.length > 1024 ? 'var(--red)' : editBody.length > 800 ? 'var(--amber)' : 'var(--muted)', fontFamily:'var(--font-mono)'}}>
-                  {editBody.length} / 1024 chars
-                </div>
-              )}
-              {isVoice && (
-                <div style={{fontSize:10,color:'var(--muted)',fontFamily:'var(--font-mono)'}}>
-                  ~{Math.ceil(editBody.trim().split(/\s+/).length / 130)} min · {editBody.trim().split(/\s+/).length} words
-                </div>
-              )}
-            </div>
-            {previewMode ? (
-              <div style={{flex:1, fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, color:'var(--fg)', whiteSpace:'pre-wrap', padding:4, minHeight: isWA ? 120 : 300}}>
-                {previewBody}
+              <button onClick={resetSequence} style={{
+                width: '100%', padding: '8px', borderRadius: 7, fontSize: 11,
+                background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+                cursor: 'pointer',
+              }}>
+                Reset to Draft
+              </button>
+            </>
+          )}
+
+          <div style={{ height: 1, background: 'var(--border)' }} />
+
+          {/* Brief summary */}
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8 }}>BRIEF SUMMARY</div>
+            {briefEdit.service ? (
+              <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>
+                {briefEdit.service?.slice(0, 80)}{briefEdit.service?.length > 80 ? '…' : ''}
               </div>
             ) : (
-              <textarea
-                value={editBody}
-                onChange={e => setEditBody(e.target.value)}
-                style={{flex:1, background:'transparent', border:'none', outline:'none', color:'var(--fg)', fontFamily:'var(--font-mono)', fontSize:13, lineHeight:1.7, resize:'none', minHeight: isWA ? 120 : 300}}
-                placeholder={isVoice ? 'Hello, may I speak with {{first_name}}?…' : isWA ? 'Hi {{first_name}}, …' : undefined}
-              />
+              <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
+                No brief yet — fill the Brief tab first
+              </div>
+            )}
+            <button onClick={() => setSubTab('brief')} style={{
+              marginTop: 8, fontSize: 11, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              {briefEdit.service ? 'Edit brief →' : 'Fill brief →'}
+            </button>
+          </div>
+
+          <div style={{ height: 1, background: 'var(--border)' }} />
+
+          {/* Client onboard link */}
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8 }}>CLIENT LINK</div>
+            {linkData?.url ? (
+              <>
+                <div style={{ fontSize: 10, color: 'var(--green)', marginBottom: 6 }}>✓ Active link</div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(linkData.url); showToast('Link copied!', 'green'); }}
+                  style={{
+                    width: '100%', padding: '7px', borderRadius: 7, fontSize: 11,
+                    background: 'rgba(80,200,100,0.08)', color: 'var(--green)',
+                    border: '1px solid rgba(80,200,100,0.2)', cursor: 'pointer',
+                  }}>
+                  Copy Link
+                </button>
+                <button onClick={() => setSubTab('link')} style={{
+                  marginTop: 6, width: '100%', padding: '6px', borderRadius: 7, fontSize: 11,
+                  background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer',
+                }}>
+                  Manage →
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setSubTab('link')} style={{
+                width: '100%', padding: '7px', borderRadius: 7, fontSize: 11,
+                background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer',
+              }}>
+                Generate Link →
+              </button>
             )}
           </div>
 
-          <div style={{borderTop:'1px solid var(--border)', paddingTop:10, marginTop:10, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
-            <span style={{fontSize:11, color:'var(--muted)', marginRight:4}}>Insert:</span>
-            {(isVoice ? VOICE_VARIABLES : isWA ? WA_VARIABLES : VARIABLES).map(tag => (
-              <span key={tag}
-                style={{background:'var(--bg)', border:'1px solid var(--border)', padding:'3px 8px', borderRadius:4, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:11, color: isVoice ? 'var(--amber)' : isWA ? 'var(--green)' : 'var(--blue)'}}
-                onClick={() => !previewMode && insertVariable(tag)}>
-                {tag}
-              </span>
-            ))}
+          <div style={{ height: 1, background: 'var(--border)' }} />
+
+          {/* Sequence stats */}
+          {touchpoints.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8 }}>SEQUENCE</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {['email','whatsapp','voice'].map(ch => {
+                  const count = touchpoints.filter(t => t.channel === ch).length;
+                  if (!count) return null;
+                  return (
+                    <div key={ch} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                      <span style={{ color: 'var(--muted)' }}>{CHANNEL_ICONS[ch]} {ch}</span>
+                      <span style={{ color: `var(--${CHANNEL_COLORS[ch]})`, fontWeight: 600 }}>{count}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--muted)' }}>Total span</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+                    {Math.max(...touchpoints.map(t => t.day || 0))} days
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Edit touchpoint modal */}
+      {editingTp && (
+        <EditModal
+          tp={editingTp}
+          onClose={() => setEditingTp(null)}
+          onSave={saveTouchpoint}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Sequence tab ─────────────────────────────────────────────────────────────
+
+function SequenceTab({ touchpoints, status, expandedId, setExpandedId, editingTp, setEditingTp, regenId, onRegen, onSave, bizName }) {
+  if (touchpoints.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>◈</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+          {status === 'empty' ? 'No brief filled yet' : 'Sequence not generated yet'}
+        </div>
+        <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+          {status === 'empty'
+            ? 'Fill the Brief tab with the client\'s offer details, then click ⚡ Generate Sequence.'
+            : 'The brief is ready. Click ⚡ Generate Sequence in the right panel.'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+        {touchpoints.length}-step sequence for {bizName} · Click any step to expand
+      </div>
+      {touchpoints.map((tp, i) => (
+        <TouchpointCard
+          key={tp.id}
+          tp={tp}
+          index={i}
+          expanded={expandedId === tp.id}
+          onToggle={() => setExpandedId(expandedId === tp.id ? null : tp.id)}
+          onEdit={() => setEditingTp({ ...tp })}
+          onRegen={() => onRegen(tp)}
+          isRegening={regenId === tp.id}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TouchpointCard({ tp, index, expanded, onToggle, onEdit, onRegen, isRegening }) {
+  const color = CHANNEL_COLORS[tp.channel] || 'blue';
+  return (
+    <div style={{
+      border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden',
+      background: 'var(--s1)', transition: 'border-color 0.15s',
+    }}>
+      {/* Header */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+          cursor: 'pointer', background: expanded ? 'rgba(255,255,255,0.03)' : 'transparent',
+        }}>
+        {/* Day badge */}
+        <div style={{
+          minWidth: 38, height: 38, borderRadius: 8, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', flexDirection: 'column', lineHeight: 1.1,
+          background: `rgba(var(--${color}-rgb, 80,120,255), 0.10)`,
+          border: `1px solid var(--${color})`,
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 9, color: `var(--${color})`, fontFamily: 'var(--font-mono)' }}>DAY</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: `var(--${color})` }}>{tp.day}</span>
+        </div>
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{tp.label}</span>
+            <span style={{
+              fontSize: 10, padding: '1px 8px', borderRadius: 10,
+              background: `rgba(var(--${color}-rgb, 80,120,255), 0.12)`,
+              color: `var(--${color})`, textTransform: 'uppercase', letterSpacing: '0.06em',
+            }}>
+              {CHANNEL_ICONS[tp.channel]} {tp.channel}
+            </span>
           </div>
+          {tp.subject && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {tp.subject}
+            </div>
+          )}
+          {!tp.subject && tp.body && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {tp.body?.slice(0, 80)}…
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button onClick={onRegen} disabled={isRegening} title="Rewrite" style={iconBtn}>
+            {isRegening ? '⏳' : '↺'}
+          </button>
+          <button onClick={onEdit} title="Edit" style={iconBtn}>✎</button>
+          <span style={{ fontSize: 14, color: 'var(--muted)', padding: '0 2px', userSelect: 'none' }}>
+            {expanded ? '▲' : '▼'}
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          {tp.subject && (
+            <div style={{ marginBottom: 10 }}>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>SUBJECT</span>
+              <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 3, fontWeight: 500 }}>{tp.subject}</div>
+            </div>
+          )}
+          <div>
+            <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
+              {tp.channel === 'voice' ? 'VOICE AGENT PROMPT' : 'MESSAGE'}
+            </span>
+            <pre style={{
+              fontSize: 12, color: 'var(--text)', marginTop: 4, whiteSpace: 'pre-wrap',
+              fontFamily: tp.channel === 'voice' ? 'var(--font-mono)' : 'var(--font-ui)',
+              lineHeight: 1.65, background: 'var(--s2)', borderRadius: 7, padding: '10px 12px',
+            }}>
+              {tp.body}
+            </pre>
+          </div>
+          {tp.notes && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,200,80,0.06)', borderRadius: 7, border: '1px solid rgba(255,200,80,0.15)' }}>
+              <span style={{ fontSize: 10, color: 'var(--amber)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>NOTE</span>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{tp.notes}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Brief tab ────────────────────────────────────────────────────────────────
+
+function BriefTab({ briefEdit, setBriefEdit, briefDirty, saving, onSave, bizName }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Business Brief</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+            Fill this to generate {bizName}'s personalised sequence. You can also share the client link for them to fill it themselves.
+          </div>
+        </div>
+        {briefDirty && (
+          <button onClick={onSave} disabled={saving} style={{
+            padding: '8px 16px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+            background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
+            flexShrink: 0,
+          }}>
+            {saving ? '…' : 'Save Brief'}
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {BRIEF_FIELDS.map(f => (
+          <div key={f.key} style={{ gridColumn: f.type === 'textarea' ? 'span 2' : 'span 1' }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 4 }}>
+              {f.label}
+            </label>
+            {f.type === 'textarea' ? (
+              <textarea
+                value={briefEdit[f.key] || ''}
+                onChange={e => setBriefEdit(f.key, e.target.value)}
+                rows={f.rows || 2}
+                style={tAreaStyle}
+              />
+            ) : f.type === 'select' ? (
+              <Select
+                value={briefEdit[f.key] || ''}
+                onChange={v => setBriefEdit(f.key, v)}
+                options={f.opts}
+              />
+            ) : (
+              <input
+                value={briefEdit[f.key] || ''}
+                onChange={e => setBriefEdit(f.key, e.target.value)}
+                style={inpStyle}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onSave} disabled={saving} style={{
+          padding: '9px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
+        }}>
+          {saving ? 'Saving…' : 'Save Brief'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Objections tab ───────────────────────────────────────────────────────────
+
+function ObjectionsTab({ objections, onSave }) {
+  const [items, setItems] = useState(objections);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => { setItems(objections); setDirty(false); }, [objections]);
+
+  function update(idx, field, val) {
+    const next = items.map((o, i) => i === idx ? { ...o, [field]: val } : o);
+    setItems(next);
+    setDirty(true);
+  }
+
+  function addItem() {
+    setItems(prev => [...prev, { id: `o${Date.now()}`, trigger: '', response: '' }]);
+    setDirty(true);
+  }
+
+  function removeItem(idx) {
+    setItems(prev => prev.filter((_, i) => i !== idx));
+    setDirty(true);
+  }
+
+  if (items.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
+      <div style={{ fontSize: 13, marginBottom: 12 }}>No objection handlers yet.</div>
+      <div style={{ fontSize: 11, marginBottom: 20 }}>Generate a sequence first — Claude will create these automatically.</div>
+      <button onClick={addItem} style={{ ...primaryBtn, fontSize: 12 }}>+ Add Manually</button>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Objection Handlers ({items.length})</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={addItem} style={{ ...ghostBtn, fontSize: 12 }}>+ Add</button>
+          {dirty && (
+            <button onClick={() => onSave(items)} style={{ ...primaryBtn, fontSize: 12 }}>Save</button>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map((obj, idx) => (
+          <div key={obj.id || idx} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', display: 'block', marginBottom: 4 }}>TRIGGER</label>
+                <input value={obj.trigger} onChange={e => update(idx, 'trigger', e.target.value)} style={inpStyle} placeholder="e.g. Not interested" />
+              </div>
+              <button onClick={() => removeItem(idx)} style={{ ...ghostBtn, fontSize: 11, alignSelf: 'flex-end', color: 'var(--red)', borderColor: 'var(--red)' }}>✕</button>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', display: 'block', marginBottom: 4 }}>RESPONSE</label>
+              <textarea value={obj.response} onChange={e => update(idx, 'response', e.target.value)} rows={2} style={tAreaStyle} placeholder="How to reply…" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Link tab ─────────────────────────────────────────────────────────────────
+
+function LinkTab({ bizName, linkData, generatingLink, onGenerate, showToast }) {
+  return (
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+        Client Onboarding Link
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 20 }}>
+        Share this link with <strong style={{ color: 'var(--text)' }}>{bizName}</strong> — they'll fill in their offer details directly, and the brief will automatically appear here for review.
+        The link is one-time use and expires in 30 days.
+      </div>
+
+      {linkData?.url ? (
+        <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>✓ Active link</span>
+            {linkData.expiresAt && (
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                Expires {new Date(linkData.expiresAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 12, color: 'var(--muted)', padding: '8px 12px',
+            background: 'var(--s2)', borderRadius: 7, wordBreak: 'break-all',
+            fontFamily: 'var(--font-mono)', marginBottom: 12,
+          }}>
+            {linkData.url}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => { navigator.clipboard.writeText(linkData.url); showToast('Link copied!', 'green'); }}
+              style={{ ...primaryBtn, flex: 1, fontSize: 12 }}>
+              Copy Link
+            </button>
+            <button onClick={onGenerate} disabled={generatingLink} style={{ ...ghostBtn, fontSize: 12 }}>
+              {generatingLink ? '…' : '↺ New Link'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+          <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>🔗</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>No active link for {bizName} yet.</div>
+          <button onClick={onGenerate} disabled={generatingLink} style={{ ...primaryBtn }}>
+            {generatingLink ? 'Generating…' : 'Generate Onboard Link'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(80,120,255,0.06)', borderRadius: 9, border: '1px solid rgba(80,120,255,0.15)' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)', marginBottom: 6 }}>How it works</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.7 }}>
+          1. Click <strong>Generate Link</strong> — unique link created for {bizName}<br/>
+          2. Send to client via WhatsApp or email<br/>
+          3. They fill 5 questions about their offer (takes ~5 min)<br/>
+          4. Brief automatically saved here — status changes to <span style={{ color: 'var(--amber)' }}>REVIEW</span><br/>
+          5. Click ⚡ Generate Sequence to build their personalised outreach
         </div>
       </div>
     </div>
   );
 }
+
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
+
+function EditModal({ tp, onClose, onSave }) {
+  const [draft, setDraft] = useState({ ...tp });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave(draft);
+    setSaving(false);
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 12,
+        width: '100%', maxWidth: 600, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Edit Touchpoint</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{tp.label}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--muted)', padding: '0 4px' }}>✕</button>
+        </div>
+        <div style={{ padding: '16px 20px', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Label</label>
+            <input value={draft.label || ''} onChange={e => setDraft(d => ({ ...d, label: e.target.value }))} style={inpStyle} />
+          </div>
+          {draft.channel === 'email' && (
+            <div>
+              <label style={labelStyle}>Subject Line</label>
+              <input value={draft.subject || ''} onChange={e => setDraft(d => ({ ...d, subject: e.target.value }))} style={inpStyle} />
+            </div>
+          )}
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>
+              {draft.channel === 'voice' ? 'Voice Agent System Prompt' : 'Message Body'}
+            </label>
+            <textarea
+              value={draft.body || ''}
+              onChange={e => setDraft(d => ({ ...d, body: e.target.value }))}
+              rows={12}
+              style={{ ...tAreaStyle, resize: 'vertical' }}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Internal Note (optional)</label>
+            <input value={draft.notes || ''} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} style={inpStyle} placeholder="Why this version works…" />
+          </div>
+        </div>
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={ghostBtn}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={primaryBtn}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── shared styles ────────────────────────────────────────────────────────────
+
+const inpStyle = {
+  width: '100%', padding: '7px 10px', fontSize: 12,
+  background: 'var(--s2)', border: '1px solid var(--border)',
+  borderRadius: 7, color: 'var(--text)', fontFamily: 'var(--font-ui)',
+  outline: 'none', boxSizing: 'border-box',
+};
+
+const tAreaStyle = {
+  ...inpStyle, resize: 'vertical', lineHeight: 1.55,
+};
+
+const labelStyle = {
+  fontSize: 11, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 4,
+};
+
+const primaryBtn = {
+  padding: '8px 16px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+  background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
+  fontFamily: 'var(--font-ui)',
+};
+
+const ghostBtn = {
+  padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+  background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+  cursor: 'pointer', fontFamily: 'var(--font-ui)',
+};
+
+const iconBtn = {
+  padding: '4px 8px', borderRadius: 6, fontSize: 13,
+  background: 'var(--s2)', color: 'var(--muted)', border: '1px solid var(--border)',
+  cursor: 'pointer', transition: 'all 0.1s',
+};

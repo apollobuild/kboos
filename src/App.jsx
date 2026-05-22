@@ -35,6 +35,7 @@ import { PromptStudio } from './pages/PromptStudio.jsx';
 import { Settings } from './pages/Settings.jsx';
 import { ClientPortal } from './pages/ClientPortal.jsx';
 import { LiveDemo } from './pages/LiveDemo.jsx';
+import { Onboard } from './pages/Onboard.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -58,6 +59,10 @@ const PAGE_MAP = {
 const MAX_RETRIES = 3;
 
 export default function App() {
+  if (window.location.pathname.startsWith('/onboard/')) {
+    return <Onboard />;
+  }
+
   const { page, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({
     page: s.page, init: s.init,
     sidebarOpen: s.sidebarOpen, toggleSidebar: s.toggleSidebar, closeSidebar: s.closeSidebar,
