@@ -22,8 +22,8 @@ function gradeBorder(grade) {
 }
 
 export function AllCampaigns() {
-  const { campaigns, toggleCampaign, updateCampaign, removeCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
-    campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, removeCampaign:s.removeCampaign, showToast:s.showToast, setPage:s.setPage,
+  const { campaigns, toggleCampaign, updateCampaign, removeCampaign, showToast, setPage, openCampaignPipeline } = useAppStore(useShallow(s => ({
+    campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, removeCampaign:s.removeCampaign, showToast:s.showToast, setPage:s.setPage, openCampaignPipeline:s.openCampaignPipeline,
   })));
 
   const [filter, setFilter] = useState('All');
@@ -280,7 +280,13 @@ export function AllCampaigns() {
                 return (
                   <tr key={c.id} className={c.status==='awaiting_approval'?'row-awaiting':''} style={rowStyle}>
                     <td>
-                      <div style={{fontWeight:500,fontSize:13}}>{c.name}</div>
+                      <div
+                        style={{fontWeight:500,fontSize:13,cursor:'pointer',color:'var(--blue)'}}
+                        onClick={() => openCampaignPipeline(c.id)}
+                        title="View pipeline"
+                      >
+                        {c.name}
+                      </div>
                       <div style={{fontSize:11,color:'var(--muted)'}}>{c.bizName}</div>
                     </td>
                     <td><BizAvatar id={c.bizId} name={c.bizName} color={c.color} size={24}/></td>

@@ -51,8 +51,8 @@ const CHANNEL_OPTIONS = [
 ];
 
 export function NewCampaign() {
-  const { businesses, addCampaign, setPage, showToast } = useAppStore(useShallow(s => ({
-    businesses: s.businesses, addCampaign: s.addCampaign, setPage: s.setPage, showToast: s.showToast,
+  const { businesses, addCampaign, setPage, showToast, openCampaignPipeline } = useAppStore(useShallow(s => ({
+    businesses: s.businesses, addCampaign: s.addCampaign, setPage: s.setPage, showToast: s.showToast, openCampaignPipeline: s.openCampaignPipeline,
   })));
 
   const currentUser = (() => {
@@ -206,7 +206,7 @@ export function NewCampaign() {
     const r = aiCampaignResult;
     const selBizData = businesses.find(b => b.id === bizSel);
     try {
-      await addCampaign({
+      const newC = await addCampaign({
         bizId: bizSel,
         bizName: selBizData?.name || 'Unknown',
         name: r.name || `${selBizData?.name || 'Campaign'} AI Build`,
@@ -223,6 +223,7 @@ export function NewCampaign() {
         config: r.config || {},
       });
       setCreated(true);
+      if (newC?.id) openCampaignPipeline(newC.id);
     } catch (e) {
       showToast(`Failed to save campaign: ${e.message}`, 'red');
     }
@@ -296,6 +297,7 @@ export function NewCampaign() {
     }
 
     setCreated(true);
+    if (newCampaign?.id) openCampaignPipeline(newCampaign.id);
 
     if (!newCampaign?.id) return;
     const hasMaps = sources.google_maps && keyword;
@@ -382,7 +384,7 @@ export function NewCampaign() {
             Awaiting approval — go to <strong>Approvals</strong> to activate.
           </div>
           <div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}>
-            <button className="btn btn-green" onClick={() => setPage('approvals')}>Go to Approvals →</button>
+            <button className="btn btn-green" onClick={() => setPage('pipeline')}>View Pipeline →</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>All Campaigns</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>View Leads</button>
           </div>

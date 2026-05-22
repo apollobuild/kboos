@@ -37,6 +37,7 @@ import { ClientPortal } from './pages/ClientPortal.jsx';
 import { LiveDemo } from './pages/LiveDemo.jsx';
 import { Onboard } from './pages/Onboard.jsx';
 import { SelfServeDemo } from './pages/SelfServeDemo.jsx';
+import { CampaignPipeline } from './pages/CampaignPipeline.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -55,6 +56,7 @@ const PAGE_MAP = {
   settings: Settings,
   portal: ClientPortal,
   'client-portal': ClientPortal,
+  pipeline: CampaignPipeline,
 };
 
 const MAX_RETRIES = 3;
