@@ -118,13 +118,31 @@ const T = {
   },
 };
 
-function LogoMark({ size = 28 }) {
+function KboosLogo() {
   return (
-    <svg width={size} height={Math.round(size * 0.72)} viewBox="0 0 28 20" fill="none">
-      <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
-      <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(62% 0.19 245 / 0.7)" />
-      <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(62% 0.19 245 / 0.5)" />
-    </svg>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <style>{`
+        @keyframes obIconPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
+        @keyframes obGradShift { from{background-position:0% center} to{background-position:200% center} }
+      `}</style>
+      <span style={{ display: 'block', animation: 'obIconPulse 4s ease-in-out infinite' }}>
+        <svg width="32" height="23" viewBox="0 0 28 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 0 10px oklch(70% 0.24 145 / 0.8))' }}>
+          <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(75% 0.24 145 / 0.95)" />
+          <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(65% 0.2 210 / 0.8)" />
+          <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(60% 0.2 260 / 0.55)" />
+        </svg>
+      </span>
+      <div>
+        <div style={{
+          fontSize: 18, fontWeight: 900, letterSpacing: '0.12em', lineHeight: 1,
+          background: 'linear-gradient(90deg,oklch(78% 0.22 145) 0%,oklch(72% 0.2 185) 40%,oklch(65% 0.2 245) 70%,oklch(78% 0.22 145) 100%)',
+          backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text', animation: 'obGradShift 4s linear infinite',
+        }}>KBOOS</div>
+        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1 }}>Outreach OS</div>
+        <div style={{ fontSize: 8, color: 'var(--green)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1, fontWeight: 700 }}>Onboarding</div>
+      </div>
+    </div>
   );
 }
 
@@ -324,17 +342,7 @@ function Wrap({ children, lang, setLang }) {
         padding: '14px 20px', borderBottom: '1px solid var(--border)',
         background: 'var(--s1)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <LogoMark size={24} />
-          <div>
-            <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em' }}>
-              OUTREACH OS
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
-              ONBOARDING
-            </div>
-          </div>
-        </div>
+        <KboosLogo />
         {/* Language toggle */}
         <div style={{ display: 'flex', background: 'var(--s2)', borderRadius: 20, padding: '2px', gap: '2px' }}>
           {['EN', 'MS'].map(l => (
