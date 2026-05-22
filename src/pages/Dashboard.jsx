@@ -206,37 +206,39 @@ export function Dashboard() {
         <TickerBar />
       </div>
 
-      {/* Stat cards */}
-      <div className="fade-up-1 mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 10 }}>
-        {stats.map(s => (
-          <div
-            key={s.label}
-            className="card-sm"
-            onClick={() => { if (s.tab) sessionStorage.setItem('settingsTab', s.tab); setPage(s.page); }}
-            style={{
-              textAlign: 'center', padding: '12px 8px', cursor: 'pointer',
-              transition: 'transform 0.12s, box-shadow 0.12s',
-              position: 'relative', overflow: 'hidden',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-          >
-            {s.pulse && (
-              <div style={{
-                position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%',
-                background: s.color === 'amber' ? 'var(--amber)' : 'var(--blue)',
-                animation: 'pulse 1.4s ease-in-out infinite',
-              }} />
-            )}
-            <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
-            <div className="mono" style={{
-              fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-              color: s.color === 'text' ? 'var(--text)' : s.color === 'muted' ? 'var(--muted)' : `var(--${s.color})`,
-            }}>{s.val}</div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      {/* Stat cards — row 1: core metrics, row 2: system stats */}
+      {[stats.slice(0, 5), stats.slice(5)].map((row, ri) => (
+        <div key={ri} className={ri === 0 ? 'fade-up-1 mt-4' : 'mt-2'} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length},1fr)`, gap: 10 }}>
+          {row.map(s => (
+            <div
+              key={s.label}
+              className="card-sm"
+              onClick={() => { if (s.tab) sessionStorage.setItem('settingsTab', s.tab); setPage(s.page); }}
+              style={{
+                textAlign: 'center', padding: '12px 8px', cursor: 'pointer',
+                transition: 'transform 0.12s, box-shadow 0.12s',
+                position: 'relative', overflow: 'hidden',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+            >
+              {s.pulse && (
+                <div style={{
+                  position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%',
+                  background: s.color === 'amber' ? 'var(--amber)' : 'var(--blue)',
+                  animation: 'pulse 1.4s ease-in-out infinite',
+                }} />
+              )}
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+              <div className="mono" style={{
+                fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
+                color: s.color === 'text' ? 'var(--text)' : s.color === 'muted' ? 'var(--muted)' : `var(--${s.color})`,
+              }}>{s.val}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      ))}
 
       {/* First-time empty state */}
       {businesses.length === 0 && campaigns.length === 0 && (
