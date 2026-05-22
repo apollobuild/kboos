@@ -26,7 +26,8 @@ const KboosLogo = () => (
         backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         backgroundClip: 'text', animation: 'sbGradShift 4s linear infinite',
       }}>KBOOS</div>
-      <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1 }}>by KOBIS Berhad</div>
+      <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1 }}>Outreach OS</div>
+      <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>by KOBIS Berhad</div>
     </div>
   </div>
 );
