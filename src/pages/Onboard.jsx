@@ -3,109 +3,118 @@ import { useState, useEffect } from 'react';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const STEPS = [
-  { id: 'offer',    label: 'Your Offer',       icon: '◈' },
-  { id: 'customer', label: 'Best Customer',     icon: '◉' },
-  { id: 'results',  label: 'Proof & Results',   icon: '◆' },
-  { id: 'style',    label: 'How You Communicate', icon: '◇' },
-  { id: 'goals',    label: 'Your Goals',        icon: '▶' },
+  { id: 'offer',    label: 'Your Offer' },
+  { id: 'customer', label: 'Best Customer' },
+  { id: 'results',  label: 'Proof & Results' },
+  { id: 'style',    label: 'Communication Style' },
+  { id: 'goals',    label: 'Your Goals' },
 ];
 
 const T = {
   EN: {
-    settingUp: 'Setting up',
+    settingUp: 'SETTING UP',
     outreachSystem: "'s Outreach System",
-    helpBuild: 'Help us build the perfect sequence for your business. This takes about 5 minutes.',
-    step: 'Step',
-    of: 'of',
-    back: '← Back',
-    continue: 'Continue →',
-    submit: 'Submit →',
-    sending: 'Sending…',
-    received: 'Submission received',
-    gotEverything: "We've got everything we need.",
-    reviewDetails: 'Your KOBIS team will review the details and build',
-    withinHours: "'s personalised outreach sequence within 24 hours.",
-    offer: 'Your Offer',
+    tagline: 'Help us build the perfect sequence for your business. Takes about 5 minutes.',
+    step: 'Step', of: 'of',
+    back: '← Back', continue: 'Continue →', submit: 'Submit', sending: 'Sending…',
+    receivedTitle: "We've got everything we need.",
+    receivedBody: 'Your KOBIS team will review and build',
+    receivedBody2: "'s personalised sequence within 24 hours.",
+    receivedTag: 'Submission received',
+    contactKobis: 'Please contact your KOBIS team for a new link.',
+    // Step labels
+    stepOfferTitle: 'Your Offer',
+    stepCustomerTitle: 'Best Customer',
+    stepResultsTitle: 'Proof & Results',
+    stepStyleTitle: 'Communication Style',
+    stepGoalsTitle: 'Your Goals',
+    // Step 1
     whatSell: 'What exactly do you sell or offer?',
-    whatSellHint: "e.g. \"We help F&B brands automate their HR payroll and reduce compliance risk\"",
+    whatSellHint: 'e.g. "We help F&B brands automate HR payroll and reduce compliance risk"',
     dreamOutcome: "What's the dream outcome for your best client?",
     dreamOutcomeHint: 'The transformation they get — not the features you sell',
     effortRemoved: 'What hard work do you take off their plate?',
     effortRemovedHint: 'What does the client NOT have to do anymore?',
     guarantee: "What's your guarantee or risk reversal?",
     guaranteeHint: 'What removes the fear of trying?',
-    customer: 'Best Customer',
+    // Step 2
     describeBest: 'Describe your best customer',
-    describeBestHint: 'The type of company and person who gets the most value from you',
+    describeBestHint: 'The type of company and person who gets most value from you',
     industry: 'Industry / Sector',
     companySize: 'Company Size',
     geography: 'Geography / Location Focus',
-    results: 'Proof & Results',
+    // Step 3
     whatProof: 'What results or proof do you have?',
     whatProofHint: 'Numbers, case studies, testimonials',
-    timeResult: 'How long does it take to see first results?',
-    caseStudy: 'Any specific case study you want us to reference?',
-    style: 'How You Communicate',
+    timeResult: 'How long to see first results?',
+    caseStudy: 'Any specific case study to reference?',
+    // Step 4
     communicationStyle: "What's your brand communication style?",
-    language: 'Primary language for outreach',
-    neverSay: 'Anything we should NEVER say or do in your outreach?',
-    neverSayHint: "Competitors not to mention, things that feel off-brand, etc.",
-    sampleMessage: 'Paste a sample of how you normally message clients (optional)',
-    sampleMessageHint: "This helps us match your voice exactly",
-    goals: 'Your Goals',
-    primaryGoal: 'What is your primary goal from this outreach campaign?',
+    outreachLanguage: 'Primary language for outreach',
+    neverSay: 'Anything we should NEVER say or do?',
+    neverSayHint: 'Competitors not to mention, off-brand things, etc.',
+    sampleMsg: 'Paste a sample message you normally send (optional)',
+    sampleMsgHint: 'Helps us match your exact voice',
+    // Step 5
+    primaryGoal: "What's your primary goal from this campaign?",
     leadsPerMonth: 'How many new leads per month are you targeting?',
-    currentChallenge: "What's your biggest challenge in getting new clients right now?",
-    anythingElse: 'Anything else you want us to know?',
-    anythingElseHint: 'Seasonal considerations, specific events, important context',
+    biggestChallenge: 'Biggest challenge getting new clients right now?',
+    anythingElse: 'Anything else we should know?',
+    anythingElseHint: 'Seasonal factors, upcoming events, key context',
+    // Style options
+    stylePro: 'Professional & polished',
+    styleWarm: 'Warm & relationship-first',
+    styleDirect: 'Direct & no-nonsense',
+    styleCasual: 'Casual & conversational',
   },
   MS: {
-    settingUp: 'Menyediakan',
-    outreachSystem: ' Sistem Jangkauan Anda',
-    helpBuild: 'Bantu kami membina urutan yang sempurna untuk perniagaan anda. Ini mengambil masa kira-kira 5 minit.',
-    step: 'Langkah',
-    of: 'daripada',
-    back: '← Kembali',
-    continue: 'Teruskan →',
-    submit: 'Hantar →',
-    sending: 'Menghantar…',
-    received: 'Penerimaan disahkan',
-    gotEverything: 'Kami sudah mendapat semua maklumat yang diperlukan.',
-    reviewDetails: 'Pasukan KOBIS anda akan menyemak butiran dan membina',
-    withinHours: ' urutan jangkauan peribadi anda dalam masa 24 jam.',
-    offer: 'Penawaran Anda',
+    settingUp: 'MENYEDIAKAN',
+    outreachSystem: ' Sistem Jangkauan',
+    tagline: 'Bantu kami membina urutan yang sempurna untuk perniagaan anda. Mengambil masa kira-kira 5 minit.',
+    step: 'Langkah', of: 'daripada',
+    back: '← Kembali', continue: 'Teruskan →', submit: 'Hantar', sending: 'Menghantar…',
+    receivedTitle: 'Kami sudah mendapat semua yang diperlukan.',
+    receivedBody: 'Pasukan KOBIS anda akan menyemak dan membina urutan peribadi',
+    receivedBody2: ' dalam masa 24 jam.',
+    receivedTag: 'Penerimaan disahkan',
+    contactKobis: 'Sila hubungi pasukan KOBIS anda untuk pautan baru.',
+    stepOfferTitle: 'Penawaran Anda',
+    stepCustomerTitle: 'Pelanggan Terbaik',
+    stepResultsTitle: 'Bukti & Hasil',
+    stepStyleTitle: 'Gaya Komunikasi',
+    stepGoalsTitle: 'Matlamat Anda',
     whatSell: 'Apakah yang anda jual atau tawarkan?',
-    whatSellHint: 'cth: "Kami membantu jenama F&B mengautomasikan gaji HR mereka dan mengurangkan risiko pematuhan"',
+    whatSellHint: 'cth: "Kami bantu jenama F&B automasikan gaji HR dan kurangkan risiko pematuhan"',
     dreamOutcome: 'Apakah hasil impian untuk pelanggan terbaik anda?',
-    dreamOutcomeHint: 'Transformasi yang mereka perolehi — bukan ciri yang anda jual',
-    effortRemoved: 'Kerja keras apa yang anda hapuskan dari piring mereka?',
+    dreamOutcomeHint: 'Transformasi yang mereka perolehi — bukan ciri-ciri produk anda',
+    effortRemoved: 'Kerja keras apa yang anda hapuskan untuk mereka?',
     effortRemovedHint: 'Apa yang pelanggan TIDAK perlu lakukan lagi?',
     guarantee: 'Apakah jaminan atau pembalikan risiko anda?',
-    guaranteeHint: 'Apa yang menghilangkan ketakutan mencuba?',
-    customer: 'Pelanggan Terbaik',
+    guaranteeHint: 'Apa yang menghilangkan ketakutan untuk mencuba?',
     describeBest: 'Terangkan pelanggan terbaik anda',
     describeBestHint: 'Jenis syarikat dan orang yang mendapat nilai paling tinggi daripada anda',
     industry: 'Industri / Sektor',
     companySize: 'Saiz Syarikat',
-    geography: 'Fokus Geografi / Lokasi',
-    results: 'Bukti & Hasil',
-    whatProof: 'Apakah hasil atau bukti yang anda miliki?',
+    geography: 'Fokus Lokasi / Geografi',
+    whatProof: 'Apakah hasil atau bukti yang anda ada?',
     whatProofHint: 'Angka, kajian kes, testimoni',
-    timeResult: 'Berapa lama masa untuk melihat hasil pertama?',
-    caseStudy: 'Adakah ada kajian kes khusus yang ingin kami rujuk?',
-    style: 'Cara Anda Berkomunikasi',
+    timeResult: 'Berapa lama untuk melihat hasil pertama?',
+    caseStudy: 'Adakah kajian kes khusus yang ingin kami rujuk?',
     communicationStyle: 'Apakah gaya komunikasi jenama anda?',
-    language: 'Bahasa utama untuk jangkauan',
-    neverSay: 'Apa yang TIDAK boleh kami katakan atau lakukan dalam jangkauan anda?',
-    neverSayHint: 'Pesaing yang tidak boleh disebutkan, perkara yang terasa tidak sesuai dengan jenama, dsb.',
-    sampleMessage: 'Tampal sampel bagaimana anda biasanya menghantar mesej kepada pelanggan (pilihan)',
-    sampleMessageHint: 'Ini membantu kami sepadan dengan suara anda dengan tepat',
-    goals: 'Matlamat Anda',
-    primaryGoal: 'Apakah matlamat utama anda daripada kempen jangkauan ini?',
-    leadsPerMonth: 'Berapa banyak prospek baru setiap bulan yang anda targetkan?',
-    currentChallenge: 'Apakah cabaran terbesar anda dalam mendapatkan pelanggan baru sekarang?',
-    anythingElse: 'Adakah apa-apa lagi yang anda ingin kami ketahui?',
-    anythingElseHint: 'Pertimbangan musiman, acara khusus, konteks penting',
+    outreachLanguage: 'Bahasa utama untuk jangkauan',
+    neverSay: 'Apa yang TIDAK boleh kami katakan atau lakukan?',
+    neverSayHint: 'Pesaing yang tidak boleh disebutkan, perkara yang tidak sesuai dengan jenama, dsb.',
+    sampleMsg: 'Tampal contoh mesej yang biasa anda hantar (pilihan)',
+    sampleMsgHint: 'Membantu kami menepati suara anda dengan tepat',
+    primaryGoal: 'Apakah matlamat utama anda daripada kempen ini?',
+    leadsPerMonth: 'Berapa prospek baru sebulan yang anda sasarkan?',
+    biggestChallenge: 'Cabaran terbesar mendapatkan pelanggan baru sekarang?',
+    anythingElse: 'Ada apa-apa lagi yang kami perlu tahu?',
+    anythingElseHint: 'Faktor musiman, acara akan datang, konteks penting',
+    stylePro: 'Profesional & tersusun',
+    styleWarm: 'Mesra & utamakan hubungan',
+    styleDirect: 'Terus & tanpa basa-basi',
+    styleCasual: 'Santai & perbualan biasa',
   },
 };
 
@@ -124,7 +133,6 @@ export function Onboard() {
   const [lang, setLang] = useState('EN');
   const t = T[lang];
   const [bizName, setBizName] = useState('');
-  const [bizId, setBizId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [step, setStep] = useState(0);
@@ -132,48 +140,23 @@ export function Onboard() {
   const [done, setDone] = useState(false);
 
   const [form, setForm] = useState({
-    // Step 1 — Offer
-    service: '',
-    dreamOutcome: '',
-    effortRemoved: '',
-    riskReversal: '',
-    // Step 2 — Best Customer
-    bestCustomer: '',
-    industry: '',
-    companySize: '',
-    geography: '',
-    // Step 3 — Proof & Results
-    proof: '',
-    timeToResult: '',
-    caseStudy: '',
-    // Step 4 — Communication Style
-    style: 'professional',
-    lang: 'EN',
-    doNot: '',
-    sampleMessage: '',
-    // Step 5 — Goals
-    goals: '',
-    targetLeadsPerMonth: '',
-    currentChallenge: '',
-    additionalNotes: '',
+    service: '', dreamOutcome: '', effortRemoved: '', riskReversal: '',
+    bestCustomer: '', industry: '', companySize: '', geography: '',
+    proof: '', timeToResult: '', caseStudy: '',
+    style: 'professional', lang: 'EN', doNot: '', sampleMessage: '',
+    goals: '', targetLeadsPerMonth: '', currentChallenge: '', additionalNotes: '',
   });
 
   useEffect(() => {
     if (!token) { setError('Invalid link'); setLoading(false); return; }
     fetch(`${API}/onboard/token/${token}`)
       .then(r => r.json())
-      .then(d => {
-        if (d.error) { setError(d.error); return; }
-        setBizName(d.bizName);
-        setBizId(d.bizId);
-      })
+      .then(d => { if (d.error) { setError(d.error); return; } setBizName(d.bizName); })
       .catch(() => setError('Could not load this link. Please try again.'))
       .finally(() => setLoading(false));
   }, [token]);
 
-  function setField(k, v) {
-    setForm(f => ({ ...f, [k]: v }));
-  }
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
   async function submit() {
     setSubmitting(true);
@@ -192,141 +175,125 @@ export function Onboard() {
     }
   }
 
+  const stepTitles = [t.stepOfferTitle, t.stepCustomerTitle, t.stepResultsTitle, t.stepStyleTitle, t.stepGoalsTitle];
+  const progress = ((step + 1) / STEPS.length) * 100;
+
   if (loading) return (
-    <div style={pageStyle}>
-      <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>Loading…</div>
-    </div>
+    <Wrap lang={lang} setLang={setLang}>
+      <div style={{ padding: '80px 0', textAlign: 'center', fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
+        Loading…
+      </div>
+    </Wrap>
   );
 
   if (error && !bizName) return (
-    <div style={pageStyle}>
-      <LogoMark size={32} />
-      <div style={{ marginTop: 24, fontSize: 14, color: 'var(--red)', textAlign: 'center', maxWidth: 360 }}>{error}</div>
-      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Please contact your KOBIS team for a new link.</div>
-    </div>
+    <Wrap lang={lang} setLang={setLang}>
+      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 16, opacity: 0.3 }}>⚠</div>
+        <div style={{ fontSize: 14, color: 'var(--red)', marginBottom: 8 }}>{error}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{t.contactKobis}</div>
+      </div>
+    </Wrap>
   );
 
   if (done) return (
-    <div style={pageStyle}>
-      <LogoMark size={36} />
-      <div style={{ marginTop: 32, textAlign: 'center' }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-          {t.gotEverything}
+    <Wrap lang={lang} setLang={setLang}>
+      <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 440, margin: '0 auto' }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%', margin: '0 auto 24px',
+          background: 'rgba(80,200,100,0.12)', border: '1.5px solid var(--green)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 28, color: 'var(--green)',
+        }}>✓</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 12, lineHeight: 1.3 }}>
+          {t.receivedTitle}
         </div>
-        <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7, maxWidth: 400 }}>
-          {t.reviewDetails} {bizName}{t.withinHours}
+        <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7 }}>
+          {t.receivedBody} <strong style={{ color: 'var(--text)' }}>{bizName}</strong>{t.receivedBody2}
         </div>
-        <div style={{ marginTop: 32, padding: '14px 24px', background: 'rgba(80,200,100,0.08)', border: '1px solid rgba(80,200,100,0.2)', borderRadius: 10, display: 'inline-block' }}>
-          <span style={{ fontSize: 20 }}>✓</span>
-          <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--green)', fontWeight: 600 }}>{t.received}</span>
+        <div style={{ marginTop: 28, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'rgba(80,200,100,0.08)', border: '1px solid rgba(80,200,100,0.2)', borderRadius: 8 }}>
+          <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>{t.receivedTag}</span>
         </div>
       </div>
-      <div style={{ marginTop: 40, fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-        OUTREACH OS · KOBIS BERHAD
-      </div>
-    </div>
+    </Wrap>
   );
 
-  const currentStep = STEPS[step];
-  const progress = ((step) / STEPS.length) * 100;
-
   return (
-    <div style={pageStyle}>
-      {/* Header with language selector */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <LogoMark size={28} />
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', lineHeight: 1 }}>
-              OUTREACH OS · KOBIS BERHAD
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginTop: 2 }}>
-              ONBOARDING
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6, borderRadius: 20, background: 'var(--s2)', padding: '3px' }}>
-          {['EN', 'MS'].map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              padding: '6px 12px', borderRadius: 18, fontSize: 11, fontWeight: 600,
-              background: lang === l ? 'var(--s1)' : 'transparent',
-              color: lang === l ? 'var(--text)' : 'var(--muted)',
-              border: 'none', cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}>
-              {l === 'EN' ? 'English' : 'Melayu'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Hero heading — personalised */}
-      <div style={{ textAlign: 'center', marginBottom: 32, maxWidth: 520 }}>
-        <div style={{ fontSize: 11, color: 'var(--blue)', fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', marginBottom: 10, textTransform: 'uppercase' }}>
+    <Wrap lang={lang} setLang={setLang}>
+      {/* Hero */}
+      <div style={{ textAlign: 'center', padding: '32px 24px 0' }}>
+        <div style={{ fontSize: 10, color: 'var(--blue)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', marginBottom: 8 }}>
           {t.settingUp}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, marginBottom: 8 }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.25, marginBottom: 10 }}>
           {bizName}{t.outreachSystem}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-          {t.helpBuild}
+        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 400, margin: '0 auto' }}>
+          {t.tagline}
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div style={{ width: '100%', maxWidth: 520, marginBottom: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+      {/* Progress */}
+      <div style={{ padding: '24px 24px 0' }}>
+        {/* Step dots */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 12 }}>
           {STEPS.map((s, i) => (
-            <div key={s.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: i < step ? 'pointer' : 'default' }}
-              onClick={() => i < step && setStep(i)}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', border: '1.5px solid',
-                borderColor: i === step ? 'var(--blue)' : i < step ? 'var(--green)' : 'var(--border)',
-                background: i < step ? 'rgba(80,200,100,0.12)' : i === step ? 'rgba(80,120,255,0.12)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, color: i < step ? 'var(--green)' : i === step ? 'var(--blue)' : 'var(--muted)',
-                transition: 'all 0.2s',
-              }}>
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
+              <div
+                onClick={() => i < step && setStep(i)}
+                style={{
+                  width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                  border: `1.5px solid ${i === step ? 'var(--blue)' : i < step ? 'var(--green)' : 'var(--border)'}`,
+                  background: i < step ? 'rgba(80,200,100,0.14)' : i === step ? 'rgba(80,120,255,0.14)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 600,
+                  color: i < step ? 'var(--green)' : i === step ? 'var(--blue)' : 'var(--muted)',
+                  cursor: i < step ? 'pointer' : 'default',
+                  transition: 'all 0.2s',
+                }}>
                 {i < step ? '✓' : i + 1}
               </div>
-              <div style={{ fontSize: 9, color: i === step ? 'var(--text)' : 'var(--muted)', fontFamily: 'var(--font-mono)', textAlign: 'center', maxWidth: 60, lineHeight: 1.2, display: 'none' }}>
-                {s.label}
-              </div>
+              {i < STEPS.length - 1 && (
+                <div style={{ flex: 1, height: 1.5, background: i < step ? 'var(--green)' : 'var(--border)', transition: 'background 0.3s', opacity: 0.4 }} />
+              )}
             </div>
           ))}
         </div>
-        <div style={{ height: 3, background: 'var(--s2)', borderRadius: 2, overflow: 'hidden' }}>
+        {/* Label + percent */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>
+            {t.step} {step + 1} — {stepTitles[step]}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+            {Math.round(progress)}%
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: 'var(--s2)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${progress}%`, background: 'var(--blue)', borderRadius: 2, transition: 'width 0.4s ease' }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-          <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-            {t.step} {step + 1} {t.of} {STEPS.length} — {currentStep.label}
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-            {Math.round(((step + 1) / STEPS.length) * 100)}%
-          </span>
-        </div>
       </div>
 
-      {/* Step card with scrollable content */}
-      <div style={{ width: '100%', maxWidth: 520, background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginBottom: 16, maxHeight: 'calc(100vh - 420px)' }}>
-        <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
-            {currentStep.icon} {currentStep.label}
-          </div>
-        </div>
-        <div style={{ overflow: 'auto', flex: 1, padding: '24px 28px' }}>
-
-          {step === 0 && <StepOffer form={form} set={setField} bizName={bizName} t={t} />}
-          {step === 1 && <StepCustomer form={form} set={setField} t={t} />}
-          {step === 2 && <StepResults form={form} set={setField} t={t} />}
-          {step === 3 && <StepStyle form={form} set={setField} t={t} lang={lang} />}
-          {step === 4 && <StepGoals form={form} set={setField} t={t} />}
-        </div>
+      {/* Step content — no fixed height, natural scroll */}
+      <div style={{ padding: '20px 24px 100px' }}>
+        {step === 0 && <StepOffer  form={form} set={set} bizName={bizName} t={t} />}
+        {step === 1 && <StepCustomer form={form} set={set} t={t} />}
+        {step === 2 && <StepResults  form={form} set={set} t={t} />}
+        {step === 3 && <StepStyle    form={form} set={set} t={t} />}
+        {step === 4 && <StepGoals    form={form} set={set} t={t} />}
+        {error && <div style={{ marginTop: 12, fontSize: 12, color: 'var(--red)', textAlign: 'center' }}>{error}</div>}
       </div>
 
-      {/* Navigation */}
-      <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 520 }}>
+      {/* Sticky nav — always visible above browser chrome */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+        background: 'var(--bg)',
+        borderTop: '1px solid var(--border)',
+        padding: '12px 20px',
+        paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        display: 'flex', gap: 10, justifyContent: 'flex-end',
+        boxShadow: '0 -8px 32px rgba(0,0,0,0.35)',
+      }}>
         {step > 0 && (
           <button onClick={() => setStep(s => s - 1)} style={btnGhost}>
             {t.back}
@@ -334,222 +301,242 @@ export function Onboard() {
         )}
         <div style={{ flex: 1 }} />
         {step < STEPS.length - 1 ? (
-          <button onClick={() => setStep(s => s + 1)} style={btnPrimary}>
+          <button onClick={() => setStep(s => s + 1)} style={{ ...btnPrimary, minWidth: 120 }}>
             {t.continue}
           </button>
         ) : (
-          <button onClick={submit} disabled={submitting} style={{ ...btnPrimary, background: 'var(--green)', opacity: submitting ? 0.6 : 1 }}>
+          <button onClick={submit} disabled={submitting} style={{ ...btnPrimary, background: 'var(--green)', minWidth: 120, opacity: submitting ? 0.7 : 1 }}>
             {submitting ? t.sending : t.submit}
           </button>
         )}
       </div>
+    </Wrap>
+  );
+}
 
-      {error && (
-        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--red)', textAlign: 'center' }}>{error}</div>
-      )}
+// Outer wrapper shared across all states
+function Wrap({ children, lang, setLang }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 20px', borderBottom: '1px solid var(--border)',
+        background: 'var(--s1)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LogoMark size={24} />
+          <div>
+            <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em' }}>
+              OUTREACH OS · KOBIS BERHAD
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+              ONBOARDING
+            </div>
+          </div>
+        </div>
+        {/* Language toggle */}
+        <div style={{ display: 'flex', background: 'var(--s2)', borderRadius: 20, padding: '2px', gap: '2px' }}>
+          {['EN', 'MS'].map(l => (
+            <button key={l} onClick={() => setLang(l)} style={{
+              padding: '5px 12px', borderRadius: 18, fontSize: 11, fontWeight: 600,
+              background: lang === l ? 'var(--s1)' : 'transparent',
+              color: lang === l ? 'var(--text)' : 'var(--muted)',
+              border: lang === l ? '1px solid var(--border)' : '1px solid transparent',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              {l === 'EN' ? 'EN' : 'BM'}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div style={{ marginTop: 40, fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', opacity: 0.5 }}>
-        OUTREACH OS · KOBIS BERHAD · POWERED BY CLAUDE AI
+      {/* Page content */}
+      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+        {children}
       </div>
     </div>
   );
 }
 
+// ─── Step components ──────────────────────────────────────────────────────────
+
 function StepOffer({ form, set, bizName, t }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label={t.whatSell} hint={t.whatSellHint} required>
-        <textarea value={form.service} onChange={e => set('service', e.target.value)} rows={3} style={textareaStyle}
-          placeholder={`${bizName} offers…`} />
-      </Field>
-      <Field label={t.dreamOutcome} hint={t.dreamOutcomeHint} required>
-        <textarea value={form.dreamOutcome} onChange={e => set('dreamOutcome', e.target.value)} rows={2} style={textareaStyle}
-          placeholder="e.g. 3× more qualified leads without hiring extra sales staff" />
-      </Field>
-      <Field label={t.effortRemoved} hint={t.effortRemovedHint}>
-        <input value={form.effortRemoved} onChange={e => set('effortRemoved', e.target.value)} style={inputStyle}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <F label={t.whatSell} hint={t.whatSellHint} required>
+        <textarea value={form.service} onChange={e => set('service', e.target.value)} rows={3} style={ta} placeholder={`${bizName} offers…`} />
+      </F>
+      <F label={t.dreamOutcome} hint={t.dreamOutcomeHint} required>
+        <textarea value={form.dreamOutcome} onChange={e => set('dreamOutcome', e.target.value)} rows={2} style={ta}
+          placeholder="e.g. 3× more qualified leads without hiring extra staff" />
+      </F>
+      <F label={t.effortRemoved} hint={t.effortRemovedHint}>
+        <input value={form.effortRemoved} onChange={e => set('effortRemoved', e.target.value)} style={inp}
           placeholder="e.g. Cold calling, manual follow-ups, list building" />
-      </Field>
-      <Field label={t.guarantee} hint={t.guaranteeHint}>
-        <input value={form.riskReversal} onChange={e => set('riskReversal', e.target.value)} style={inputStyle}
+      </F>
+      <F label={t.guarantee} hint={t.guaranteeHint}>
+        <input value={form.riskReversal} onChange={e => set('riskReversal', e.target.value)} style={inp}
           placeholder="e.g. 10 qualified meetings or full refund" />
-      </Field>
+      </F>
     </div>
   );
 }
 
 function StepCustomer({ form, set, t }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label={t.describeBest} hint={t.describeBestHint} required>
-        <textarea value={form.bestCustomer} onChange={e => set('bestCustomer', e.target.value)} rows={3} style={textareaStyle}
-          placeholder="e.g. SME owners in manufacturing sector, 20–200 staff, struggling with manual procurement" />
-      </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <Field label={t.industry}>
-          <input value={form.industry} onChange={e => set('industry', e.target.value)} style={inputStyle}
-            placeholder="e.g. Logistics, F&B, Healthcare" />
-        </Field>
-        <Field label={t.companySize}>
-          <input value={form.companySize} onChange={e => set('companySize', e.target.value)} style={inputStyle}
-            placeholder="e.g. 10–100 staff, SME" />
-        </Field>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <F label={t.describeBest} hint={t.describeBestHint} required>
+        <textarea value={form.bestCustomer} onChange={e => set('bestCustomer', e.target.value)} rows={3} style={ta}
+          placeholder="e.g. SME owners in manufacturing, 20–200 staff, struggling with manual procurement" />
+      </F>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <F label={t.industry}>
+          <input value={form.industry} onChange={e => set('industry', e.target.value)} style={inp} placeholder="e.g. Logistics, F&B" />
+        </F>
+        <F label={t.companySize}>
+          <input value={form.companySize} onChange={e => set('companySize', e.target.value)} style={inp} placeholder="e.g. 10–100 staff" />
+        </F>
       </div>
-      <Field label={t.geography}>
-        <input value={form.geography} onChange={e => set('geography', e.target.value)} style={inputStyle}
-          placeholder="e.g. Klang Valley, Johor, all Malaysia" />
-      </Field>
+      <F label={t.geography}>
+        <input value={form.geography} onChange={e => set('geography', e.target.value)} style={inp} placeholder="e.g. Klang Valley, Johor, all Malaysia" />
+      </F>
     </div>
   );
 }
 
 function StepResults({ form, set, t }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label={t.whatProof} hint={t.whatProofHint} required>
-        <textarea value={form.proof} onChange={e => set('proof', e.target.value)} rows={3} style={textareaStyle}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <F label={t.whatProof} hint={t.whatProofHint} required>
+        <textarea value={form.proof} onChange={e => set('proof', e.target.value)} rows={3} style={ta}
           placeholder="e.g. Helped ABC Sdn Bhd close 12 new clients in 60 days. Typical client sees 40% reduction in admin time." />
-      </Field>
-      <Field label={t.timeResult}>
-        <input value={form.timeToResult} onChange={e => set('timeToResult', e.target.value)} style={inputStyle}
-          placeholder="e.g. First lead within 7 days, meaningful results in 30 days" />
-      </Field>
-      <Field label={t.caseStudy}>
-        <textarea value={form.caseStudy} onChange={e => set('caseStudy', e.target.value)} rows={2} style={textareaStyle}
-          placeholder="e.g. Client XYZ in Penang — from 2 deals/month to 8 deals/month in 90 days" />
-      </Field>
+      </F>
+      <F label={t.timeResult}>
+        <input value={form.timeToResult} onChange={e => set('timeToResult', e.target.value)} style={inp}
+          placeholder="e.g. First lead within 7 days, results in 30 days" />
+      </F>
+      <F label={t.caseStudy}>
+        <textarea value={form.caseStudy} onChange={e => set('caseStudy', e.target.value)} rows={2} style={ta}
+          placeholder="e.g. XYZ Sdn Bhd, Penang — from 2 deals/month to 8 in 90 days" />
+      </F>
     </div>
   );
 }
 
-function StepStyle({ form, set, t, lang }) {
+function StepStyle({ form, set, t }) {
   const styleOpts = [
-    { value: 'professional', label: 'Professional & polished' },
-    { value: 'warm', label: 'Warm & relationship-first' },
-    { value: 'direct', label: 'Direct & no-nonsense' },
-    { value: 'casual', label: 'Casual & conversational' },
+    { value: 'professional', label: t.stylePro },
+    { value: 'warm',         label: t.styleWarm },
+    { value: 'direct',       label: t.styleDirect },
+    { value: 'casual',       label: t.styleCasual },
   ];
   const langOpts = [
-    { value: 'EN', label: 'English' },
-    { value: 'MS', label: 'Bahasa Malaysia' },
-    { value: 'ZH', label: 'Mandarin (中文)' },
-    { value: 'MIXED', label: 'Mixed (EN + BM Manglish)' },
+    { value: 'EN',    label: 'English' },
+    { value: 'MS',    label: 'Bahasa Malaysia' },
+    { value: 'ZH',    label: '中文 Mandarin' },
+    { value: 'MIXED', label: 'Manglish (EN+BM)' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label={t.communicationStyle}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <F label={t.communicationStyle}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 2 }}>
           {styleOpts.map(o => (
-            <div key={o.value}
-              onClick={() => set('style', o.value)}
-              style={{
-                padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12,
-                border: `1.5px solid ${form.style === o.value ? 'var(--blue)' : 'var(--border)'}`,
-                background: form.style === o.value ? 'rgba(80,120,255,0.10)' : 'var(--s2)',
-                color: form.style === o.value ? 'var(--text)' : 'var(--muted)',
-                transition: 'all 0.15s',
-              }}>
+            <button key={o.value} type="button" onClick={() => set('style', o.value)} style={{
+              padding: '11px 14px', borderRadius: 9, fontSize: 12, textAlign: 'left',
+              border: `1.5px solid ${form.style === o.value ? 'var(--blue)' : 'var(--border)'}`,
+              background: form.style === o.value ? 'rgba(80,120,255,0.10)' : 'var(--s2)',
+              color: form.style === o.value ? 'var(--text)' : 'var(--muted)',
+              cursor: 'pointer', fontFamily: 'var(--font-ui)', transition: 'all 0.15s',
+            }}>
               {o.label}
-            </div>
+            </button>
           ))}
         </div>
-      </Field>
-      <Field label={t.language}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      </F>
+      <F label={t.outreachLanguage}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
           {langOpts.map(o => (
-            <div key={o.value}
-              onClick={() => set('lang', o.value)}
-              style={{
-                padding: '7px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 12,
-                border: `1.5px solid ${form.lang === o.value ? 'var(--blue)' : 'var(--border)'}`,
-                background: form.lang === o.value ? 'rgba(80,120,255,0.10)' : 'var(--s2)',
-                color: form.lang === o.value ? 'var(--text)' : 'var(--muted)',
-                transition: 'all 0.15s',
-              }}>
+            <button key={o.value} type="button" onClick={() => set('lang', o.value)} style={{
+              padding: '7px 14px', borderRadius: 20, fontSize: 12,
+              border: `1.5px solid ${form.lang === o.value ? 'var(--blue)' : 'var(--border)'}`,
+              background: form.lang === o.value ? 'rgba(80,120,255,0.10)' : 'var(--s2)',
+              color: form.lang === o.value ? 'var(--text)' : 'var(--muted)',
+              cursor: 'pointer', fontFamily: 'var(--font-ui)', transition: 'all 0.15s',
+            }}>
               {o.label}
-            </div>
+            </button>
           ))}
         </div>
-      </Field>
-      <Field label={t.neverSay} hint={t.neverSayHint}>
-        <textarea value={form.doNot} onChange={e => set('doNot', e.target.value)} rows={2} style={textareaStyle}
+      </F>
+      <F label={t.neverSay} hint={t.neverSayHint}>
+        <textarea value={form.doNot} onChange={e => set('doNot', e.target.value)} rows={2} style={ta}
           placeholder="e.g. Don't mention competitor names. Avoid aggressive urgency tactics." />
-      </Field>
-      <Field label={t.sampleMessage} hint={t.sampleMessageHint}>
-        <textarea value={form.sampleMessage} onChange={e => set('sampleMessage', e.target.value)} rows={3} style={textareaStyle}
-          placeholder="Paste a WhatsApp or email you've sent before…" />
-      </Field>
+      </F>
+      <F label={t.sampleMsg} hint={t.sampleMsgHint}>
+        <textarea value={form.sampleMessage} onChange={e => set('sampleMessage', e.target.value)} rows={3} style={ta}
+          placeholder="Paste a WhatsApp or email you normally send…" />
+      </F>
     </div>
   );
 }
 
 function StepGoals({ form, set, t }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label={t.primaryGoal} required>
-        <textarea value={form.goals} onChange={e => set('goals', e.target.value)} rows={2} style={textareaStyle}
-          placeholder="e.g. Book discovery calls, generate WhatsApp enquiries, get referrals from existing clients" />
-      </Field>
-      <Field label={t.leadsPerMonth}>
-        <input value={form.targetLeadsPerMonth} onChange={e => set('targetLeadsPerMonth', e.target.value)} style={inputStyle}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <F label={t.primaryGoal} required>
+        <textarea value={form.goals} onChange={e => set('goals', e.target.value)} rows={2} style={ta}
+          placeholder="e.g. Book discovery calls, generate WhatsApp enquiries, get referrals" />
+      </F>
+      <F label={t.leadsPerMonth}>
+        <input value={form.targetLeadsPerMonth} onChange={e => set('targetLeadsPerMonth', e.target.value)} style={inp}
           placeholder="e.g. 20 qualified leads / month" />
-      </Field>
-      <Field label={t.currentChallenge}>
-        <textarea value={form.currentChallenge} onChange={e => set('currentChallenge', e.target.value)} rows={2} style={textareaStyle}
-          placeholder="e.g. People don't reply to cold messages. Our team is too busy to follow up consistently." />
-      </Field>
-      <Field label={t.anythingElse} hint={t.anythingElseHint}>
-        <textarea value={form.additionalNotes} onChange={e => set('additionalNotes', e.target.value)} rows={2} style={textareaStyle}
-          placeholder="Any other context that would help us build the best possible sequence for you…" />
-      </Field>
+      </F>
+      <F label={t.biggestChallenge}>
+        <textarea value={form.currentChallenge} onChange={e => set('currentChallenge', e.target.value)} rows={2} style={ta}
+          placeholder="e.g. People don't reply to cold messages. Team too busy to follow up consistently." />
+      </F>
+      <F label={t.anythingElse} hint={t.anythingElseHint}>
+        <textarea value={form.additionalNotes} onChange={e => set('additionalNotes', e.target.value)} rows={2} style={ta}
+          placeholder="Any other context that would help us build the best sequence…" />
+      </F>
     </div>
   );
 }
 
-function Field({ label, hint, required, children }) {
+function F({ label, hint, required, children }) {
   return (
-    <div style={{ marginBottom: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 4, display: 'flex', gap: 4 }}>
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: hint ? 3 : 6, display: 'flex', gap: 4, alignItems: 'baseline' }}>
         {label}
         {required && <span style={{ color: 'var(--blue)', fontSize: 11 }}>*</span>}
       </div>
-      {hint && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, lineHeight: 1.4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 7, lineHeight: 1.5 }}>{hint}</div>}
       {children}
     </div>
   );
 }
 
-const pageStyle = {
-  minHeight: '100vh',
-  background: 'var(--bg)',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-  padding: '48px 20px 80px',
-  fontFamily: 'var(--font-ui)',
-};
+// ─── shared styles ────────────────────────────────────────────────────────────
 
-const inputStyle = {
-  width: '100%', padding: '8px 12px', fontSize: 13,
+const inp = {
+  width: '100%', padding: '10px 12px', fontSize: 13,
   background: 'var(--s2)', border: '1px solid var(--border)',
-  borderRadius: 7, color: 'var(--text)', fontFamily: 'var(--font-ui)',
+  borderRadius: 8, color: 'var(--text)', fontFamily: 'var(--font-ui)',
   outline: 'none', boxSizing: 'border-box',
 };
 
-const textareaStyle = {
-  ...inputStyle, resize: 'vertical', lineHeight: 1.5,
-};
+const ta = { ...inp, resize: 'vertical', lineHeight: 1.55 };
 
 const btnPrimary = {
-  padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+  padding: '11px 24px', borderRadius: 9, fontSize: 13, fontWeight: 600,
   background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
   fontFamily: 'var(--font-ui)',
 };
 
 const btnGhost = {
-  padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-  background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
-  cursor: 'pointer', fontFamily: 'var(--font-ui)',
+  padding: '11px 18px', borderRadius: 9, fontSize: 13, fontWeight: 500,
+  background: 'transparent', color: 'var(--muted)',
+  border: '1px solid var(--border)', cursor: 'pointer', fontFamily: 'var(--font-ui)',
 };
