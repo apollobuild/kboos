@@ -328,7 +328,7 @@ function Wrap({ children, lang, setLang }) {
           <LogoMark size={24} />
           <div>
             <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em' }}>
-              OUTREACH OS · KOBIS BERHAD
+              OUTREACH OS
             </div>
             <div style={{ fontSize: 10, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
               ONBOARDING
