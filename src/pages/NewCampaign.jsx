@@ -1,1097 +1,471 @@
 import { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { apiFetch } from '../services/api.js';
 
-const CHANNEL_OPTIONS = [
+const CHANNELS = [
   {
     id: 'wa',
-    label: 'WhatsApp Only',
     icon: '💬',
-    color: 'green',
+    label: 'WhatsApp Only',
     desc: 'Best for local businesses, fast outreach, high open rates',
-    bestFor: ['Local B2B businesses', 'Fast response campaigns', 'Malaysian market'],
+    channels: ['wa'],
     sequence: [
-      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Personalized WA message sent immediately' },
-      { type:'wa', icon:'💬', day:3, label:'WA Follow-up', desc:'Follow-up if no reply after 3 days' },
+      { type:'wa', day:0, skipIfReplied:false },
+      { type:'wa', day:3, skipIfReplied:true },
     ],
-    needsSources: ['google_maps'],
   },
   {
     id: 'wa_email',
-    label: 'WhatsApp + Email',
     icon: '💬📧',
-    color: 'blue',
-    desc: 'Best for B2B professionals — WA for attention, email for detail',
-    bestFor: ['B2B decision makers', 'Corporate clients', 'Video production, IT, catering'],
+    label: 'WhatsApp + Email',
+    desc: 'WA for attention, email for detail — best for corporate B2B',
+    channels: ['wa','email'],
     sequence: [
-      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Opening WA message' },
-      { type:'email', icon:'📧', day:2, label:'Email', desc:'Detailed follow-up email if no WA reply' },
-      { type:'wa', icon:'💬', day:5, label:'WA Follow-up', desc:'Final WA nudge' },
+      { type:'wa', day:0, skipIfReplied:false },
+      { type:'email', day:2, skipIfReplied:true },
+      { type:'wa', day:7, skipIfReplied:true },
+      { type:'email', day:12, skipIfReplied:true },
     ],
-    needsSources: ['google_maps', 'apollo'],
   },
   {
     id: 'full',
-    label: 'Full Outreach',
     icon: '💬📧📞',
-    color: 'purple',
-    desc: 'Maximum reach — WA first + Email follow-up + AI Voice call for high-value targets',
-    bestFor: ['Directors & C-suite', 'High-value deals', 'Premium clients'],
+    label: 'Full Outreach',
+    desc: 'Maximum reach — WA + Email + AI Voice for high-value deals',
+    channels: ['wa','email','call'],
     sequence: [
-      { type:'wa', icon:'💬', day:0, label:'WhatsApp', desc:'Opening WA message — fastest first touch' },
-      { type:'email', icon:'📧', day:3, label:'Email', desc:'Professional email follow-up if no WA reply' },
-      { type:'wa', icon:'💬', day:7, label:'WA Follow-up', desc:'Second WA nudge' },
-      { type:'call', icon:'📞', day:12, label:'AI Voice Call', desc:'Vapi AI voice agent call', skipIfReplied:true },
+      { type:'wa', day:0, skipIfReplied:false },
+      { type:'email', day:3, skipIfReplied:true },
+      { type:'wa', day:7, skipIfReplied:true },
+      { type:'call', day:12, skipIfReplied:true },
     ],
-    needsSources: ['google_maps', 'apollo'],
   },
 ];
 
+const GEN_STEPS = [
+  'Analyzing your business brief…',
+  'Selecting optimal channels…',
+  'Building outreach sequence…',
+  'Configuring lead sources…',
+  'Finalizing campaign…',
+];
+
+function Spinner() {
+  return <span style={{display:'inline-block',width:12,height:12,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>;
+}
+
 export function NewCampaign() {
-  const { businesses, addCampaign, setPage, showToast, openCampaignPipeline } = useAppStore(useShallow(s => ({
-    businesses: s.businesses, addCampaign: s.addCampaign, setPage: s.setPage, showToast: s.showToast, openCampaignPipeline: s.openCampaignPipeline,
+  const { businesses, addCampaign, showToast, openCampaignPipeline } = useAppStore(useShallow(s => ({
+    businesses: s.businesses, addCampaign: s.addCampaign, showToast: s.showToast, openCampaignPipeline: s.openCampaignPipeline,
   })));
 
-  const currentUser = (() => {
-    try { return JSON.parse(localStorage.getItem('kboos_user') || '{}'); } catch { return {}; }
-  })();
+  const approvedBizList = businesses.filter(b => b.status === 'approved' || !b.status);
 
-  const steps = ['Business & Campaign', 'Channel & Sequence', 'Lead Sources', 'Review & Launch'];
-  const GEN_STEPS = [
-    'Analyzing your business brief...',
-    'Selecting optimal channels...',
-    'Building outreach sequence...',
-    'Configuring lead sources...',
-    'Finalizing campaign...',
-  ];
+  // ── Mode: null | 'fast' | 'quick'
+  const [mode, setMode] = useState(null);
 
-  const [entryMode, setEntryMode] = useState(null);
+  // ── Fast Track state
+  const [bizSel, setBizSel] = useState(null);
   const [goalText, setGoalText] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genStep, setGenStep] = useState(0);
-  const [aiCampaignResult, setAiCampaignResult] = useState(null);
-  const genTimerRef = useRef(null);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiName, setAiName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const genTimer = useRef(null);
 
-  const [step, setStep] = useState(0);
-  const [bizSel, setBizSel] = useState(null);
-  const [campaignName, setCampaignName] = useState('');
-  const [region, setRegion] = useState('Kuching, Sarawak');
-
-  // Channel
-  const [channelOpt, setChannelOpt] = useState('wa');
-  const [seqSteps, setSeqSteps] = useState(CHANNEL_OPTIONS[0].sequence);
-
-  const selectChannel = (id) => {
-    setChannelOpt(id);
-    setSeqSteps(CHANNEL_OPTIONS.find(c => c.id === id).sequence);
-  };
-
-  // Sequence editing
-  const addSeqStep = () => setSeqSteps(s => [...s, {
-    type:'email', icon:'📧', day:(s[s.length-1]?.day||0)+2, label:'Follow-up Email', desc:'Follow-up message'
-  }]);
-  const removeSeqStep = (i) => setSeqSteps(s => s.filter((_,idx) => idx !== i));
-  const moveStep = (i, dir) => setSeqSteps(s => { const a=[...s]; [a[i],a[i+dir]]=[a[i+dir],a[i]]; return a; });
-  const updateStepDay = (i, day) => setSeqSteps(s => s.map((st,idx) => idx===i ? {...st,day} : st));
-
-  // Lead count
-  const [leadCount, setLeadCount] = useState(200);
-
-  // From details
-  const [fromName, setFromName] = useState(currentUser.name || '');
-  const [fromEmail, setFromEmail] = useState(currentUser.email || '');
-  const [replyTo, setReplyTo] = useState('');
-  const [useSmtp, setUseSmtp] = useState(false);
-  const [smtpUser, setSmtpUser] = useState('');
-  const [smtpPass, setSmtpPass] = useState('');
-  const [recycleLeads, setRecycleLeads] = useState(false);
-
-  // Lead sources
-  const [sources, setSources] = useState({ google_maps: true, apollo: false, manual: false });
-  const toggleSource = (src) => setSources(s => ({ ...s, [src]: !s[src] }));
-
-  // CSV upload
-  const [csvLeads, setCsvLeads] = useState([]);
-  const [csvError, setCsvError] = useState('');
-  const [csvDragging, setCsvDragging] = useState(false);
-
-  function parseSheetRows(rows) {
-    if (rows.length < 2) return { error: 'File must have a header row and at least one data row.' };
-    const headers = rows[0].map(h => String(h || '').trim().toLowerCase().replace(/\s+/g, '_'));
-    const data = rows.slice(1)
-      .filter(r => r.some(v => v !== null && v !== undefined && v !== ''))
-      .map(r => {
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = r[i] !== undefined && r[i] !== null ? String(r[i]).trim() : ''; });
-        return obj;
-      });
-    if (data.length === 0) return { error: 'No data rows found in file.' };
-    return { rows: data };
-  }
-
-  function handleCSVFile(file) {
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['csv', 'xlsx', 'xls'].includes(ext)) {
-      setCsvError('Please upload a .xlsx, .xls, or .csv file.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const result = parseSheetRows(rows);
-        if (result.error) { setCsvError(result.error); setCsvLeads([]); return; }
-        setCsvError('');
-        setCsvLeads(result.rows);
-      } catch {
-        setCsvError('Could not read file. Make sure it\'s a valid Excel or CSV file.');
-        setCsvLeads([]);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  const [keyword, setKeyword] = useState('');
-  const [gmCity, setGmCity] = useState('Kuching');
-  const [radius, setRadius] = useState(50);
-  const [tags, setTags] = useState(['Property Manager','Facilities Manager']);
-  const [tagInput, setTagInput] = useState('');
-  const [seniority, setSeniority] = useState(['Manager','Director']);
-  const [apolloCity, setApolloCity] = useState('Kuching');
-
-  // Prompt & preview
-  const [prompt, setPrompt] = useState(`You are a B2B outreach specialist writing for {{business_name}}.\nContact: {{first_name}} at {{company}} ({{title}})\n\nWrite a personalized cold email that:\n- References their industry: {{industry}}\n- Addresses a pain point they likely have\n- Clearly explains what we offer\n- Ends with a soft CTA (15-min call or site visit)\n\nTone: Professional but conversational\nLength: 120-150 words\nLanguage: {{language}}`);
-  const [previewing, setPreviewing] = useState(false);
-  const [previewDone, setPreviewDone] = useState(false);
-  const [previewEmail, setPreviewEmail] = useState(null);
-
-  // Launch state
-  const [created, setCreated] = useState(false);
-  const [scrapeLog, setScrapeLog] = useState([]);
-  const [scraping, setScraping] = useState(false);
+  // ── Quick Setup state
+  const [qBiz, setQBiz] = useState(null);
+  const [qName, setQName] = useState('');
+  const [qChannel, setQChannel] = useState('wa_email');
+  const [qLeads, setQLeads] = useState(200);
+  const [qCreating, setQCreating] = useState(false);
 
   const selBiz = businesses.find(b => b.id === bizSel);
-  const channelDef = CHANNEL_OPTIONS.find(c => c.id === channelOpt);
-  const hasEmail = seqSteps.some(s => s.type === 'email');
 
-  const doFastGenerate = async () => {
-    if (!bizSel || goalText.trim().length < 20) return;
+  // ── Fast Track: generate
+  async function doGenerate() {
+    if (!bizSel) { showToast('Select a business first', 'amber'); return; }
+    if (goalText.trim().length < 15) { showToast('Describe your goal in more detail', 'amber'); return; }
     setGenerating(true);
     setGenStep(0);
-    let step = 0;
-    genTimerRef.current = setInterval(() => {
-      step++;
-      setGenStep(step);
-      if (step >= GEN_STEPS.length) clearInterval(genTimerRef.current);
-    }, 700);
+    setAiResult(null);
+    genTimer.current = setInterval(() => setGenStep(s => Math.min(s + 1, GEN_STEPS.length - 1)), 800);
     try {
-      const result = await apiFetch('/ai/generate-campaign', { method: 'POST', body: { bizId: bizSel, goal: goalText } });
-      clearInterval(genTimerRef.current);
-      setGenStep(GEN_STEPS.length);
-      setAiCampaignResult(result);
+      const result = await apiFetch('/ai/generate-campaign', {
+        method: 'POST',
+        body: { bizId: bizSel, goal: goalText, brief: selBiz?.briefContent || {}, industry: selBiz?.industry || '' },
+      });
+      setAiResult(result);
+      setAiName(result.name || '');
     } catch (e) {
-      clearInterval(genTimerRef.current);
-      showToast(e.message || 'Failed to generate campaign', 'red');
+      showToast(e.message || 'Generation failed', 'red');
     } finally {
+      clearInterval(genTimer.current);
       setGenerating(false);
     }
-  };
+  }
 
-  const doFastCreate = async () => {
-    const r = aiCampaignResult;
-    const selBizData = businesses.find(b => b.id === bizSel);
+  // ── Fast Track: create campaign → pipeline
+  async function doFastCreate() {
+    setCreating(true);
     try {
+      const biz = businesses.find(b => b.id === bizSel);
       const newC = await addCampaign({
         bizId: bizSel,
-        bizName: selBizData?.name || 'Unknown',
-        name: r.name || `${selBizData?.name || 'Campaign'} AI Build`,
+        bizName: biz?.name || '',
+        name: aiName || aiResult.name,
         status: 'awaiting_approval',
-        color: selBizData?.color || 'blue',
-        leads: 0,
-        total: r.total || 200,
-        hot: 0,
-        spend: 'RM 0',
-        open: '0%',
-        wa: '-',
-        channels: r.channels || [],
-        sequence: r.sequence || [],
-        config: r.config || {},
+        color: biz?.color || 'blue',
+        leads: 0, total: aiResult.total || 200,
+        hot: 0, spend: 'RM 0', open: '0%', wa: '-',
+        channels: aiResult.channels || ['wa'],
+        sequence: aiResult.sequence || [],
+        config: aiResult.config || {},
       });
-      setCreated(true);
       if (newC?.id) openCampaignPipeline(newC.id);
     } catch (e) {
-      showToast(`Failed to save campaign: ${e.message}`, 'red');
-    }
-  };
-
-  const doPreview = async () => {
-    setPreviewing(true);
-    try {
-      const result = await apiFetch('/ai/generate-email', {
-        method: 'POST',
-        body: {
-          bizName: selBiz?.name || 'Your Business',
-          campaignName: campaignName || 'Campaign',
-          prompt,
-          lead: { name:'Ahmad Razali', company:'Naim Holdings', title:'Property Manager', lang:'EN' }
-        }
-      });
-      setPreviewEmail(result);
-      setPreviewDone(true);
-    } catch (e) {
-      setPreviewEmail({ subject: 'Preview unavailable', body: e.message });
-      setPreviewDone(true);
+      showToast(e.message || 'Failed to create', 'red');
     } finally {
-      setPreviewing(false);
+      setCreating(false);
     }
-  };
+  }
 
-  const doCreate = async () => {
-    const selBizData = businesses.find(b => b.id === bizSel);
-    const config = {
-      sources,
-      google_maps: sources.google_maps ? { keyword, city: gmCity, radius } : null,
-      apollo: sources.apollo ? { tags, seniority, city: apolloCity } : null,
-      region, fromName, fromEmail, recycleLeads,
-      replyTo: replyTo || undefined,
-      smtp: useSmtp && smtpUser && smtpPass ? {
-        host: smtpUser.includes('gmail') ? 'smtp.gmail.com' : 'smtp-mail.outlook.com',
-        port: 587,
-        user: smtpUser,
-        pass: smtpPass,
-      } : undefined,
-      leadSource: sources.google_maps ? 'google_maps' : sources.apollo ? 'apollo' : sources.manual ? 'manual' : 'manual',
-      keyword, city: gmCity, tags, seniority,
-      emailPrompt: prompt,
-    };
-
-    // Derive channels array from seqSteps
-    const channelSet = [...new Set(seqSteps.map(s => s.type))];
-
-    let newCampaign;
+  // ── Quick Setup: create campaign → pipeline
+  async function doQuickCreate() {
+    if (!qBiz) { showToast('Select a business', 'amber'); return; }
+    if (!qName.trim()) { showToast('Enter a campaign name', 'amber'); return; }
+    setQCreating(true);
     try {
-      newCampaign = await addCampaign({
-        bizId:    bizSel,
-        bizName:  selBizData?.name || 'Unknown',
-        name:     campaignName || `${selBizData?.name || 'Campaign'} Q${Math.floor(Math.random()*4)+1}`,
-        status:   'awaiting_approval',
-        color:    selBizData?.color || 'blue',
-        leads:    0,
-        total:    leadCount,
-        hot:      0,
-        spend:    'RM 0',
-        open:     '0%',
-        wa:       '-',
-        channels: channelSet,
-        sequence: seqSteps,
-        config,
+      const ch = CHANNELS.find(c => c.id === qChannel);
+      const biz = businesses.find(b => b.id === qBiz);
+      const newC = await addCampaign({
+        bizId: qBiz,
+        bizName: biz?.name || '',
+        name: qName.trim(),
+        status: 'awaiting_approval',
+        color: biz?.color || 'blue',
+        leads: 0, total: qLeads,
+        hot: 0, spend: 'RM 0', open: '0%', wa: '-',
+        channels: ch.channels,
+        sequence: ch.sequence,
+        config: {},
       });
+      if (newC?.id) openCampaignPipeline(newC.id);
     } catch (e) {
-      showToast(`Failed to save campaign: ${e.message}`, 'red');
-      return;
+      showToast(e.message || 'Failed to create', 'red');
+    } finally {
+      setQCreating(false);
     }
+  }
 
-    setCreated(true);
-    if (newCampaign?.id) openCampaignPipeline(newCampaign.id);
-
-    if (!newCampaign?.id) return;
-    const hasMaps = sources.google_maps && keyword;
-    const hasApollo = sources.apollo;
-    const hasCSV = sources.manual && csvLeads.length > 0;
-
-    if (hasCSV) {
-      setScraping(true);
-      setScrapeLog([{ src: 'csv', status: 'running' }]);
-      try {
-        const result = await apiFetch('/leads/bulk-import', {
-          method: 'POST',
-          body: { campaignId: newCampaign.id, leads: csvLeads },
-        });
-        setScrapeLog([{ src: 'csv', status: 'done', count: result.count }]);
-      } catch (e) {
-        setScrapeLog([{ src: 'csv', status: 'error', error: e.message }]);
-      }
-      setScraping(false);
-    }
-
-    if (!hasMaps && !hasApollo) return;
-
-    setScraping(true);
-
-    // Use parallel endpoint when both sources enabled — more efficient and merges data
-    if (hasMaps && hasApollo) {
-      setScrapeLog([{ src: 'parallel', status: 'running' }]);
-      try {
-        const result = await apiFetch('/scraper/parallel', {
-          method: 'POST',
-          body: { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: leadCount, jobTitles: tags, seniority },
-        });
-        setScrapeLog([{ src: 'parallel', status: 'done', count: result.count, merged: result.merged }]);
-      } catch (e) {
-        setScrapeLog([{ src: 'parallel', status: 'error', error: e.message }]);
-      }
-    } else {
-      // Single source
-      const src = hasMaps ? 'google_maps' : 'apollo';
-      setScrapeLog([{ src, status: 'running' }]);
-      try {
-        const endpoint = src === 'google_maps' ? '/scraper/google-maps' : '/scraper/apollo';
-        const body = src === 'google_maps'
-          ? { campaignId: newCampaign.id, keyword, city: gmCity, radius, limit: leadCount }
-          : { campaignId: newCampaign.id, jobTitles: tags, seniority, city: apolloCity, limit: leadCount };
-        const result = await apiFetch(endpoint, { method: 'POST', body });
-        setScrapeLog([{ src, status: 'done', count: result.count }]);
-      } catch (e) {
-        setScrapeLog([{ src, status: 'error', error: e.message }]);
-      }
-    }
-    setScraping(false);
-  };
-
-  // ── Success screen ──
-  if (created) return (
-    <div className="success-overlay">
-      <svg className="check-svg" viewBox="0 0 60 60">
-        <circle cx="30" cy="30" r="24" stroke="var(--green)" strokeWidth="2" fill="none" className="check-circle"/>
-        <path d="M18 30l8 8 16-16" stroke="var(--green)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" className="check-mark"/>
-      </svg>
-      <div style={{fontWeight:600,fontSize:18,color:'var(--text)'}}>Campaign Created!</div>
-
-      {(scraping || scrapeLog.length > 0) && (
-        <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:8,padding:'12px 20px',minWidth:280}}>
-          <div style={{fontSize:12,fontWeight:600,marginBottom:8,color:'var(--muted)'}}>IMPORTING LEADS</div>
-          {scrapeLog.map(entry => (
-            <div key={entry.src} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6,fontSize:13}}>
-              <span>{entry.src === 'google_maps' ? '📍' : entry.src === 'apollo' ? '🔭' : entry.src === 'csv' ? '📋' : '📍🔭'}</span>
-              <span style={{flex:1}}>{entry.src === 'google_maps' ? 'Google Maps' : entry.src === 'apollo' ? 'Apollo' : entry.src === 'csv' ? 'CSV Import' : 'Google Maps + Apollo (parallel)'}</span>
-              {entry.status === 'running' && <span style={{animation:'spin 1s linear infinite',display:'inline-block',color:'var(--blue)'}}>◌</span>}
-              {entry.status === 'done' && <span style={{color:'var(--green)',fontWeight:600}}>✓ {entry.count} leads{entry.merged ? ` (${entry.merged} fully matched)` : ''}</span>}
-              {entry.status === 'error' && <span style={{color:'var(--red)',fontSize:11}}>{entry.error}</span>}
-            </div>
-          ))}
-          {scraping && <div style={{fontSize:11,color:'var(--muted)',marginTop:6}}>This may take 30–90 seconds…</div>}
-        </div>
-      )}
-
-      {!scraping && (
-        <>
-          <div style={{color:'var(--muted)',fontSize:13,textAlign:'center'}}>
-            Awaiting approval — go to <strong>Approvals</strong> to activate.
-          </div>
-          <div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}>
-            <button className="btn btn-green" onClick={() => setPage('pipeline')}>View Pipeline →</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>All Campaigns</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>View Leads</button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  const PageHeader = ({ onBack }) => (
-    <div className="flex items-center gap-3 mb-4 fade-up">
-      <button className="btn btn-ghost btn-sm" onClick={onBack || (() => setPage('campaigns'))}>← Back</button>
-      <div>
-        <div className="breadcrumb">Campaigns / <span>New Campaign</span></div>
-        <h1 className="page-title" style={{marginTop:2}}>Campaign Builder</h1>
-      </div>
-    </div>
-  );
-
-  if (entryMode === null) return (
+  // ── Mode selector ──────────────────────────────────────────
+  if (!mode) return (
     <div className="page">
-      <PageHeader />
-      <div style={{maxWidth:720,margin:'0 auto'}}>
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{fontSize:13,color:'var(--muted)'}}>How would you like to build this campaign?</div>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-          {[
-            {
-              mode:'fast', label:'Tell AI what you want', icon:'⚡',
-              color:'green', desc:'Describe your goal in plain English — AI builds the complete campaign in seconds',
-              bullets:['AI picks the right channels','Auto-configures the sequence','Selects lead sources automatically'],
-            },
-            {
-              mode:'manual', label:'Build step by step', icon:'◈',
-              color:'blue', desc:'Configure each detail manually with full control over channels, sequence, and settings',
-              bullets:['Choose channels manually','Customize every sequence step','Full lead source control'],
-            },
-          ].map(card => (
-            <div
-              key={card.mode}
-              onClick={() => setEntryMode(card.mode)}
-              style={{
-                border:`2px solid var(--${card.color})`,
-                borderRadius:12,padding:'28px 24px',cursor:'pointer',
-                background:`oklch(from var(--${card.color}) l c h / 0.05)`,
-                transition:'all 0.15s',minHeight:220,display:'flex',flexDirection:'column',gap:12,
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = `oklch(from var(--${card.color}) l c h / 0.1)`}
-              onMouseLeave={e => e.currentTarget.style.background = `oklch(from var(--${card.color}) l c h / 0.05)`}
-            >
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <span style={{fontSize:22,color:`var(--${card.color})`}}>{card.icon}</span>
-                <div style={{fontWeight:700,fontSize:15,color:`var(--${card.color})`}}>{card.label}</div>
-              </div>
-              <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.6}}>{card.desc}</div>
-              <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:5}}>
-                {card.bullets.map(b => (
-                  <div key={b} style={{fontSize:12,color:'var(--text)',display:'flex',gap:6,alignItems:'flex-start'}}>
-                    <span style={{color:`var(--${card.color})`,flexShrink:0}}>✓</span>{b}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="fade-up" style={{marginBottom:32}}>
+        <div className="breadcrumb">Campaigns / <span>New Campaign</span></div>
+        <h1 className="page-title" style={{marginTop:4}}>Campaign Builder</h1>
+        <p style={{fontSize:13,color:'var(--muted)',marginTop:6}}>How would you like to build this campaign?</p>
       </div>
-    </div>
-  );
 
-  if (entryMode === 'fast') {
-    if (generating) return (
-      <div className="page">
-        <PageHeader onBack={() => { setEntryMode(null); setGenerating(false); setAiCampaignResult(null); }} />
-        <div style={{maxWidth:500,margin:'40px auto',textAlign:'center'}}>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:24,color:'var(--text)'}}>Building your campaign...</div>
-          <div className="card" style={{padding:'24px 28px',textAlign:'left'}}>
-            {GEN_STEPS.map((s, i) => (
-              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:i<GEN_STEPS.length-1?'1px solid var(--border)':'none'}}>
-                <span style={{width:20,textAlign:'center',fontSize:13,color:i<genStep?'var(--green)':i===genStep?'var(--blue)':'var(--muted)'}}>
-                  {i < genStep ? '✓' : i === genStep ? <span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> : '○'}
-                </span>
-                <span style={{fontSize:13,color:i<genStep?'var(--text)':i===genStep?'var(--text)':'var(--muted)',fontWeight:i===genStep?500:400}}>
-                  {s}
-                </span>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,maxWidth:720}}>
+        {/* Fast Track */}
+        <div
+          className="card fade-up-1"
+          onClick={() => setMode('fast')}
+          style={{cursor:'pointer',border:'2px solid var(--green)',padding:28,transition:'transform 0.15s',position:'relative',overflow:'hidden'}}
+          onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
+          onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+        >
+          <div style={{position:'absolute',top:0,right:0,width:80,height:80,background:'var(--green)',opacity:0.06,borderRadius:'0 0 0 80px'}}/>
+          <div style={{fontSize:28,marginBottom:10}}>⚡</div>
+          <div style={{fontWeight:700,fontSize:16,color:'var(--green)',marginBottom:6}}>Tell AI what you want</div>
+          <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginBottom:14}}>
+            Describe your goal in plain English — AI builds the complete campaign in seconds
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:5}}>
+            {['AI picks the right channels','Auto-configures the sequence','Selects lead sources automatically'].map(t => (
+              <div key={t} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--text)'}}>
+                <span style={{color:'var(--green)',fontSize:10}}>✓</span>{t}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Setup */}
+        <div
+          className="card fade-up-1"
+          onClick={() => setMode('quick')}
+          style={{cursor:'pointer',border:'2px solid var(--blue)',padding:28,transition:'transform 0.15s',position:'relative',overflow:'hidden'}}
+          onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
+          onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+        >
+          <div style={{position:'absolute',top:0,right:0,width:80,height:80,background:'var(--blue)',opacity:0.06,borderRadius:'0 0 0 80px'}}/>
+          <div style={{fontSize:28,marginBottom:10}}>🎯</div>
+          <div style={{fontWeight:700,fontSize:16,color:'var(--blue)',marginBottom:6}}>Quick Setup</div>
+          <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginBottom:14}}>
+            Pick your business, name it, choose channels — pipeline handles the rest
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:5}}>
+            {['Choose channels manually','Set your lead target','Pipeline builds it step by step'].map(t => (
+              <div key={t} style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--text)'}}>
+                <span style={{color:'var(--blue)',fontSize:10}}>✓</span>{t}
               </div>
             ))}
           </div>
         </div>
       </div>
-    );
 
-    if (aiCampaignResult) {
-      const r = aiCampaignResult;
-      const chIcon = r.channel === 'full' ? '💬📧📞' : r.channel === 'wa_email' ? '💬📧' : '💬';
-      return (
-        <div className="page">
-          <PageHeader onBack={() => { setAiCampaignResult(null); setGoalText(''); }} />
-          <div style={{maxWidth:700}}>
-            <div style={{background:'var(--green-dim)',border:'1px solid var(--green)',borderRadius:8,padding:'10px 16px',marginBottom:20,display:'flex',gap:10,alignItems:'center',fontSize:13,color:'var(--green)'}}>
-              <span>✓</span><span>Campaign built by AI — review and launch when ready</span>
+      <div style={{marginTop:20,fontSize:12,color:'var(--muted)'}}>
+        Both paths lead to the Campaign Pipeline — validate, enrich, personalise, and launch from there.
+      </div>
+    </div>
+  );
+
+  // ── Fast Track ────────────────────────────────────────────
+  if (mode === 'fast') return (
+    <div className="page">
+      <div className="flex items-center justify-between mb-4 fade-up">
+        <div>
+          <div className="breadcrumb">Campaigns / New Campaign / <span>Fast Track</span></div>
+          <h1 className="page-title" style={{marginTop:4}}>Tell AI What You Want</h1>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => { setMode(null); setAiResult(null); setGenerating(false); clearInterval(genTimer.current); }}>← Back</button>
+      </div>
+
+      {/* Generating checklist */}
+      {generating && (
+        <div className="card fade-up-1" style={{maxWidth:520,padding:28}}>
+          <div style={{fontWeight:600,fontSize:14,marginBottom:18,color:'var(--text)'}}>Building your campaign…</div>
+          {GEN_STEPS.map((label, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10,fontSize:13}}>
+              {i < genStep
+                ? <span style={{color:'var(--green)',fontSize:14,width:18}}>✓</span>
+                : i === genStep
+                ? <Spinner />
+                : <span style={{width:18,height:18,borderRadius:'50%',border:'2px solid var(--border)',display:'inline-block',flexShrink:0}}/>
+              }
+              <span style={{color: i <= genStep ? 'var(--text)' : 'var(--muted)'}}>{label}</span>
             </div>
-            <div className="card fade-up" style={{marginBottom:16}}>
-              <div style={{fontWeight:600,marginBottom:12}}>Campaign Details</div>
-              <div className="grid-2" style={{gap:12,marginBottom:12}}>
-                <div>
-                  <label className="label">Campaign Name</label>
-                  <input className="input" value={r.name || ''} onChange={e => setAiCampaignResult(prev => ({...prev, name: e.target.value}))}/>
-                </div>
-                <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                  <label className="label">Channel Strategy</label>
-                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'var(--s2)',borderRadius:6}}>
-                    <span style={{fontSize:18}}>{chIcon}</span>
-                    <span style={{fontSize:13,fontWeight:500,textTransform:'uppercase'}}>{r.channel}</span>
-                  </div>
-                </div>
-              </div>
-              {r.reasoning && (
-                <div style={{background:'var(--s2)',borderRadius:6,padding:'10px 14px',fontSize:12,color:'var(--muted)',lineHeight:1.6}}>
-                  <span style={{color:'var(--text)',fontWeight:500}}>AI Reasoning: </span>{r.reasoning}
-                </div>
-              )}
+          ))}
+        </div>
+      )}
+
+      {/* AI Result */}
+      {aiResult && !generating && (
+        <div className="fade-up-1" style={{display:'flex',flexDirection:'column',gap:12,maxWidth:680}}>
+          <div className="card" style={{padding:20}}>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>CAMPAIGN NAME</div>
+            <input
+              className="input"
+              style={{fontSize:16,fontWeight:600,marginBottom:0}}
+              value={aiName}
+              onChange={e => setAiName(e.target.value)}
+            />
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div className="card" style={{padding:16}}>
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:8}}>CHANNELS</div>
+              <div style={{fontSize:18}}>{aiResult.channels?.includes('call') ? '💬📧📞' : aiResult.channels?.includes('email') ? '💬📧' : '💬'}</div>
+              <div style={{fontSize:12,color:'var(--text)',marginTop:4}}>{aiResult.channels?.join(' + ').toUpperCase() || 'WhatsApp'}</div>
             </div>
-            <div className="card fade-up-1" style={{marginBottom:16}}>
-              <div style={{fontWeight:600,marginBottom:12}}>Outreach Sequence</div>
-              <div className="seq-timeline">
-                {(r.sequence || []).map((s, i) => (
-                  <div key={i} className="seq-stage">
-                    <div className={`seq-dot ${i===0?'active':'pending'}`}>{s.type==='email'?'📧':s.type==='call'?'📞':'💬'}</div>
-                    <div className="seq-body">
-                      <span style={{fontWeight:500,fontSize:13}}>Day {s.day} — {s.type.toUpperCase()}</span>
-                      {s.skipIfReplied && <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>Skip if replied</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {r.config && (
-              <div className="card fade-up-2" style={{marginBottom:20}}>
-                <div style={{fontWeight:600,marginBottom:12}}>Lead Sources</div>
-                {r.config.google_maps && (
-                  <div style={{marginBottom:8,fontSize:13}}>
-                    <span style={{color:'var(--green)',marginRight:6}}>📍 Google Maps:</span>
-                    <strong>"{r.config.google_maps.keyword}"</strong> in {r.config.google_maps.city} — {r.config.google_maps.limit} leads
-                  </div>
-                )}
-                {r.config.apollo && (
-                  <div style={{fontSize:13}}>
-                    <span style={{color:'var(--blue)',marginRight:6}}>🔭 Apollo:</span>
-                    <strong>{(r.config.apollo.job_titles || []).join(', ')}</strong> — {r.config.apollo.limit} leads
-                  </div>
-                )}
-                <div style={{marginTop:8,fontSize:12,color:'var(--muted)'}}>Target: {r.total || 200} leads</div>
-              </div>
-            )}
-            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <button className="btn btn-green" onClick={doFastCreate}>🚀 Launch Campaign</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setAiCampaignResult(null); setGoalText(''); }}>← Regenerate</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setEntryMode('manual'); setAiCampaignResult(null); }}>Switch to Manual</button>
+            <div className="card" style={{padding:16}}>
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:8}}>TARGET LEADS</div>
+              <div style={{fontSize:24,fontWeight:700,color:'var(--blue)',fontFamily:'var(--font-mono)'}}>{aiResult.total || 200}</div>
             </div>
           </div>
-        </div>
-      );
-    }
 
-    return (
-      <div className="page">
-        <PageHeader onBack={() => setEntryMode(null)} />
-        <div style={{maxWidth:640}}>
-          <div className="card fade-up">
-            <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>Select Business</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Which client are we building this campaign for?</div>
-            <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:16}}>
-              {businesses.filter(b => b.brief === 'approved').map(b => (
-                <div key={b.id} className={`radio-card${bizSel===b.id?' selected':''}`} style={{flex:'none'}}
-                  onClick={() => setBizSel(b.id)}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <BizAvatar id={b.id} name={b.name} color={b.color} size={24}/>
-                    <div><div className="radio-card-title">{b.name}</div><div className="radio-card-sub">{b.industry}</div></div>
-                  </div>
+          <div className="card" style={{padding:16}}>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:8}}>SEQUENCE</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              {aiResult.sequence?.map((s, i) => (
+                <div key={i} style={{display:'flex',alignItems:'center',gap:6,background:'var(--s2)',borderRadius:6,padding:'6px 12px',fontSize:12}}>
+                  <span>{s.type === 'email' ? '📧' : s.type === 'call' ? '📞' : '💬'}</span>
+                  <span style={{color:'var(--muted)'}}>Day {s.day}</span>
                 </div>
               ))}
-              {businesses.filter(b => b.brief === 'approved').length === 0 && (
-                <div style={{color:'var(--muted)',fontSize:13}}>No approved businesses yet — add a business first.</div>
-              )}
             </div>
-            <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>What do you want this campaign to achieve?</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:10}}>Describe your goal in plain English. Be specific — mention target audience, location, and desired outcome.</div>
+          </div>
+
+          {aiResult.reasoning && (
+            <div style={{background:'var(--green-dim)',border:'1px solid var(--green)',borderRadius:8,padding:'12px 16px',fontSize:12,color:'var(--text)',lineHeight:1.6}}>
+              <span style={{color:'var(--green)',fontWeight:600}}>AI Reasoning: </span>{aiResult.reasoning}
+            </div>
+          )}
+
+          <div style={{display:'flex',gap:10}}>
+            <button className="btn btn-green" style={{padding:'10px 24px',fontSize:14,fontWeight:600}} disabled={creating} onClick={doFastCreate}>
+              {creating ? <><Spinner /> Creating…</> : '🚀 Create & Open Pipeline'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setAiResult(null); setGenStep(0); }}>↺ Regenerate</button>
+          </div>
+        </div>
+      )}
+
+      {/* Goal input — shown when no result yet */}
+      {!aiResult && !generating && (
+        <div className="card fade-up-1" style={{maxWidth:580,padding:24}}>
+          <div style={{marginBottom:16}}>
+            <label style={{fontSize:12,color:'var(--muted)',display:'block',marginBottom:6}}>BUSINESS</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {approvedBizList.map(b => (
+                <div
+                  key={b.id}
+                  onClick={() => setBizSel(b.id)}
+                  style={{
+                    display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderRadius:8,cursor:'pointer',
+                    border:`2px solid ${bizSel === b.id ? 'var(--green)' : 'var(--border)'}`,
+                    background: bizSel === b.id ? 'var(--green-dim)' : 'var(--s2)',
+                    fontSize:12,fontWeight: bizSel === b.id ? 600 : 400,
+                  }}
+                >
+                  <BizAvatar id={b.id} name={b.name} color={b.color} size={18}/>
+                  {b.name}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{marginBottom:16}}>
+            <label style={{fontSize:12,color:'var(--muted)',display:'block',marginBottom:6}}>WHAT DO YOU WANT TO ACHIEVE?</label>
             <textarea
-              className="input"
-              rows={4}
-              style={{width:'100%',resize:'vertical',lineHeight:1.7,fontSize:13}}
-              placeholder="e.g. Find 200 property managers in Kuching who need landscaping services. WhatsApp them first, then email if no reply within 3 days."
+              style={{width:'100%',minHeight:100,background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',fontSize:13,color:'var(--text)',fontFamily:'inherit',resize:'vertical',boxSizing:'border-box',lineHeight:1.6}}
+              placeholder='e.g. "I want to reach 300 restaurant owners in KL to offer our POS system. Focus on Chinese-owned restaurants."'
               value={goalText}
               onChange={e => setGoalText(e.target.value)}
             />
-            <div style={{marginTop:8,fontSize:11,color:'var(--muted)',textAlign:'right'}}>{goalText.length} chars</div>
-            <div style={{marginTop:16,display:'flex',gap:10}}>
-              <button
-                className="btn btn-green"
-                disabled={!bizSel || goalText.trim().length < 20}
-                onClick={doFastGenerate}
-              >
-                ⚡ Generate Campaign
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setEntryMode(null)}>← Change Mode</button>
-            </div>
-            {!bizSel && <div style={{fontSize:11,color:'var(--amber)',marginTop:8}}>Select a business first</div>}
-            {bizSel && goalText.trim().length < 20 && goalText.length > 0 && <div style={{fontSize:11,color:'var(--muted)',marginTop:8}}>Keep going — describe your goal in more detail</div>}
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>Minimum 15 characters. The more detail, the better the campaign.</div>
           </div>
-        </div>
-      </div>
-    );
-  }
 
+          <button
+            className="btn btn-green"
+            style={{width:'100%',padding:'11px 0',fontSize:14,fontWeight:600}}
+            disabled={!bizSel || goalText.trim().length < 15}
+            onClick={doGenerate}
+          >
+            ⚡ Generate Campaign
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Quick Setup ───────────────────────────────────────────
   return (
     <div className="page">
-      <div className="flex items-center gap-3 mb-4 fade-up">
-        <button className="btn btn-ghost btn-sm" onClick={() => setEntryMode(null)}>← Back</button>
+      <div className="flex items-center justify-between mb-4 fade-up">
         <div>
-          <div className="breadcrumb">Campaigns / <span>New Campaign</span></div>
-          <h1 className="page-title" style={{marginTop:2}}>Campaign Builder</h1>
+          <div className="breadcrumb">Campaigns / New Campaign / <span>Quick Setup</span></div>
+          <h1 className="page-title" style={{marginTop:4}}>Quick Setup</h1>
         </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => setMode(null)}>← Back</button>
       </div>
 
-      {/* Step bar */}
-      <div className="steps-bar fade-up-1" style={{maxWidth:700,marginBottom:28}}>
-        {steps.map((s,i) => (
-          <div key={i} style={{display:'flex',alignItems:'center',flex:1}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-              <div className={`step-dot ${i<step?'done':i===step?'active':''}`}>{i<step?'✓':i+1}</div>
-              <div style={{fontSize:12,fontWeight:i===step?600:400,color:i===step?'var(--text)':i<step?'var(--green)':'var(--muted)'}}>{s}</div>
-            </div>
-            {i<steps.length-1 && <div className={`step-line${i<step?' done':''}`} style={{flex:1,margin:'0 8px'}}/>}
+      <div style={{maxWidth:560,display:'flex',flexDirection:'column',gap:16}}>
+
+        {/* Business */}
+        <div className="card fade-up-1" style={{padding:20}}>
+          <div style={{fontSize:12,color:'var(--muted)',marginBottom:10,fontWeight:600}}>SELECT BUSINESS</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {approvedBizList.map(b => (
+              <div
+                key={b.id}
+                onClick={() => setQBiz(b.id)}
+                style={{
+                  display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderRadius:8,cursor:'pointer',
+                  border:`2px solid ${qBiz === b.id ? 'var(--blue)' : 'var(--border)'}`,
+                  background: qBiz === b.id ? 'var(--blue-dim)' : 'var(--s2)',
+                  fontSize:12,fontWeight: qBiz === b.id ? 600 : 400,
+                  transition:'border-color 0.15s',
+                }}
+              >
+                <BizAvatar id={b.id} name={b.name} color={b.color} size={20}/>
+                {b.name}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
 
-      <div className="card fade-up-2" style={{maxWidth:860}}>
+        {/* Name */}
+        <div className="card fade-up-1" style={{padding:20}}>
+          <div style={{fontSize:12,color:'var(--muted)',marginBottom:8,fontWeight:600}}>CAMPAIGN NAME</div>
+          <input
+            className="input"
+            placeholder='e.g. "KL Restaurant Owners Q3"'
+            value={qName}
+            onChange={e => setQName(e.target.value)}
+          />
+        </div>
 
-        {/* ── Step 0: Business & Campaign ── */}
-        {step===0 && (
-          <div className="flex-col gap-5">
-            <div>
-              <div style={{fontWeight:600,marginBottom:12}}>Select Business</div>
-              <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-                {businesses.filter(b => b.brief==='approved').map(b => (
-                  <div key={b.id} className={`radio-card${bizSel===b.id?' selected':''}`} style={{flex:'none'}}
-                    onClick={() => { setBizSel(b.id); setCampaignName(`${b.name} Q${Math.floor(Math.random()*4)+1}`); }}>
-                    <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <BizAvatar id={b.id} name={b.name} color={b.color} size={24}/>
-                      <div><div className="radio-card-title">{b.name}</div><div className="radio-card-sub">{b.industry}</div></div>
-                    </div>
-                  </div>
-                ))}
-                {businesses.filter(b => b.brief==='approved').length === 0 && (
-                  <div style={{color:'var(--muted)',fontSize:13}}>No approved businesses yet — add a business first.</div>
-                )}
-              </div>
-              {selBiz && (
-                <div style={{background:'var(--green-dim)',border:'1px solid var(--green)',borderRadius:8,padding:'8px 14px',display:'flex',alignItems:'center',gap:8,marginTop:10}}>
-                  <span style={{color:'var(--green)'}}>✓</span>
-                  <span style={{fontSize:13,color:'var(--green)'}}>AI Brief loaded for <strong>{selBiz.name}</strong></span>
+        {/* Channels */}
+        <div className="card fade-up-1" style={{padding:20}}>
+          <div style={{fontSize:12,color:'var(--muted)',marginBottom:12,fontWeight:600}}>OUTREACH CHANNELS</div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {CHANNELS.map(ch => (
+              <div
+                key={ch.id}
+                onClick={() => setQChannel(ch.id)}
+                style={{
+                  display:'flex',alignItems:'center',gap:14,padding:'12px 16px',borderRadius:8,cursor:'pointer',
+                  border:`2px solid ${qChannel === ch.id ? 'var(--blue)' : 'var(--border)'}`,
+                  background: qChannel === ch.id ? 'var(--blue-dim)' : 'var(--s2)',
+                  transition:'border-color 0.15s',
+                }}
+              >
+                <span style={{fontSize:20,flexShrink:0}}>{ch.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600,color: qChannel === ch.id ? 'var(--blue)' : 'var(--text)'}}>{ch.label}</div>
+                  <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{ch.desc}</div>
                 </div>
-              )}
-            </div>
-
-            <div className="grid-2">
-              <div><label className="label">Campaign Name</label><input className="input" placeholder="e.g. Kuching Q3 Push" value={campaignName} onChange={e=>setCampaignName(e.target.value)}/></div>
-              <div><label className="label">Target Region</label><input className="input" placeholder="e.g. Kuching, Samarahan" value={region} onChange={e=>setRegion(e.target.value)}/></div>
-            </div>
+                <div style={{
+                  width:16,height:16,borderRadius:'50%',flexShrink:0,
+                  border:`2px solid ${qChannel === ch.id ? 'var(--blue)' : 'var(--border)'}`,
+                  background: qChannel === ch.id ? 'var(--blue)' : 'transparent',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                }}>
+                  {qChannel === ch.id && <span style={{width:6,height:6,borderRadius:'50%',background:'#fff',display:'inline-block'}}/>}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* ── Step 1: Channel & Sequence ── */}
-        {step===1 && (
-          <div className="flex-col gap-5">
-            <div>
-              <div style={{fontWeight:600,marginBottom:4}}>Select Channel Strategy</div>
-              <div style={{fontSize:12,color:'var(--muted)',marginBottom:14}}>Choose how you want to reach your leads. This sets the outreach sequence.</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-                {CHANNEL_OPTIONS.map(opt => (
-                  <div key={opt.id}
-                    onClick={() => selectChannel(opt.id)}
-                    style={{
-                      border:`2px solid ${channelOpt===opt.id?`var(--${opt.color})`:'var(--border)'}`,
-                      borderRadius:10, padding:'14px 16px', cursor:'pointer',
-                      background: channelOpt===opt.id ? `oklch(from var(--${opt.color}) l c h / 0.08)` : 'var(--s1)',
-                      transition:'all 0.15s',
-                    }}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                      <span style={{fontSize:20}}>{opt.icon}</span>
-                      {channelOpt===opt.id && <span style={{fontSize:10,color:`var(--${opt.color})`,fontWeight:600}}>SELECTED</span>}
-                    </div>
-                    <div style={{fontWeight:700,fontSize:13,color:`var(--${opt.color})`,marginBottom:4}}>{opt.label}</div>
-                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>{opt.desc}</div>
-                    <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
-                      {opt.bestFor.map(f => (
-                        <div key={f} style={{fontSize:11,color:'var(--text)',marginBottom:3,display:'flex',gap:6,alignItems:'flex-start'}}>
-                          <span style={{color:`var(--${opt.color})`,flexShrink:0}}>✓</span>{f}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sequence timeline */}
-            <div>
-              <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>Outreach Sequence</div>
-              <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Auto-set from channel choice. You can customize the timing.</div>
-              <div className="seq-timeline">
-                {seqSteps.map((s,i) => (
-                  <div key={i} className="seq-stage">
-                    <div className={`seq-dot ${i===0?'active':'pending'}`}>{s.icon}</div>
-                    <div className="seq-body">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span style={{fontWeight:500,fontSize:13}}>{s.label}</span>
-                        {i > 0 && (
-                          <>
-                            <input type="number" value={s.day} min={1} max={30} onChange={e=>updateStepDay(i,+e.target.value)}
-                              style={{width:44,fontFamily:'var(--font-mono)',fontSize:11,background:'var(--s2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',padding:'2px 6px'}}/>
-                            <span style={{fontSize:11,color:'var(--muted)'}}>days after previous</span>
-                          </>
-                        )}
-                        {i===0 && <span style={{fontSize:11,color:'var(--muted)'}}>Sent immediately after import</span>}
-                        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-                          {i > 0 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,-1)}>↑</button>}
-                          {i < seqSteps.length-1 && <button className="btn btn-ghost btn-xs" onClick={() => moveStep(i,1)}>↓</button>}
-                          {seqSteps.length > 1 && <button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:12,padding:'2px 6px'}} onClick={() => removeSeqStep(i)}>×</button>}
-                        </div>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--muted)'}}>{s.desc}</div>
-                      {s.type==='call' && (
-                        <label style={{display:'flex',alignItems:'center',gap:6,marginTop:6,fontSize:11,color:'var(--muted)',cursor:'pointer'}}>
-                          <input type="checkbox" checked={s.skipIfReplied||false}
-                            onChange={e => setSeqSteps(ss=>ss.map((st,idx)=>idx===i?{...st,skipIfReplied:e.target.checked}:st))}
-                            style={{accentColor:'var(--blue)'}}/>
-                          Skip if lead already replied
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="btn btn-ghost btn-xs mt-2" onClick={addSeqStep}>＋ Add Step</button>
-            </div>
-
-            <div className="grid-2">
-              <div><label className="label">From Name</label><input className="input" value={fromName} onChange={e=>setFromName(e.target.value)} placeholder="Your name"/></div>
-              <div><label className="label">From Email (display)</label><input className="input" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="your@email.com"/></div>
-            </div>
-
-            <div>
-              <label className="label">Reply-To (where client replies land)</label>
-              <input className="input" value={replyTo} onChange={e=>setReplyTo(e.target.value)} placeholder="client@theirbusiness.com — leave blank to use KOBIS domain"/>
-            </div>
-
-            <div style={{border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px'}}>
-              <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, marginBottom: useSmtp ? 12 : 0}}>
-                <input type="checkbox" checked={useSmtp} onChange={e=>setUseSmtp(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
-                <div>
-                  <div style={{fontWeight:500}}>Send from client's own email (white-label)</div>
-                  <div style={{fontSize:11, color:'var(--muted)'}}>Emails show the client's actual address. Needs their app password.</div>
-                </div>
-              </label>
-              {useSmtp && (
-                <div style={{display:'flex', flexDirection:'column', gap:8}}>
-                  <input className="input" value={smtpUser} onChange={e=>setSmtpUser(e.target.value)} placeholder="client@gmail.com or client@theirbusiness.com" style={{fontSize:12}}/>
-                  <input className="input" type="password" value={smtpPass} onChange={e=>setSmtpPass(e.target.value)} placeholder="16-digit app password (not their login password)" style={{fontSize:12}}/>
-                  <div style={{fontSize:11, color:'var(--muted)', padding:'6px 10px', background:'var(--bg)', borderRadius:6}}>
-                    Get app password: <strong>Google Account → Security → 2-Step Verification → App passwords</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'var(--s2)',borderRadius:8,cursor:'pointer',fontSize:13}}>
-              <input type="checkbox" checked={recycleLeads} onChange={e=>setRecycleLeads(e.target.checked)} style={{accentColor:'var(--blue)'}}/>
-              <div>
-                <div style={{fontWeight:500}}>Recycle leads after sequence ends</div>
-                <div style={{fontSize:11,color:'var(--muted)'}}>Re-engage leads with a fresh round after the sequence completes</div>
-              </div>
-            </label>
+        {/* Lead target */}
+        <div className="card fade-up-1" style={{padding:20}}>
+          <div style={{fontSize:12,color:'var(--muted)',marginBottom:8,fontWeight:600}}>TARGET LEAD COUNT</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {[100, 200, 500, 1000].map(n => (
+              <button
+                key={n}
+                onClick={() => setQLeads(n)}
+                style={{
+                  padding:'8px 20px',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:600,
+                  border:`2px solid ${qLeads === n ? 'var(--blue)' : 'var(--border)'}`,
+                  background: qLeads === n ? 'var(--blue-dim)' : 'var(--s2)',
+                  color: qLeads === n ? 'var(--blue)' : 'var(--text)',
+                  transition:'border-color 0.15s',
+                }}
+              >
+                {n.toLocaleString()}
+              </button>
+            ))}
           </div>
-        )}
-
-        {/* ── Step 2: Lead Sources ── */}
-        {step===2 && (
-          <div className="flex-col gap-5">
-            <div>
-              <div style={{fontWeight:600,marginBottom:4}}>Lead Sources</div>
-              <div style={{fontSize:12,color:'var(--muted)',marginBottom:14}}>
-                Enable multiple sources for a complete lead profile — Google Maps gets the phone number, Apollo gets the decision maker's email.
-              </div>
-
-              {/* Channel hint */}
-              {channelOpt === 'wa_email' && (
-                <div style={{background:'var(--blue-dim)',border:'1px solid oklch(62% 0.19 245 / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--blue)',marginBottom:14,display:'flex',gap:8}}>
-                  <span>💡</span>
-                  <span>You selected <strong>WA+Email</strong> — enable both Google Maps (for phone) and Apollo (for email) to get complete lead profiles.</span>
-                </div>
-              )}
-              {channelOpt === 'full' && (
-                <div style={{background:'oklch(from var(--purple) l c h / 0.08)',border:'1px solid oklch(from var(--purple) l c h / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--purple)',marginBottom:14,display:'flex',gap:8}}>
-                  <span>💡</span>
-                  <span>You selected <strong>Full Outreach</strong> — enable both Google Maps (for phone/WA) and Apollo (for email) for maximum reach.</span>
-                </div>
-              )}
-              {channelOpt === 'wa' && (
-                <div style={{background:'var(--green-dim)',border:'1px solid oklch(65% 0.2 145 / 0.3)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--green)',marginBottom:14,display:'flex',gap:8}}>
-                  <span>💡</span>
-                  <span>You selected <strong>WhatsApp Only</strong> — Google Maps is the best source to get phone numbers for WA outreach.</span>
-                </div>
-              )}
-
-              {/* Google Maps toggle card */}
-              <div style={{border:`2px solid ${sources.google_maps?'var(--green)':'var(--border)'}`,borderRadius:10,padding:'14px 16px',marginBottom:12,cursor:'pointer',transition:'all 0.15s'}}
-                onClick={() => toggleSource('google_maps')}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-                  <input type="checkbox" checked={sources.google_maps} onChange={() => toggleSource('google_maps')} style={{accentColor:'var(--green)',marginTop:3}} onClick={e=>e.stopPropagation()}/>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                      <span style={{fontSize:16}}>📍</span>
-                      <span style={{fontWeight:600,fontSize:13}}>Google Maps</span>
-                      <span style={{fontSize:10,background:'var(--green-dim)',color:'var(--green)',borderRadius:4,padding:'2px 6px',fontWeight:600}}>PHONE / WHATSAPP</span>
-                    </div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom: sources.google_maps ? 12 : 0}}>
-                      Scrapes local Malaysian businesses — gets business name, phone, WhatsApp number, address, website.
-                    </div>
-                    {sources.google_maps && (
-                      <div className="flex-col gap-3" onClick={e=>e.stopPropagation()}>
-                        <div>
-                          <label className="label">Business Keyword</label>
-                          <input className="input" placeholder="e.g. landscaping company, IT services, property developer" value={keyword} onChange={e=>setKeyword(e.target.value)}/>
-                        </div>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                          <div>
-                            <label className="label">City</label>
-                            <input className="input" value={gmCity} onChange={e=>setGmCity(e.target.value)} placeholder="e.g. Kuching"/>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="label" style={{marginBottom:0}}>Radius</label>
-                              <span className="mono text-blue" style={{fontSize:12}}>{radius} km</span>
-                            </div>
-                            <input type="range" min="10" max="200" step="10" value={radius} onChange={e=>setRadius(+e.target.value)} style={{width:'100%',accentColor:'var(--green)'}}/>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Apollo toggle card */}
-              <div style={{border:`2px solid ${sources.apollo?'var(--blue)':'var(--border)'}`,borderRadius:10,padding:'14px 16px',marginBottom:12,cursor:'pointer',transition:'all 0.15s'}}
-                onClick={() => toggleSource('apollo')}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-                  <input type="checkbox" checked={sources.apollo} onChange={() => toggleSource('apollo')} style={{accentColor:'var(--blue)',marginTop:3}} onClick={e=>e.stopPropagation()}/>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                      <span style={{fontSize:16}}>🔭</span>
-                      <span style={{fontWeight:600,fontSize:13}}>Apollo.io</span>
-                      <span style={{fontSize:10,background:'var(--blue-dim)',color:'var(--blue)',borderRadius:4,padding:'2px 6px',fontWeight:600}}>DECISION MAKER EMAIL</span>
-                    </div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom: sources.apollo ? 12 : 0}}>
-                      Finds the actual decision maker inside the company — name, title, work email, LinkedIn.
-                    </div>
-                    {sources.apollo && (
-                      <div className="flex-col gap-3" onClick={e=>e.stopPropagation()}>
-                        <div>
-                          <label className="label">Target Job Titles</label>
-                          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
-                            {tags.map(t => <span key={t} className="chip">{t}<button onClick={() => setTags(tt=>tt.filter(x=>x!==t))}>×</button></span>)}
-                          </div>
-                          <input className="input" placeholder="Add title + Enter" value={tagInput}
-                            onChange={e=>setTagInput(e.target.value)}
-                            onKeyDown={e => { if(e.key==='Enter'&&tagInput.trim()){setTags(t=>[...t,tagInput.trim()]);setTagInput('');} }}
-                          />
-                        </div>
-                        <div>
-                          <label className="label">Seniority</label>
-                          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                            {['C-Level','VP','Director','Manager','Owner'].map(s => (
-                              <label key={s} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12}}>
-                                <input type="checkbox" checked={seniority.includes(s)} style={{accentColor:'var(--blue)'}}
-                                  onChange={e => setSeniority(prev => e.target.checked ? [...prev,s] : prev.filter(x=>x!==s))}/>
-                                {s}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="label">City</label>
-                          <input className="input" value={apolloCity} onChange={e=>setApolloCity(e.target.value)} placeholder="e.g. Kuching"/>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Manual CSV */}
-              <div style={{border:`2px solid ${sources.manual?'var(--amber)':'var(--border)'}`,borderRadius:10,padding:'14px 16px',cursor:'pointer',transition:'all 0.15s'}}
-                onClick={() => toggleSource('manual')}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-                  <input type="checkbox" checked={sources.manual} onChange={() => toggleSource('manual')} style={{accentColor:'var(--amber)',marginTop:3}} onClick={e=>e.stopPropagation()}/>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                      <span style={{fontSize:16}}>📋</span>
-                      <span style={{fontWeight:600,fontSize:13}}>Manual / CSV</span>
-                      <span style={{fontSize:10,background:'var(--amber-dim)',color:'var(--amber)',borderRadius:4,padding:'2px 6px',fontWeight:600}}>UPLOAD YOUR OWN LIST</span>
-                    </div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom: sources.manual ? 12 : 0}}>
-                      Import your own contact list. Accepted columns: name, company, title, email, phone.
-                    </div>
-                    {sources.manual && (
-                      <div onClick={e=>e.stopPropagation()}>
-                        {/* Drop zone */}
-                        <div
-                          onDragOver={e=>{e.preventDefault();setCsvDragging(true);}}
-                          onDragLeave={()=>setCsvDragging(false)}
-                          onDrop={e=>{e.preventDefault();setCsvDragging(false);handleCSVFile(e.dataTransfer.files[0]);}}
-                          onClick={()=>document.getElementById('csv-file-input').click()}
-                          style={{
-                            border:`2px dashed ${csvDragging?'var(--amber)':'rgba(255,200,80,0.3)'}`,
-                            borderRadius:8,padding:'20px 16px',textAlign:'center',cursor:'pointer',
-                            background: csvDragging?'var(--amber-dim)':'rgba(255,200,80,0.04)',
-                            transition:'all 0.15s',marginBottom:8,
-                          }}>
-                          <div style={{fontSize:22,marginBottom:6}}>📂</div>
-                          <div style={{fontSize:12,color:'var(--text)',fontWeight:500}}>
-                            {csvLeads.length > 0 ? `✓ ${csvLeads.length} leads loaded` : 'Click or drag & drop your CSV here'}
-                          </div>
-                          <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>
-                            {csvLeads.length > 0 ? 'Click to replace file' : '.xlsx · .xls · .csv — columns: name, company, title, email, phone'}
-                          </div>
-                          <input id="csv-file-input" type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}}
-                            onChange={e=>{handleCSVFile(e.target.files[0]);e.target.value='';}}/>
-                        </div>
-                        {csvError && <div style={{fontSize:12,color:'var(--red)',marginBottom:8}}>⚠ {csvError}</div>}
-                        {csvLeads.length > 0 && (
-                          <div style={{background:'var(--s1)',border:'1px solid var(--border)',borderRadius:6,overflow:'hidden',maxHeight:160,overflowY:'auto',fontSize:11}}>
-                            <table style={{width:'100%',borderCollapse:'collapse'}}>
-                              <thead>
-                                <tr style={{background:'var(--s2)'}}>
-                                  {['name','company','title','email','phone'].map(h=>(
-                                    <th key={h} style={{padding:'5px 8px',textAlign:'left',fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {csvLeads.slice(0,5).map((row,i)=>(
-                                  <tr key={i} style={{borderTop:'1px solid var(--border)'}}>
-                                    {['name','company','title','email','phone'].map(h=>(
-                                      <td key={h} style={{padding:'4px 8px',color:'var(--text)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                        {row[h]||row[h.charAt(0).toUpperCase()+h.slice(1)]||'—'}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            {csvLeads.length > 5 && (
-                              <div style={{padding:'5px 8px',color:'var(--muted)',fontSize:10,background:'var(--s2)'}}>
-                                +{csvLeads.length - 5} more rows…
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Lead count slider */}
-            <div style={{background:'var(--s2)', borderRadius:10, padding:'14px 16px'}}>
-              <div style={{fontWeight:600, fontSize:13, marginBottom:10}}>Lead Target</div>
-              <div style={{display:'flex', alignItems:'center', gap:16}}>
-                <input type="range" min={50} max={500} step={50} value={leadCount}
-                  onChange={e => setLeadCount(+e.target.value)}
-                  style={{flex:1, accentColor:'var(--blue)'}}/>
-                <span style={{fontSize:28, fontWeight:800, fontFamily:'var(--font-mono)', color:'var(--blue)', minWidth:60}}>{leadCount}</span>
-              </div>
-              <div style={{marginTop:10, padding:'8px 12px', borderRadius:6, fontSize:12,
-                background: leadCount > 300 ? 'rgba(255,170,0,0.08)' : 'rgba(0,255,128,0.06)',
-                border: `1px solid ${leadCount > 300 ? 'var(--amber)' : 'var(--green)'}`,
-                color: leadCount > 300 ? 'var(--amber)' : 'var(--green)'}}>
-                {leadCount <= 100 && 'Low volume — good for testing. All channels safe.'}
-                {leadCount > 100 && leadCount <= 200 && 'Standard. Stays within safe WhatsApp daily limits.'}
-                {leadCount > 200 && leadCount <= 300 && 'Medium batch. Engine paces delivery over 2 days.'}
-                {leadCount > 300 && 'Large batch. Engine paces over 3–5 days to protect deliverability.'}
-              </div>
-              <div style={{fontSize:11, color:'var(--muted)', marginTop:6}}>
-                Safe daily limit: <strong style={{color:'var(--fg)'}}>{Math.min(200, leadCount)} contacts/day</strong>
-              </div>
-            </div>
-
-            {/* Combined capability summary */}
-            {(sources.google_maps || sources.apollo) && (
-              <div style={{background:'var(--s2)',borderRadius:8,padding:'12px 16px',fontSize:12}}>
-                <div style={{fontWeight:600,marginBottom:8,color:'var(--text)'}}>What you'll get per lead:</div>
-                <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
-                  {sources.google_maps && (
-                    <div>
-                      <div style={{color:'var(--green)',fontWeight:600,marginBottom:4}}>📍 From Google Maps</div>
-                      {['Business name','Phone / WhatsApp','Address','Website'].map(f=><div key={f}>· {f}</div>)}
-                    </div>
-                  )}
-                  {sources.apollo && (
-                    <div>
-                      <div style={{color:'var(--blue)',fontWeight:600,marginBottom:4}}>🔭 From Apollo</div>
-                      {['Decision maker name','Job title','Work email','LinkedIn URL'].map(f=><div key={f}>· {f}</div>)}
-                    </div>
-                  )}
-                </div>
-                <div style={{marginTop:10,padding:'8px 10px',background:'var(--s1)',borderRadius:6,color:'var(--text)'}}>
-                  <strong>Combined:</strong> WhatsApp the business number + Email the decision maker directly
-                </div>
-              </div>
-            )}
+          <div style={{fontSize:11,color:'var(--muted)',marginTop:8}}>
+            Sequence: {CHANNELS.find(c => c.id === qChannel)?.sequence.map(s => `${s.type} Day ${s.day}`).join(' → ')}
           </div>
-        )}
+        </div>
 
-        {/* ── Step 3: Review & Launch ── */}
-        {step===3 && (
-          <div className="flex-col gap-5">
-            {/* Campaign summary */}
-            <div style={{background:'var(--s2)',borderRadius:10,padding:'16px 18px'}}>
-              <div style={{fontWeight:600,marginBottom:14,fontSize:13}}>Campaign Summary</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,fontSize:12}}>
-                <div><span style={{color:'var(--muted)'}}>Business: </span><strong>{selBiz?.name || '—'}</strong></div>
-                <div><span style={{color:'var(--muted)'}}>Channels: </span><strong>{channelDef?.label}</strong> <span style={{fontSize:14}}>{channelDef?.icon}</span></div>
-                <div><span style={{color:'var(--muted)'}}>Lead sources: </span><strong>{[sources.google_maps&&'Google Maps',sources.apollo&&'Apollo',sources.manual&&`CSV (${csvLeads.length} leads)`].filter(Boolean).join(' + ') || 'Manual'}</strong></div>
-                <div><span style={{color:'var(--muted)'}}>From: </span><strong>{fromName} &lt;{fromEmail}&gt;</strong></div>
-                <div><span style={{color:'var(--muted)'}}>Sequence: </span><strong>{seqSteps.length} steps over {seqSteps[seqSteps.length-1]?.day || 0} days</strong></div>
-                <div><span style={{color:'var(--muted)'}}>Region: </span><strong>{region}</strong></div>
-              </div>
-
-              <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid var(--border)'}}>
-                <div style={{fontWeight:500,fontSize:12,marginBottom:8,color:'var(--muted)'}}>WHAT HAPPENS AFTER APPROVAL:</div>
-                <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                  {sources.google_maps && keyword && (
-                    <div style={{fontSize:12,display:'flex',gap:8}}>
-                      <span style={{color:'var(--green)'}}>1.</span>
-                      <span>Scrape businesses matching <strong>"{keyword}"</strong> in {gmCity} ({radius}km radius) from Google Maps → saves phone/WhatsApp numbers</span>
-                    </div>
-                  )}
-                  {sources.apollo && (
-                    <div style={{fontSize:12,display:'flex',gap:8}}>
-                      <span style={{color:'var(--blue)'}}>{sources.google_maps ? '2.' : '1.'}</span>
-                      <span>Find <strong>{tags.join(', ')}</strong> contacts in {apolloCity} from Apollo → saves work emails</span>
-                    </div>
-                  )}
-                  {seqSteps.map((s,i) => (
-                    <div key={i} style={{fontSize:12,display:'flex',gap:8}}>
-                      <span style={{color:'var(--text)'}}>{(sources.google_maps?1:0)+(sources.apollo?1:0)+i+1}.</span>
-                      <span>{s.icon} <strong>{i===0?'Immediately':`Day ${s.day}`}</strong>: {s.desc} to each lead</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Email prompt editor — only if email channel selected */}
-            {hasEmail && (
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-                <div className="flex-col gap-3">
-                  <div style={{fontWeight:600,fontSize:13}}>Email Prompt (AI will use this)</div>
-                  <textarea className="input mono" style={{minHeight:180,fontSize:11,lineHeight:1.8}} value={prompt} onChange={e=>setPrompt(e.target.value)}/>
-                  <div>
-                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>Click to insert variable:</div>
-                    {['{{first_name}}','{{company}}','{{industry}}','{{title}}','{{language}}','{{location}}'].map(v => (
-                      <span key={v} className="chip" style={{margin:'0 4px 4px 0',cursor:'pointer',fontSize:10}} onClick={() => setPrompt(p=>p+' '+v)}>{v}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-col gap-3">
-                  <div style={{fontWeight:600,fontSize:13}}>Preview Generated Email</div>
-                  <button className="btn btn-primary btn-sm" onClick={doPreview}>
-                    {previewing ? <><span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> Generating…</> : '⚡ Generate Preview'}
-                  </button>
-                  {previewing && <div className="shimmer" style={{height:160,borderRadius:8}}/>}
-                  {previewDone && !previewing && (
-                    <div style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:8,padding:12,fontSize:12,lineHeight:1.8,maxHeight:200,overflowY:'auto'}}>
-                      <div style={{fontWeight:600,marginBottom:6,color:'var(--text)'}}>Subject: {previewEmail?.subject}</div>
-                      <div style={{color:'var(--muted)',whiteSpace:'pre-line'}}>{previewEmail?.body}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Nav buttons */}
-      <div className="flex items-center justify-between mt-4 fade-up-3" style={{maxWidth:860}}>
-        <button className="btn btn-ghost" onClick={() => setStep(s=>Math.max(0,s-1))} disabled={step===0}>← Back</button>
-        <span className="mono text-muted text-sm">Step {step+1} of {steps.length}</span>
-        {step < steps.length-1
-          ? <button className="btn btn-primary" disabled={step===0 && !bizSel} onClick={() => setStep(s=>s+1)}>Continue →</button>
-          : <button className="btn btn-green" disabled={!bizSel} onClick={doCreate}>🚀 Launch Campaign</button>
-        }
+        <button
+          className="btn btn-blue"
+          style={{padding:'12px 0',fontSize:15,fontWeight:700,borderRadius:10}}
+          disabled={qCreating || !qBiz || !qName.trim()}
+          onClick={doQuickCreate}
+        >
+          {qCreating ? <><Spinner /> Creating…</> : '🎯 Create Campaign & Open Pipeline'}
+        </button>
       </div>
     </div>
   );
