@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
@@ -60,6 +60,20 @@ export function NewCampaign() {
   })();
 
   const steps = ['Business & Campaign', 'Channel & Sequence', 'Lead Sources', 'Review & Launch'];
+  const GEN_STEPS = [
+    'Analyzing your business brief...',
+    'Selecting optimal channels...',
+    'Building outreach sequence...',
+    'Configuring lead sources...',
+    'Finalizing campaign...',
+  ];
+
+  const [entryMode, setEntryMode] = useState(null);
+  const [goalText, setGoalText] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genStep, setGenStep] = useState(0);
+  const [aiCampaignResult, setAiCampaignResult] = useState(null);
+  const genTimerRef = useRef(null);
 
   const [step, setStep] = useState(0);
   const [bizSel, setBizSel] = useState(null);
@@ -164,6 +178,55 @@ export function NewCampaign() {
   const selBiz = businesses.find(b => b.id === bizSel);
   const channelDef = CHANNEL_OPTIONS.find(c => c.id === channelOpt);
   const hasEmail = seqSteps.some(s => s.type === 'email');
+
+  const doFastGenerate = async () => {
+    if (!bizSel || goalText.trim().length < 20) return;
+    setGenerating(true);
+    setGenStep(0);
+    let step = 0;
+    genTimerRef.current = setInterval(() => {
+      step++;
+      setGenStep(step);
+      if (step >= GEN_STEPS.length) clearInterval(genTimerRef.current);
+    }, 700);
+    try {
+      const result = await apiFetch('/ai/generate-campaign', { method: 'POST', body: { bizId: bizSel, goal: goalText } });
+      clearInterval(genTimerRef.current);
+      setGenStep(GEN_STEPS.length);
+      setAiCampaignResult(result);
+    } catch (e) {
+      clearInterval(genTimerRef.current);
+      showToast(e.message || 'Failed to generate campaign', 'red');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const doFastCreate = async () => {
+    const r = aiCampaignResult;
+    const selBizData = businesses.find(b => b.id === bizSel);
+    try {
+      await addCampaign({
+        bizId: bizSel,
+        bizName: selBizData?.name || 'Unknown',
+        name: r.name || `${selBizData?.name || 'Campaign'} AI Build`,
+        status: 'awaiting_approval',
+        color: selBizData?.color || 'blue',
+        leads: 0,
+        total: r.total || 200,
+        hot: 0,
+        spend: 'RM 0',
+        open: '0%',
+        wa: '-',
+        channels: r.channels || [],
+        sequence: r.sequence || [],
+        config: r.config || {},
+      });
+      setCreated(true);
+    } catch (e) {
+      showToast(`Failed to save campaign: ${e.message}`, 'red');
+    }
+  };
 
   const doPreview = async () => {
     setPreviewing(true);
@@ -328,10 +391,216 @@ export function NewCampaign() {
     </div>
   );
 
+  const PageHeader = ({ onBack }) => (
+    <div className="flex items-center gap-3 mb-4 fade-up">
+      <button className="btn btn-ghost btn-sm" onClick={onBack || (() => setPage('campaigns'))}>← Back</button>
+      <div>
+        <div className="breadcrumb">Campaigns / <span>New Campaign</span></div>
+        <h1 className="page-title" style={{marginTop:2}}>Campaign Builder</h1>
+      </div>
+    </div>
+  );
+
+  if (entryMode === null) return (
+    <div className="page">
+      <PageHeader />
+      <div style={{maxWidth:720,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontSize:13,color:'var(--muted)'}}>How would you like to build this campaign?</div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          {[
+            {
+              mode:'fast', label:'Tell AI what you want', icon:'⚡',
+              color:'green', desc:'Describe your goal in plain English — AI builds the complete campaign in seconds',
+              bullets:['AI picks the right channels','Auto-configures the sequence','Selects lead sources automatically'],
+            },
+            {
+              mode:'manual', label:'Build step by step', icon:'◈',
+              color:'blue', desc:'Configure each detail manually with full control over channels, sequence, and settings',
+              bullets:['Choose channels manually','Customize every sequence step','Full lead source control'],
+            },
+          ].map(card => (
+            <div
+              key={card.mode}
+              onClick={() => setEntryMode(card.mode)}
+              style={{
+                border:`2px solid var(--${card.color})`,
+                borderRadius:12,padding:'28px 24px',cursor:'pointer',
+                background:`oklch(from var(--${card.color}) l c h / 0.05)`,
+                transition:'all 0.15s',minHeight:220,display:'flex',flexDirection:'column',gap:12,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = `oklch(from var(--${card.color}) l c h / 0.1)`}
+              onMouseLeave={e => e.currentTarget.style.background = `oklch(from var(--${card.color}) l c h / 0.05)`}
+            >
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:22,color:`var(--${card.color})`}}>{card.icon}</span>
+                <div style={{fontWeight:700,fontSize:15,color:`var(--${card.color})`}}>{card.label}</div>
+              </div>
+              <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.6}}>{card.desc}</div>
+              <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:5}}>
+                {card.bullets.map(b => (
+                  <div key={b} style={{fontSize:12,color:'var(--text)',display:'flex',gap:6,alignItems:'flex-start'}}>
+                    <span style={{color:`var(--${card.color})`,flexShrink:0}}>✓</span>{b}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (entryMode === 'fast') {
+    if (generating) return (
+      <div className="page">
+        <PageHeader onBack={() => { setEntryMode(null); setGenerating(false); setAiCampaignResult(null); }} />
+        <div style={{maxWidth:500,margin:'40px auto',textAlign:'center'}}>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:24,color:'var(--text)'}}>Building your campaign...</div>
+          <div className="card" style={{padding:'24px 28px',textAlign:'left'}}>
+            {GEN_STEPS.map((s, i) => (
+              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:i<GEN_STEPS.length-1?'1px solid var(--border)':'none'}}>
+                <span style={{width:20,textAlign:'center',fontSize:13,color:i<genStep?'var(--green)':i===genStep?'var(--blue)':'var(--muted)'}}>
+                  {i < genStep ? '✓' : i === genStep ? <span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>◌</span> : '○'}
+                </span>
+                <span style={{fontSize:13,color:i<genStep?'var(--text)':i===genStep?'var(--text)':'var(--muted)',fontWeight:i===genStep?500:400}}>
+                  {s}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    if (aiCampaignResult) {
+      const r = aiCampaignResult;
+      const chIcon = r.channel === 'full' ? '💬📧📞' : r.channel === 'wa_email' ? '💬📧' : '💬';
+      return (
+        <div className="page">
+          <PageHeader onBack={() => { setAiCampaignResult(null); setGoalText(''); }} />
+          <div style={{maxWidth:700}}>
+            <div style={{background:'var(--green-dim)',border:'1px solid var(--green)',borderRadius:8,padding:'10px 16px',marginBottom:20,display:'flex',gap:10,alignItems:'center',fontSize:13,color:'var(--green)'}}>
+              <span>✓</span><span>Campaign built by AI — review and launch when ready</span>
+            </div>
+            <div className="card fade-up" style={{marginBottom:16}}>
+              <div style={{fontWeight:600,marginBottom:12}}>Campaign Details</div>
+              <div className="grid-2" style={{gap:12,marginBottom:12}}>
+                <div>
+                  <label className="label">Campaign Name</label>
+                  <input className="input" value={r.name || ''} onChange={e => setAiCampaignResult(prev => ({...prev, name: e.target.value}))}/>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                  <label className="label">Channel Strategy</label>
+                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'var(--s2)',borderRadius:6}}>
+                    <span style={{fontSize:18}}>{chIcon}</span>
+                    <span style={{fontSize:13,fontWeight:500,textTransform:'uppercase'}}>{r.channel}</span>
+                  </div>
+                </div>
+              </div>
+              {r.reasoning && (
+                <div style={{background:'var(--s2)',borderRadius:6,padding:'10px 14px',fontSize:12,color:'var(--muted)',lineHeight:1.6}}>
+                  <span style={{color:'var(--text)',fontWeight:500}}>AI Reasoning: </span>{r.reasoning}
+                </div>
+              )}
+            </div>
+            <div className="card fade-up-1" style={{marginBottom:16}}>
+              <div style={{fontWeight:600,marginBottom:12}}>Outreach Sequence</div>
+              <div className="seq-timeline">
+                {(r.sequence || []).map((s, i) => (
+                  <div key={i} className="seq-stage">
+                    <div className={`seq-dot ${i===0?'active':'pending'}`}>{s.type==='email'?'📧':s.type==='call'?'📞':'💬'}</div>
+                    <div className="seq-body">
+                      <span style={{fontWeight:500,fontSize:13}}>Day {s.day} — {s.type.toUpperCase()}</span>
+                      {s.skipIfReplied && <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>Skip if replied</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {r.config && (
+              <div className="card fade-up-2" style={{marginBottom:20}}>
+                <div style={{fontWeight:600,marginBottom:12}}>Lead Sources</div>
+                {r.config.google_maps && (
+                  <div style={{marginBottom:8,fontSize:13}}>
+                    <span style={{color:'var(--green)',marginRight:6}}>📍 Google Maps:</span>
+                    <strong>"{r.config.google_maps.keyword}"</strong> in {r.config.google_maps.city} — {r.config.google_maps.limit} leads
+                  </div>
+                )}
+                {r.config.apollo && (
+                  <div style={{fontSize:13}}>
+                    <span style={{color:'var(--blue)',marginRight:6}}>🔭 Apollo:</span>
+                    <strong>{(r.config.apollo.job_titles || []).join(', ')}</strong> — {r.config.apollo.limit} leads
+                  </div>
+                )}
+                <div style={{marginTop:8,fontSize:12,color:'var(--muted)'}}>Target: {r.total || 200} leads</div>
+              </div>
+            )}
+            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+              <button className="btn btn-green" onClick={doFastCreate}>🚀 Launch Campaign</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setAiCampaignResult(null); setGoalText(''); }}>← Regenerate</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setEntryMode('manual'); setAiCampaignResult(null); }}>Switch to Manual</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="page">
+        <PageHeader onBack={() => setEntryMode(null)} />
+        <div style={{maxWidth:640}}>
+          <div className="card fade-up">
+            <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>Select Business</div>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Which client are we building this campaign for?</div>
+            <div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:16}}>
+              {businesses.filter(b => b.brief === 'approved').map(b => (
+                <div key={b.id} className={`radio-card${bizSel===b.id?' selected':''}`} style={{flex:'none'}}
+                  onClick={() => setBizSel(b.id)}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <BizAvatar id={b.id} name={b.name} color={b.color} size={24}/>
+                    <div><div className="radio-card-title">{b.name}</div><div className="radio-card-sub">{b.industry}</div></div>
+                  </div>
+                </div>
+              ))}
+              {businesses.filter(b => b.brief === 'approved').length === 0 && (
+                <div style={{color:'var(--muted)',fontSize:13}}>No approved businesses yet — add a business first.</div>
+              )}
+            </div>
+            <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>What do you want this campaign to achieve?</div>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:10}}>Describe your goal in plain English. Be specific — mention target audience, location, and desired outcome.</div>
+            <textarea
+              className="input"
+              rows={4}
+              style={{width:'100%',resize:'vertical',lineHeight:1.7,fontSize:13}}
+              placeholder="e.g. Find 200 property managers in Kuching who need landscaping services. WhatsApp them first, then email if no reply within 3 days."
+              value={goalText}
+              onChange={e => setGoalText(e.target.value)}
+            />
+            <div style={{marginTop:8,fontSize:11,color:'var(--muted)',textAlign:'right'}}>{goalText.length} chars</div>
+            <div style={{marginTop:16,display:'flex',gap:10}}>
+              <button
+                className="btn btn-green"
+                disabled={!bizSel || goalText.trim().length < 20}
+                onClick={doFastGenerate}
+              >
+                ⚡ Generate Campaign
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEntryMode(null)}>← Change Mode</button>
+            </div>
+            {!bizSel && <div style={{fontSize:11,color:'var(--amber)',marginTop:8}}>Select a business first</div>}
+            {bizSel && goalText.trim().length < 20 && goalText.length > 0 && <div style={{fontSize:11,color:'var(--muted)',marginTop:8}}>Keep going — describe your goal in more detail</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="flex items-center gap-3 mb-4 fade-up">
-        <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>← Back</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setEntryMode(null)}>← Back</button>
         <div>
           <div className="breadcrumb">Campaigns / <span>New Campaign</span></div>
           <h1 className="page-title" style={{marginTop:2}}>Campaign Builder</h1>

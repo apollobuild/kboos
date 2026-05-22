@@ -7,6 +7,20 @@ import { apiFetch } from '../services/api.js';
 
 const PAGE_SIZE = 8;
 
+function gradeColor(grade) {
+  if (grade === 'A' || grade === 'B+') return 'var(--green)';
+  if (grade === 'B' || grade === 'C') return 'var(--amber)';
+  if (grade === 'D') return 'var(--red)';
+  return 'var(--muted)';
+}
+
+function gradeBorder(grade) {
+  if (grade === 'A' || grade === 'B+') return '3px solid var(--green)';
+  if (grade === 'B' || grade === 'C') return '3px solid var(--amber)';
+  if (grade === 'D') return '3px solid var(--red)';
+  return undefined;
+}
+
 export function AllCampaigns() {
   const { campaigns, toggleCampaign, updateCampaign, removeCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
     campaigns:s.campaigns, toggleCampaign:s.toggleCampaign, updateCampaign:s.updateCampaign, removeCampaign:s.removeCampaign, showToast:s.showToast, setPage:s.setPage,
@@ -18,6 +32,36 @@ export function AllCampaigns() {
   const [togglingId, setTogglingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [aiInsights, setAiInsights] = useState({});
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [showInsights, setShowInsights] = useState(true);
+  const [briefOpen, setBriefOpen] = useState(true);
+
+  const loadAiInsights = async () => {
+    const targets = campaigns
+      .filter(c => c.status === 'active' || c.status === 'running')
+      .slice(0, 5);
+    if (targets.length === 0) return;
+    setLoadingInsights(true);
+    try {
+      const results = await Promise.all(
+        targets.map(c =>
+          apiFetch('/ai/campaign-performance/' + c.id)
+            .then(r => ({ id: c.id, data: r }))
+            .catch(() => ({ id: c.id, data: null }))
+        )
+      );
+      const map = {};
+      for (const r of results) {
+        if (r.data) map[r.id] = r.data;
+      }
+      setAiInsights(map);
+      setShowInsights(true);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
 
   const doPause = async (id) => {
     setTogglingId(id);
@@ -85,6 +129,8 @@ export function AllCampaigns() {
   const total = filtered.length;
   const paged = filtered.slice(pg * PAGE_SIZE, (pg + 1) * PAGE_SIZE);
 
+  const hasInsights = Object.keys(aiInsights).length > 0;
+
   return (
     <div className="page">
       <div className="flex items-center justify-between mb-4 fade-up">
@@ -93,6 +139,111 @@ export function AllCampaigns() {
           <h1 className="page-title" style={{marginTop:4}}>All Campaigns</h1>
         </div>
         <button className="btn btn-green" onClick={() => setPage('new-campaign')}>＋ New Campaign</button>
+      </div>
+
+      <div className="card fade-up-1 mb-4" style={{padding:'14px 18px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>AI Campaign Brief</span>
+            {hasInsights && showInsights && (
+              <span style={{fontSize:11,color:'var(--muted)'}}>
+                {Object.keys(aiInsights).length} campaign{Object.keys(aiInsights).length !== 1 ? 's' : ''} analyzed
+              </span>
+            )}
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {hasInsights && showInsights && (
+              <button
+                className="btn btn-ghost btn-xs"
+                onClick={() => { setShowInsights(false); setAiInsights({}); }}
+              >
+                Dismiss
+              </button>
+            )}
+            <button
+              className="btn btn-ghost btn-xs"
+              onClick={() => setBriefOpen(o => !o)}
+              style={{fontSize:12,color:'var(--muted)'}}
+            >
+              {briefOpen ? '▲ Collapse' : '▼ Expand'}
+            </button>
+          </div>
+        </div>
+
+        {briefOpen && (
+          <div style={{marginTop:12}}>
+            {!hasInsights || !showInsights ? (
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <button
+                  className="btn btn-ghost btn-xs"
+                  style={{fontSize:12,padding:'5px 14px',border:'1px solid var(--border)'}}
+                  disabled={loadingInsights}
+                  onClick={loadAiInsights}
+                >
+                  {loadingInsights ? (
+                    <span style={{display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{display:'inline-block',width:12,height:12,border:'2px solid var(--muted)',borderTopColor:'var(--text)',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
+                      Loading AI Insights…
+                    </span>
+                  ) : 'Load AI Insights'}
+                </button>
+                {!loadingInsights && (
+                  <span style={{fontSize:11,color:'var(--muted)'}}>
+                    Analyzes up to 5 active campaigns
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
+                {Object.entries(aiInsights).map(([cid, insight]) => {
+                  const camp = campaigns.find(x => x.id === cid);
+                  const grade = insight?.grade;
+                  const color = gradeColor(grade);
+                  return (
+                    <div
+                      key={cid}
+                      style={{
+                        background:'var(--s2)',
+                        border:'1px solid var(--border)',
+                        borderLeft:`3px solid ${color}`,
+                        borderRadius:8,
+                        padding:'10px 14px',
+                        minWidth:220,
+                        maxWidth:280,
+                        flex:'1 1 220px',
+                      }}
+                    >
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                        <span style={{fontSize:12,fontWeight:600,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>
+                          {camp?.name || cid}
+                        </span>
+                        <span style={{
+                          fontSize:11,fontWeight:700,color:'#fff',
+                          background:color,
+                          borderRadius:4,padding:'1px 7px',
+                          flexShrink:0,marginLeft:6,
+                        }}>
+                          {grade || '?'}
+                        </span>
+                      </div>
+                      {insight?.topInsight && (
+                        <div style={{fontSize:11,color:'var(--muted)',lineHeight:1.5,marginBottom:6}}>
+                          {insight.topInsight}
+                        </div>
+                      )}
+                      {insight?.actions?.slice(0, 2).map((action, i) => (
+                        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'var(--text)',marginTop:3}}>
+                          <span style={{color:color,flexShrink:0,marginTop:1}}>›</span>
+                          <span>{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="tabs fade-up-1 mb-4">
@@ -107,6 +258,7 @@ export function AllCampaigns() {
             <thead>
               <tr>
                 <th>Campaign</th><th>Business</th><th>Status</th>
+                <th>AI Grade</th>
                 <th style={{minWidth:140}}>Progress</th>
                 <th>Engine</th>
                 <th>Hot</th><th>Open Rate</th><th>WA Resp</th><th>Spend</th><th>Channels</th><th>Actions</th>
@@ -116,14 +268,37 @@ export function AllCampaigns() {
               {paged.map(c => {
                 const pct = c.total > 0 ? Math.round((c.leads / c.total) * 100) : 0;
                 const isToggling = togglingId === c.id;
+                const insight = aiInsights[c.id];
+                const grade = insight?.grade;
+                const border = gradeBorder(grade);
+                const isAwaiting = c.status === 'awaiting_approval' || c.status === 'awaiting_launch' || c.status === 'enriching';
+                const rowStyle = {
+                  opacity: c.status === 'paused' ? 0.7 : 1,
+                  ...(border ? { borderLeft: border } : {}),
+                  ...(isAwaiting ? { background: 'oklch(65% 0.2 55 / 0.06)' } : {}),
+                };
                 return (
-                  <tr key={c.id} className={c.status==='awaiting_approval'?'row-awaiting':''} style={{opacity:c.status==='paused'?0.7:1}}>
+                  <tr key={c.id} className={c.status==='awaiting_approval'?'row-awaiting':''} style={rowStyle}>
                     <td>
                       <div style={{fontWeight:500,fontSize:13}}>{c.name}</div>
                       <div style={{fontSize:11,color:'var(--muted)'}}>{c.bizName}</div>
                     </td>
                     <td><BizAvatar id={c.bizId} name={c.bizName} color={c.color} size={24}/></td>
                     <td><CampaignBadge status={c.status}/></td>
+                    <td>
+                      {grade ? (
+                        <span style={{
+                          fontSize:11,fontWeight:700,color:'#fff',
+                          background:gradeColor(grade),
+                          borderRadius:4,padding:'2px 8px',
+                          display:'inline-block',
+                        }}>
+                          {grade}
+                        </span>
+                      ) : (
+                        <span style={{color:'var(--muted)'}}>—</span>
+                      )}
+                    </td>
                     <td>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
                         <div className="prog-bar" style={{flex:1}}>
@@ -179,7 +354,7 @@ export function AllCampaigns() {
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
+                  <td colSpan={12} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
                     No campaigns found
                   </td>
                 </tr>
@@ -196,7 +371,6 @@ export function AllCampaigns() {
         </div>
       </div>
 
-      {/* Delete confirm modal */}
       {confirmDelete !== null && (
         <div
           style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}
