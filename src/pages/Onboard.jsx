@@ -147,7 +147,7 @@ function KboosLogo() {
 }
 
 export function Onboard() {
-  const token = window.location.pathname.split('/onboard/')[1]?.split('?')[0];
+  const token = window.location.pathname.split('/Onboarding/')[1]?.split('?')[0];
   const [lang, setLang] = useState('EN');
   const t = T[lang];
   const [bizName, setBizName] = useState('');

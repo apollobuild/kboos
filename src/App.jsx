@@ -60,7 +60,7 @@ const PAGE_MAP = {
 const MAX_RETRIES = 3;
 
 export default function App() {
-  if (window.location.pathname.startsWith('/onboard/')) {
+  if (window.location.pathname.startsWith('/Onboarding/')) {
     return <Onboard />;
   }
   if (window.location.pathname === '/try' || window.location.pathname === '/demo') {
