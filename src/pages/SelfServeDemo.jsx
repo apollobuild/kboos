@@ -14,124 +14,173 @@ const INDUSTRIES = [
 const T = {
   EN: {
     badge: 'FREE LIVE DEMO',
-    headline: 'See KBOOS Send a Real Message\nTo You — Right Now.',
-    sub: 'Fill in your details. AI generates personalised outreach for your business. It arrives on your phone and email in minutes.',
+    headline: 'AI Is About to Send You a WhatsApp, an Email — and Call Your Phone.',
+    sub: 'Fill in your details. In under 3 minutes, personalised outreach fires across all 3 channels — written by Claude AI, delivered live. This is exactly what your prospects will experience.',
+    channels: [
+      { icon: '💬', label: 'WhatsApp', desc: 'Hits their phone instantly' },
+      { icon: '📧', label: 'Email', desc: 'Professional, personalised' },
+      { icon: '📞', label: 'AI Call', desc: 'Voice agent books the meeting' },
+    ],
     name: 'Your Name', namePh: 'Ahmad Razif',
     company: 'Company Name', companyPh: 'XYZ Sdn Bhd',
     industry: 'Your Industry',
+    city: 'Your City', cityPh: 'Kuala Lumpur',
+    role: 'Your Role', rolePh: 'CEO / Director',
     phone: 'Your Phone (WhatsApp)', phonePh: '+60 12-345 6789',
     email: 'Your Email', emailPh: 'you@company.com',
-    challenge: 'Biggest challenge getting new clients? (optional)', challengePh: 'e.g. Referrals are slowing down. Team too busy for follow-ups.',
-    generate: 'Generate My Demo →',
-    generating: 'AI is writing your messages…',
-    previewTitle: 'Your Personalised Outreach — Ready to Send',
-    previewSub: 'This is what will arrive on your phone and email. Review it, then confirm.',
-    whatsapp: 'WhatsApp Message',
+    challenge: 'Biggest challenge getting new clients? (optional)', challengePh: 'e.g. Referrals slowing down. Too busy to follow up. No system.',
+    generate: 'Generate My Demo — Fire All 3 Channels →',
+    generating: 'Claude AI is writing your messages…',
+    previewTitle: 'Your Personalised Outreach — Ready to Fire',
+    previewSub: 'Review what\'s about to hit your phone, email, and be called by AI. Then confirm.',
+    whatsapp: 'WhatsApp',
     email: 'Email',
     subject: 'Subject:',
-    consent: 'I agree to receive a WhatsApp, email, and an AI voice call as part of this demo.',
-    send: '🚀 Send WhatsApp + Email + AI Call →',
-    sending: 'Firing all channels…',
-    doneTitle: 'It\'s Live. Check Everything.',
-    doneSub: "WhatsApp and email just hit your phone. An AI voice agent is calling you right now — answer it and experience exactly what your prospects will feel.",
-    doneWa: '✓ WhatsApp sent',
-    doneEmail: '✓ Email sent',
+    consent: 'I agree to receive a WhatsApp message, email, and AI voice call as part of this live demo.',
+    send: '🚀 Fire All 3 Channels Now →',
+    sending: 'Firing all 3 channels…',
+    doneTitle: "Check Your Phone — It's Live.",
+    doneSub: 'Your WhatsApp and email just landed. An AI voice agent is calling your number right now — answer it and feel exactly what your prospects will experience.',
+    doneWa: '✓ WhatsApp delivered',
+    doneEmail: '✓ Email delivered',
     doneVoice: '📞 AI calling now…',
     doneVoiceErr: '✗ Call failed',
     doneWaErr: '✗ WhatsApp failed',
     doneEmailErr: '✗ Email failed',
-    voiceNote: '📞 An AI agent will also call your number — answer to experience the full system',
-    bookCall: 'Book a Call with KOBIS →',
+    voiceNote: '📞 An AI voice agent will also call your number right after — answer to feel the full experience',
+    bookCall: 'Want This for Your Business? Book a Call →',
     tryAgain: 'Try Again',
     rateLimited: 'One demo per phone number per 24 hours.',
     poweredBy: 'Powered by Claude AI · Built by KOBIS Berhad',
-    stats: ['23% avg reply rate', '3× industry average', 'First replies in 48 hrs', '7-day guarantee'],
+    stats: [
+      { text: '23% avg reply rate', color: 'green' },
+      { text: '3× industry average', color: 'blue' },
+      { text: 'First replies in 48 hrs', color: 'amber' },
+      { text: '7-day money-back', color: 'green' },
+    ],
     required: 'Please fill in Name, Company, Phone, and Email.',
     phoneFormat: 'Enter phone in format: +601X-XXXXXXX',
   },
   MS: {
     badge: 'DEMO PERCUMA',
-    headline: 'Lihat KBOOS Hantar Mesej Sebenar\nKepada Anda — Sekarang.',
-    sub: 'Isi maklumat anda. AI hasilkan jangkauan peribadi untuk perniagaan anda. Tiba di telefon dan e-mel anda dalam beberapa minit.',
+    headline: 'AI Akan Hantar WhatsApp, E-mel — dan Telefon Anda Sekarang.',
+    sub: 'Isi maklumat anda. Dalam 3 minit, jangkauan peribadi akan tiba di 3 saluran — ditulis oleh Claude AI, dihantar secara langsung. Ini pengalaman sebenar pelanggan anda.',
+    channels: [
+      { icon: '💬', label: 'WhatsApp', desc: 'Tiba di telefon serta-merta' },
+      { icon: '📧', label: 'E-mel', desc: 'Profesional, diperibadikan' },
+      { icon: '📞', label: 'Panggilan AI', desc: 'Ejen suara tempah temujanji' },
+    ],
     name: 'Nama Anda', namePh: 'Ahmad Razif',
     company: 'Nama Syarikat', companyPh: 'XYZ Sdn Bhd',
     industry: 'Industri Anda',
-    phone: 'Telefon Anda (WhatsApp)', phonePh: '+60 12-345 6789',
+    city: 'Bandar Anda', cityPh: 'Kuala Lumpur',
+    role: 'Jawatan Anda', rolePh: 'Pengurus / Pengarah',
+    phone: 'Telefon (WhatsApp)', phonePh: '+60 12-345 6789',
     email: 'E-mel Anda', emailPh: 'anda@syarikat.com',
-    challenge: 'Cabaran terbesar mendapatkan pelanggan baru? (pilihan)', challengePh: 'cth. Rujukan semakin berkurangan. Pasukan terlalu sibuk.',
-    generate: 'Jana Demo Saya →',
-    generating: 'AI sedang menulis mesej anda…',
-    previewTitle: 'Jangkauan Peribadi Anda — Sedia untuk Dihantar',
-    previewSub: 'Ini yang akan tiba di telefon dan e-mel anda. Semak, kemudian sahkan.',
-    whatsapp: 'Mesej WhatsApp',
+    challenge: 'Cabaran terbesar mendapat pelanggan baru? (pilihan)', challengePh: 'cth. Rujukan semakin berkurangan. Tiada sistem susulan.',
+    generate: 'Jana Demo Saya — Tembak 3 Saluran →',
+    generating: 'Claude AI sedang menulis mesej anda…',
+    previewTitle: 'Jangkauan Peribadi Anda — Sedia Dihantar',
+    previewSub: 'Semak apa yang akan tiba di telefon, e-mel dan panggilan AI anda. Kemudian sahkan.',
+    whatsapp: 'WhatsApp',
     email: 'E-mel',
     subject: 'Tajuk:',
-    consent: 'Saya bersetuju menerima WhatsApp, e-mel, dan panggilan suara AI sebagai sebahagian daripada demo ini.',
-    send: '🚀 Hantar WA + E-mel + Panggilan AI →',
-    sending: 'Menghantar semua saluran…',
-    doneTitle: 'Ia Hidup. Semak Semua.',
-    doneSub: 'WhatsApp dan e-mel baru sahaja tiba di telefon anda. Ejen suara AI sedang menghubungi anda sekarang — angkat untuk rasai sistem penuh.',
+    consent: 'Saya bersetuju menerima WhatsApp, e-mel dan panggilan suara AI sebagai demo langsung.',
+    send: '🚀 Tembak 3 Saluran Sekarang →',
+    sending: 'Menghantar 3 saluran…',
+    doneTitle: 'Semak Telefon Anda — Ia Hidup.',
+    doneSub: 'WhatsApp dan e-mel anda baru sahaja tiba. Ejen suara AI sedang menghubungi nombor anda sekarang — angkat untuk rasai pengalaman penuh.',
     doneWa: '✓ WhatsApp dihantar',
     doneEmail: '✓ E-mel dihantar',
     doneVoice: '📞 AI memanggil sekarang…',
     doneVoiceErr: '✗ Panggilan gagal',
     doneWaErr: '✗ WhatsApp gagal',
     doneEmailErr: '✗ E-mel gagal',
-    voiceNote: '📞 Ejen AI juga akan menghubungi nombor anda — angkat untuk rasai sistem penuh',
-    bookCall: 'Tempah Panggilan dengan KOBIS →',
+    voiceNote: '📞 Ejen AI juga akan menghubungi nombor anda selepas ini — angkat untuk rasai sistem penuh',
+    bookCall: 'Mahu Ini untuk Perniagaan Anda? Tempah Panggilan →',
     tryAgain: 'Cuba Lagi',
     rateLimited: 'Satu demo per nombor telefon setiap 24 jam.',
     poweredBy: 'Dikuasakan oleh Claude AI · Dibina oleh KOBIS Berhad',
-    stats: ['23% kadar balasan avg', '3× purata industri', 'Balasan pertama dalam 48 jam', 'Jaminan 7 hari'],
+    stats: [
+      { text: '23% kadar balasan avg', color: 'green' },
+      { text: '3× purata industri', color: 'blue' },
+      { text: 'Balasan pertama 48 jam', color: 'amber' },
+      { text: 'Jaminan 7 hari', color: 'green' },
+    ],
     required: 'Sila isi Nama, Syarikat, Telefon, dan E-mel.',
     phoneFormat: 'Masukkan telefon dalam format: +601X-XXXXXXX',
   },
   ZH: {
     badge: '免费现场演示',
-    headline: '看KBOOS实时发送真实消息\n直接到您的手机。',
-    sub: '填写您的信息。AI为您的业务生成个性化推广。几分钟内到达您的手机和电子邮件。',
+    headline: 'AI即将向您发送WhatsApp、邮件 — 并打电话给您。',
+    sub: '填写您的信息。在3分钟内，个性化推广将通过全部3个渠道触达您 — 由Claude AI撰写，即时发送。这正是您的客户将体验到的。',
+    channels: [
+      { icon: '💬', label: 'WhatsApp', desc: '即时到达手机' },
+      { icon: '📧', label: '电子邮件', desc: '专业、个性化' },
+      { icon: '📞', label: 'AI通话', desc: '语音代理预约会议' },
+    ],
     name: '您的姓名', namePh: '张大明',
     company: '公司名称', companyPh: 'XYZ有限公司',
     industry: '您的行业',
+    city: '您的城市', cityPh: '吉隆坡',
+    role: '您的职位', rolePh: '总裁 / 总监',
     phone: '您的电话 (WhatsApp)', phonePh: '+60 12-345 6789',
     email: '您的电子邮件', emailPh: 'you@company.com',
-    challenge: '获取新客户的最大挑战？（可选）', challengePh: '例如：转介绍越来越少。团队太忙无法跟进。',
-    generate: '生成我的演示 →',
-    generating: 'AI正在为您撰写消息…',
+    challenge: '获取新客户的最大挑战？（可选）', challengePh: '例如：转介绍越来越少。没有系统跟进。',
+    generate: '生成我的演示 — 激活全部3个渠道 →',
+    generating: 'Claude AI正在为您撰写消息…',
     previewTitle: '您的个性化推广 — 准备发送',
-    previewSub: '这就是将到达您手机和电子邮件的内容。请查看，然后确认。',
-    whatsapp: 'WhatsApp消息',
+    previewSub: '查看即将到达您手机、邮箱和AI通话的内容。然后确认。',
+    whatsapp: 'WhatsApp',
     email: '电子邮件',
     subject: '主题：',
-    consent: '我同意接收此演示的WhatsApp、电子邮件和AI语音通话。',
-    send: '🚀 发送WA + 邮件 + AI通话 →',
-    sending: '正在发送所有渠道…',
-    doneTitle: '已上线，请检查所有内容。',
-    doneSub: 'WhatsApp和电子邮件刚刚到达您的手机。AI语音代理正在现在拨打您的电话——接听以体验完整系统。',
+    consent: '我同意接收WhatsApp消息、电子邮件和AI语音通话作为现场演示。',
+    send: '🚀 立即激活全部3个渠道 →',
+    sending: '正在激活所有渠道…',
+    doneTitle: '查看您的手机 — 已上线。',
+    doneSub: 'WhatsApp和电子邮件刚刚到达您的手机。AI语音代理正在拨打您的电话 — 接听以体验完整系统。',
     doneWa: '✓ WhatsApp已发送',
     doneEmail: '✓ 电子邮件已发送',
     doneVoice: '📞 AI正在拨打…',
     doneVoiceErr: '✗ 通话失败',
     doneWaErr: '✗ WhatsApp发送失败',
     doneEmailErr: '✗ 电子邮件发送失败',
-    voiceNote: '📞 AI代理也将拨打您的号码——接听以体验完整系统',
-    bookCall: '与KOBIS预约通话 →',
+    voiceNote: '📞 AI语音代理也将随后拨打您的号码 — 接听以体验完整系统',
+    bookCall: '想为您的业务使用？立即预约通话 →',
     tryAgain: '重试',
     rateLimited: '每个电话号码每24小时只能演示一次。',
     poweredBy: '由 Claude AI 驱动 · KOBIS Berhad 开发',
-    stats: ['平均23%回复率', '行业平均3倍', '48小时内首次回复', '7天保证'],
+    stats: [
+      { text: '平均23%回复率', color: 'green' },
+      { text: '行业平均3倍', color: 'blue' },
+      { text: '48小时内首次回复', color: 'amber' },
+      { text: '7天退款保证', color: 'green' },
+    ],
     required: '请填写姓名、公司、电话和电子邮件。',
     phoneFormat: '电话格式：+601X-XXXXXXX',
   },
 };
 
-function LogoMark({ size = 26 }) {
+function KboosLogo() {
   return (
-    <svg width={size} height={Math.round(size * 0.72)} viewBox="0 0 28 20" fill="none">
-      <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(65% 0.2 145 / 0.9)" />
-      <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(62% 0.19 245 / 0.7)" />
-      <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(62% 0.19 245 / 0.5)" />
-    </svg>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ display: 'block', animation: 'lpIconPulse 4s ease-in-out infinite' }}>
+        <svg width="32" height="23" viewBox="0 0 28 20" fill="none" style={{ display: 'block', filter: 'drop-shadow(0 0 10px oklch(70% 0.24 145 / 0.8))' }}>
+          <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(75% 0.24 145 / 0.95)" />
+          <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(65% 0.2 210 / 0.8)" />
+          <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(60% 0.2 260 / 0.55)" />
+        </svg>
+      </span>
+      <div>
+        <div style={{
+          fontSize: 18, fontWeight: 900, letterSpacing: '0.12em', lineHeight: 1,
+          background: 'linear-gradient(90deg,oklch(78% 0.22 145) 0%,oklch(72% 0.2 185) 40%,oklch(65% 0.2 245) 70%,oklch(78% 0.22 145) 100%)',
+          backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text', animation: 'lpGradShift 4s linear infinite',
+        }}>KBOOS</div>
+        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 1 }}>Outreach OS</div>
+      </div>
+    </div>
   );
 }
 
@@ -140,7 +189,7 @@ export function SelfServeDemo() {
   const t = T[lang];
 
   const [form, setForm] = useState({
-    name: '', company: '', industry: INDUSTRIES[0], phone: '+60', email: '', challenge: '',
+    name: '', company: '', industry: INDUSTRIES[0], city: '', role: '', phone: '+60', email: '', challenge: '',
   });
   const [step, setStep] = useState('form'); // form | generating | preview | sending | done
   const [preview, setPreview] = useState(null);
@@ -162,7 +211,7 @@ export function SelfServeDemo() {
       const r = await fetch(`${API}/demo/prospect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, company: form.company, industry: form.industry, phone: form.phone, email: form.email, lang, challenge: form.challenge }),
+        body: JSON.stringify({ name: form.name, company: form.company, industry: form.industry, city: form.city, title: form.role, phone: form.phone, email: form.email, lang, challenge: form.challenge }),
       });
       const d = await r.json();
       if (r.status === 429) { setError(t.rateLimited); setStep('form'); return; }
@@ -195,14 +244,13 @@ export function SelfServeDemo() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+      <style>{`
+        @keyframes lpIconPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
+        @keyframes lpGradShift { from{background-position:0% center} to{background-position:200% center} }
+      `}</style>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', borderBottom: '1px solid var(--border)', background: 'var(--s1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <LogoMark size={24} />
-          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', lineHeight: 1.4 }}>
-            OUTREACH OS<br />KOBIS BERHAD
-          </div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--border)', background: 'var(--s1)' }}>
+        <KboosLogo />
         <div style={{ display: 'flex', gap: '2px', background: 'var(--s2)', borderRadius: 20, padding: 2 }}>
           {['EN', 'MS', 'ZH'].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
@@ -235,23 +283,47 @@ function FormStep({ t, form, set, lang, error, onGenerate }) {
   return (
     <>
       {/* Hero */}
-      <div style={{ textAlign: 'center', padding: '40px 0 32px' }}>
-        <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(80,120,255,0.12)', border: '1px solid rgba(80,120,255,0.25)', fontSize: 10, color: 'var(--blue)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 16 }}>
+      <div style={{ textAlign: 'center', padding: '36px 0 28px' }}>
+        <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(80,200,100,0.10)', border: '1px solid rgba(80,200,100,0.3)', fontSize: 10, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', marginBottom: 18 }}>
           {t.badge}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', lineHeight: 1.25, marginBottom: 14, whiteSpace: 'pre-line' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3, marginBottom: 14 }}>
           {t.headline}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, maxWidth: 420, margin: '0 auto' }}>
+        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.75, maxWidth: 400, margin: '0 auto 20px' }}>
           {t.sub}
         </div>
-        {/* Stats row */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
-          {t.stats.map((s, i) => (
-            <div key={i} style={{ fontSize: 11, color: 'var(--muted)', padding: '4px 12px', background: 'var(--s2)', borderRadius: 20, border: '1px solid var(--border)' }}>
-              {s}
+        {/* 3 channel pills */}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+          {t.channels.map((ch, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+              background: i === 0 ? 'rgba(80,200,100,0.10)' : i === 1 ? 'rgba(80,120,255,0.10)' : 'rgba(120,80,255,0.10)',
+              border: `1px solid ${i === 0 ? 'rgba(80,200,100,0.3)' : i === 1 ? 'rgba(80,120,255,0.3)' : 'rgba(120,80,255,0.3)'}`,
+              color: i === 0 ? 'var(--green)' : i === 1 ? 'var(--blue)' : 'var(--purple)',
+            }}>
+              <span>{ch.icon}</span>
+              <span>{ch.label}</span>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>— {ch.desc}</span>
             </div>
           ))}
+        </div>
+        {/* Stats row */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {t.stats.map((s, i) => {
+            const bg = { green: 'rgba(80,200,100,0.10)', blue: 'rgba(80,120,255,0.10)', amber: 'rgba(245,166,35,0.10)' };
+            const border = { green: 'rgba(80,200,100,0.3)', blue: 'rgba(80,120,255,0.3)', amber: 'rgba(245,166,35,0.3)' };
+            const textColor = { green: 'var(--green)', blue: 'var(--blue)', amber: 'var(--amber)' };
+            return (
+              <div key={i} style={{
+                fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 20,
+                background: bg[s.color], border: `1px solid ${border[s.color]}`, color: textColor[s.color],
+              }}>
+                {s.text}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -271,6 +343,15 @@ function FormStep({ t, form, set, lang, error, onGenerate }) {
             {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
           </select>
         </F>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <F label={t.city}>
+            <input value={form.city} onChange={e => set('city', e.target.value)} style={inp} placeholder={t.cityPh} />
+          </F>
+          <F label={t.role}>
+            <input value={form.role} onChange={e => set('role', e.target.value)} style={inp} placeholder={t.rolePh} />
+          </F>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <F label={t.phone} required>
@@ -311,7 +392,11 @@ function GeneratingStep({ t, label }) {
   });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center', gap: 20 }}>
-      <LogoMark size={40} />
+      <svg width="48" height="35" viewBox="0 0 28 20" fill="none" style={{ filter: 'drop-shadow(0 0 14px oklch(70% 0.24 145 / 0.9))', animation: 'lpIconPulse 1.5s ease-in-out infinite' }}>
+        <path d="M2 10L8 3L14 10L8 17L2 10Z" fill="oklch(75% 0.24 145 / 0.95)" />
+        <path d="M9 10L15 3L21 10L15 17L9 10Z" fill="oklch(65% 0.2 210 / 0.8)" />
+        <path d="M16 10L22 3L28 10L22 17L16 10Z" fill="oklch(60% 0.2 260 / 0.55)" />
+      </svg>
       <div>
         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
           {label || t.generating}
