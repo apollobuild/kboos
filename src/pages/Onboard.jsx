@@ -243,7 +243,7 @@ export function Onboard() {
         <div style={{ fontSize: 10, color: 'var(--blue)', fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', marginBottom: 8 }}>
           {t.settingUp}
         </div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.25, marginBottom: 10 }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.25, marginBottom: 10, textTransform: 'uppercase' }}>
           {bizName}{t.outreachSystem}
         </div>
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 400, margin: '0 auto' }}>

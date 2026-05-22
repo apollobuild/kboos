@@ -238,7 +238,7 @@ function FormStep({ t, form, set, lang, error, onGenerate }) {
         <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(80,200,100,0.10)', border: '1px solid rgba(80,200,100,0.3)', fontSize: 10, color: 'var(--green)', fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', marginBottom: 18 }}>
           {t.badge}
         </div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3, marginBottom: 14 }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', lineHeight: 1.3, marginBottom: 14, textTransform: 'uppercase' }}>
           {t.headline}
         </div>
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.75, maxWidth: 400, margin: '0 auto 20px' }}>
