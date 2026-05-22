@@ -106,25 +106,33 @@ export function AllCampaigns() {
     }
   };
 
-  function engineStatus(c) {
-    if (c.status === 'active' && c.startedAt) {
+  function pipelineStage(c) {
+    const s = c.status;
+    if (s === 'active' && c.startedAt) {
       const days = Math.floor((Date.now() - new Date(c.startedAt).getTime()) / 86400000);
-      return { label: `Day ${days + 1} · Running`, color: 'var(--green)' };
+      return { label: `Day ${days + 1} · Live`, color: 'var(--green)', dot: true };
     }
-    if (c.status === 'active') return { label: 'Running', color: 'var(--green)' };
-    if (c.status === 'awaiting_launch') return { label: 'Ready to Launch', color: 'var(--amber)' };
-    if (c.status === 'enriching') return { label: 'Enriching…', color: 'var(--blue)' };
-    if (c.status === 'awaiting_approval') return { label: 'Pending Review', color: 'var(--blue)' };
-    if (c.status === 'paused') return { label: 'Paused', color: 'var(--muted)' };
-    return null;
+    if (s === 'active')             return { label: 'Live', color: 'var(--green)', dot: true };
+    if (s === 'awaiting_launch')    return { label: 'Ready to Launch', color: 'var(--amber)', dot: false };
+    if (s === 'personalized')       return { label: '5 · Personalized', color: 'var(--blue)', dot: false };
+    if (s === 'personalizing')      return { label: '5 · Personalizing…', color: 'var(--blue)', dot: true };
+    if (s === 'ai_content_ready')   return { label: '4 · Review Assets', color: 'var(--amber)', dot: false };
+    if (s === 'ai_generating')      return { label: '4 · AI Writing…', color: 'var(--blue)', dot: true };
+    if (s === 'enriched')           return { label: '3 · Enriched', color: 'var(--blue)', dot: false };
+    if (s === 'enriching')          return { label: '3 · Enriching…', color: 'var(--blue)', dot: true };
+    if (s === 'validated')          return { label: '2 · Approve Tiers', color: 'var(--amber)', dot: false };
+    if (s === 'validating')         return { label: '2 · Validating…', color: 'var(--blue)', dot: true };
+    if (s === 'awaiting_approval')  return { label: '1 · Import Leads', color: 'var(--muted)', dot: false };
+    if (s === 'paused')             return { label: 'Paused', color: 'var(--muted)', dot: false };
+    return { label: '1 · Start Pipeline', color: 'var(--muted)', dot: false };
   }
 
-  const tabs = ['All', 'Active', 'Paused', 'Awaiting Review'];
+  const tabs = ['All', 'Active', 'Paused', 'In Pipeline'];
   const filtered = campaigns.filter(c =>
     filter === 'All' ||
     (filter === 'Active' && c.status === 'active') ||
     (filter === 'Paused' && c.status === 'paused') ||
-    (filter === 'Awaiting Review' && (c.status === 'awaiting_approval' || c.status === 'awaiting_launch' || c.status === 'enriching'))
+    (filter === 'In Pipeline' && !['active','paused'].includes(c.status))
   );
   const total = filtered.length;
   const paged = filtered.slice(pg * PAGE_SIZE, (pg + 1) * PAGE_SIZE);
@@ -257,10 +265,9 @@ export function AllCampaigns() {
           <table>
             <thead>
               <tr>
-                <th>Campaign</th><th>Business</th><th>Status</th>
-                <th>AI Grade</th>
+                <th>Campaign</th><th>Business</th><th>Pipeline Stage</th>
                 <th style={{minWidth:140}}>Progress</th>
-                <th>Engine</th>
+                <th>AI Grade</th>
                 <th>Hot</th><th>Open Rate</th><th>WA Resp</th><th>Spend</th><th>Channels</th><th>Actions</th>
               </tr>
             </thead>
@@ -290,20 +297,20 @@ export function AllCampaigns() {
                       <div style={{fontSize:11,color:'var(--muted)'}}>{c.bizName}</div>
                     </td>
                     <td><BizAvatar id={c.bizId} name={c.bizName} color={c.color} size={24}/></td>
-                    <td><CampaignBadge status={c.status}/></td>
                     <td>
-                      {grade ? (
-                        <span style={{
-                          fontSize:11,fontWeight:700,color:'#fff',
-                          background:gradeColor(grade),
-                          borderRadius:4,padding:'2px 8px',
-                          display:'inline-block',
-                        }}>
-                          {grade}
-                        </span>
-                      ) : (
-                        <span style={{color:'var(--muted)'}}>—</span>
-                      )}
+                      {(() => {
+                        const ps = pipelineStage(c);
+                        return (
+                          <span
+                            style={{fontSize:11,fontWeight:500,color:ps.color,cursor:'pointer',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:4}}
+                            onClick={() => openCampaignPipeline(c.id)}
+                            title="Open pipeline"
+                          >
+                            {ps.dot && <span style={{width:6,height:6,borderRadius:'50%',background:ps.color,display:'inline-block',flexShrink:0,animation:'pulse 1.5s ease-in-out infinite'}}/>}
+                            {ps.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -314,7 +321,13 @@ export function AllCampaigns() {
                       </div>
                     </td>
                     <td>
-                      {(() => { const es = engineStatus(c); return es ? <span style={{fontSize:11, color:es.color, fontWeight:500, whiteSpace:'nowrap'}}>{es.label}</span> : <span style={{color:'var(--muted)'}}>—</span>; })()}
+                      {grade ? (
+                        <span style={{fontSize:11,fontWeight:700,color:'#fff',background:gradeColor(grade),borderRadius:4,padding:'2px 8px',display:'inline-block'}}>
+                          {grade}
+                        </span>
+                      ) : (
+                        <span style={{color:'var(--muted)'}}>—</span>
+                      )}
                     </td>
                     <td><span className="mono text-amber">{c.hot>0?`🔥 ${c.hot}`:'-'}</span></td>
                     <td><span className="mono text-sm">{c.open}</span></td>
@@ -328,8 +341,8 @@ export function AllCampaigns() {
                     </td>
                     <td>
                       <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                        {c.status === 'awaiting_approval' && (
-                          <button className="btn btn-amber btn-xs" onClick={() => setPage('approvals')}>Review</button>
+                        {!['active','paused'].includes(c.status) && (
+                          <button className="btn btn-ghost btn-xs" style={{color:'var(--blue)',borderColor:'var(--blue)'}} onClick={() => openCampaignPipeline(c.id)}>Pipeline →</button>
                         )}
                         {(c.status === 'active' || c.status === 'paused') && (
                           <button
@@ -360,7 +373,7 @@ export function AllCampaigns() {
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
+                  <td colSpan={11} style={{textAlign:'center',color:'var(--muted)',padding:32,fontSize:13}}>
                     No campaigns found
                   </td>
                 </tr>

@@ -334,7 +334,7 @@ export function CampaignPipeline() {
                       <span style={{fontWeight:600,fontSize:18,color:'var(--green)'}}>{totalLeads}</span>
                       {' '}leads imported
                     </div>
-                    {stage === 'scraped' && (
+                    {(stage === 'scraped' || stage === 'draft') && (
                       <button className="btn btn-green btn-sm" disabled={acting} onClick={doValidate}>
                         {acting ? <><Spinner /> Starting…</> : 'Start Validation →'}
                       </button>

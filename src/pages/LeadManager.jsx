@@ -148,6 +148,7 @@ export function LeadManager() {
   const [slideOver, setSlideOver]           = useState(null);
   const [statusFilter, setStatusFilter]     = useState('All');
   const [scoreFilter, setScoreFilter]       = useState('All');
+  const [tierFilter, setTierFilter]         = useState('All');
   const [campaignFilter, setCampaignFilter] = useState('All');
   const [search, setSearch]                 = useState('');
   const [callingId, setCallingId]           = useState(null);
@@ -187,7 +188,7 @@ export function LeadManager() {
     }
   };
 
-  useEffect(() => { setPage(0); }, [statusFilter, scoreFilter, campaignFilter, search, selectedBizId]);
+  useEffect(() => { setPage(0); }, [statusFilter, scoreFilter, tierFilter, campaignFilter, search, selectedBizId]);
 
   const toggle    = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const toggleAll = ()   => setSelected(s => s.length === filtered.length ? [] : filtered.map(l => l.id));
@@ -199,6 +200,7 @@ export function LeadManager() {
       (!selectedBizId || lBizId === selectedBizId) &&
       (statusFilter   === 'All' || l.status === statusFilter) &&
       (scoreFilter    === 'All' || lScoreLabel === scoreFilter) &&
+      (tierFilter     === 'All' || l.tier === tierFilter) &&
       (campaignFilter === 'All' || String(l.campaignId) === campaignFilter) &&
       (search === '' ||
         l.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -215,11 +217,14 @@ export function LeadManager() {
     return {};
   };
 
+  const tierACount = leads.filter(l => l.tier === 'A').length;
+  const personalizedCount = leads.filter(l => l.personalized).length;
+
   const stats = [
-    { label: 'Total Leads', val: leads.length.toLocaleString(), color: 'text' },
-    { label: 'Hot Leads',   val: leads.filter(l => l.status === 'hot').length,           color: 'amber' },
-    { label: 'Meetings',    val: leads.filter(l => l.status === 'meeting_booked').length, color: 'green' },
-    { label: 'Replied',     val: leads.filter(l => l.status === 'replied').length,        color: 'cyan'  },
+    { label: 'Total Leads',  val: leads.length.toLocaleString(), color: 'text' },
+    { label: 'Tier A',       val: tierACount,                    color: 'green' },
+    { label: 'Hot Leads',    val: leads.filter(l => l.status === 'hot').length, color: 'amber' },
+    { label: 'Personalised', val: personalizedCount,             color: 'blue' },
   ];
 
   const handleExport = () => {
@@ -370,13 +375,25 @@ export function LeadManager() {
 
           <div className="tabs">
             {['All', 'High', 'Medium', 'Low'].map(s => (
-              <div
-                key={s}
-                className={`tab${scoreFilter === s ? ' active' : ''}`}
-                style={{ fontSize: 11, padding: '4px 10px' }}
-                onClick={() => setScoreFilter(s)}
-              >
+              <div key={s} className={`tab${scoreFilter === s ? ' active' : ''}`} style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setScoreFilter(s)}>
                 {s}
+              </div>
+            ))}
+          </div>
+          <div className="tabs">
+            {[
+              { key:'All', label:'All Tiers' },
+              { key:'A', label:'A — Hot' },
+              { key:'B', label:'B — Good' },
+              { key:'C', label:'C — Low' },
+            ].map(t => (
+              <div
+                key={t.key}
+                className={`tab${tierFilter === t.key ? ' active' : ''}`}
+                style={{ fontSize: 11, padding: '4px 10px', color: tierFilter === t.key ? undefined : t.key==='A'?'var(--green)':t.key==='B'?'var(--amber)':t.key==='C'?'var(--muted)':undefined }}
+                onClick={() => setTierFilter(t.key)}
+              >
+                {t.label}
               </div>
             ))}
           </div>
@@ -478,6 +495,7 @@ export function LeadManager() {
                   <th>Lead</th>
                   <th>Company &amp; Campaign</th>
                   <th>Email</th>
+                  <th>Tier</th>
                   <th>Score</th>
                   <th>AI</th>
                   <th>Status</th>
@@ -549,9 +567,23 @@ export function LeadManager() {
                         {l.email || '—'}
                       </td>
 
+                      <td>
+                        {l.tier ? (
+                          <span style={{
+                            fontSize:10,fontWeight:700,color:'#fff',borderRadius:4,padding:'2px 7px',
+                            background: l.tier==='A' ? 'var(--green)' : l.tier==='B' ? 'var(--amber)' : 'var(--muted)',
+                          }}>{l.tier}</span>
+                        ) : <span style={{color:'var(--muted)',fontSize:12}}>—</span>}
+                      </td>
+
                       <td><ScoreDisplay score={l.score} /></td>
 
-                      <td><AiScoreCell score={l.aiPriorityScore} note={l.aiPriorityNote} /></td>
+                      <td>
+                        <div style={{display:'flex',alignItems:'center',gap:4}}>
+                          <AiScoreCell score={l.aiPriorityScore} note={l.aiPriorityNote} />
+                          {l.personalized && <span title="AI personalised" style={{fontSize:9,color:'var(--green)',fontWeight:700}}>✦</span>}
+                        </div>
+                      </td>
 
                       <td><LeadStatusBadge status={l.status} /></td>
 
