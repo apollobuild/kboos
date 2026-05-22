@@ -110,55 +110,6 @@ const T = {
     required: 'Sila isi Nama, Syarikat, Telefon, dan E-mel.',
     phoneFormat: 'Masukkan telefon dalam format: +601X-XXXXXXX',
   },
-  ZH: {
-    badge: '免费现场演示',
-    headline: 'AI即将向您发送WhatsApp、邮件 — 并打电话给您。',
-    sub: '填写您的信息。在3分钟内，个性化推广将通过全部3个渠道触达您 — 由KBOOS AI撰写，即时发送。这正是您的客户将体验到的。',
-    channels: [
-      { icon: '💬', label: 'WhatsApp', desc: '即时到达手机' },
-      { icon: '📧', label: '电子邮件', desc: '专业、个性化' },
-      { icon: '📞', label: 'AI通话', desc: '语音代理预约会议' },
-    ],
-    name: '您的姓名', namePh: '张大明',
-    company: '公司名称', companyPh: 'XYZ有限公司',
-    industry: '您的行业',
-    city: '您的城市', cityPh: '吉隆坡',
-    role: '您的职位', rolePh: '总裁 / 总监',
-    phone: '您的电话 (WhatsApp)', phonePh: '+60 12-345 6789',
-    email: '您的电子邮件', emailPh: 'you@company.com',
-    challenge: '获取新客户的最大挑战？（可选）', challengePh: '例如：转介绍越来越少。没有系统跟进。',
-    generate: '生成我的演示 — 激活全部3个渠道 →',
-    generating: 'KBOOS AI正在为您撰写消息…',
-    previewTitle: '您的个性化推广 — 准备发送',
-    previewSub: '查看即将到达您手机、邮箱和AI通话的内容。然后确认。',
-    whatsapp: 'WhatsApp',
-    email: '电子邮件',
-    subject: '主题：',
-    consent: '我同意接收WhatsApp消息、电子邮件和AI语音通话作为现场演示。',
-    send: '🚀 立即激活全部3个渠道 →',
-    sending: '正在激活所有渠道…',
-    doneTitle: '查看您的手机 — 已上线。',
-    doneSub: 'WhatsApp和电子邮件刚刚到达您的手机。AI语音代理正在拨打您的电话 — 接听以体验完整系统。',
-    doneWa: '✓ WhatsApp已发送',
-    doneEmail: '✓ 电子邮件已发送',
-    doneVoice: '📞 AI正在拨打…',
-    doneVoiceErr: '✗ 通话失败',
-    doneWaErr: '✗ WhatsApp发送失败',
-    doneEmailErr: '✗ 电子邮件发送失败',
-    voiceNote: '📞 AI语音代理也将随后拨打您的号码 — 接听以体验完整系统',
-    bookCall: '想为您的业务使用？立即预约通话 →',
-    tryAgain: '重试',
-    rateLimited: '每个电话号码每24小时只能演示一次。',
-    poweredBy: '由 KBOOS AI 驱动 · KOBIS Berhad 开发',
-    stats: [
-      { text: '平均23%回复率', color: 'green' },
-      { text: '行业平均3倍', color: 'blue' },
-      { text: '48小时内首次回复', color: 'amber' },
-      { text: '7天退款保证', color: 'green' },
-    ],
-    required: '请填写姓名、公司、电话和电子邮件。',
-    phoneFormat: '电话格式：+601X-XXXXXXX',
-  },
 };
 
 function KboosLogo() {
@@ -252,7 +203,7 @@ export function SelfServeDemo() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--border)', background: 'var(--s1)' }}>
         <KboosLogo />
         <div style={{ display: 'flex', gap: '2px', background: 'var(--s2)', borderRadius: 20, padding: 2 }}>
-          {['EN', 'MS', 'ZH'].map(l => (
+          {['EN', 'MS'].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
               padding: '5px 10px', borderRadius: 18, fontSize: 11, fontWeight: 600,
               background: lang === l ? 'var(--s1)' : 'transparent',
