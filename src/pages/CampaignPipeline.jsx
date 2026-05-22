@@ -51,6 +51,161 @@ function Spinner() {
   );
 }
 
+function LeadAcquisition({ campaignId, onImported, showToast }) {
+  const [tab, setTab] = useState('gmaps');
+  const [loading, setLoading] = useState(false);
+  const [csvDragOver, setCsvDragOver] = useState(false);
+
+  const [keyword, setKeyword] = useState('');
+  const [city, setCity] = useState('');
+  const [limit, setLimit] = useState(50);
+
+  const [jobTitles, setJobTitles] = useState('');
+  const [apolloCity, setApolloCity] = useState('');
+  const [apolloLimit, setApolloLimit] = useState(50);
+
+  async function doScrape(mode) {
+    setLoading(true);
+    try {
+      const body = mode === 'apollo'
+        ? { mode: 'apollo', city: apolloCity, limit: apolloLimit, jobTitles: jobTitles.split(',').map(s => s.trim()).filter(Boolean) }
+        : { mode, keyword, city, limit };
+      await apiFetch(`/pipeline/${campaignId}/scrape`, { method: 'POST', body });
+      showToast(mode === 'gmaps' ? 'Scraping Google Maps — takes ~90 seconds…' : 'Fetching B2B contacts…');
+      await onImported();
+    } catch (e) { showToast(e.message, 'red'); }
+    setLoading(false);
+  }
+
+  async function doUploadCsv(file) {
+    setLoading(true);
+    try {
+      const csvText = await file.text();
+      const res = await apiFetch(`/pipeline/${campaignId}/upload-csv`, { method: 'POST', body: { csvText } });
+      showToast(`Imported ${res.count} leads from CSV`);
+      await onImported();
+    } catch (e) { showToast(e.message, 'red'); }
+    setLoading(false);
+  }
+
+  const tabBtn = (id, label, active) => (
+    <button
+      key={id}
+      style={{
+        padding: '6px 14px', fontSize: 12, fontWeight: active ? 600 : 400,
+        background: active ? 'var(--s3,var(--s2))' : 'transparent',
+        border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
+        borderRadius: 6, cursor: 'pointer',
+        color: active ? 'var(--blue)' : 'var(--muted)',
+      }}
+      onClick={() => setTab(id)}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+        Choose a source to import leads for this campaign:
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {tabBtn('gmaps', '🗺 Google Maps', tab === 'gmaps')}
+        {tabBtn('apollo', '👔 B2B Contacts', tab === 'apollo')}
+        {tabBtn('csv', '📄 Upload CSV', tab === 'csv')}
+      </div>
+
+      {tab === 'gmaps' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--s2)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', lineHeight: 1.5 }}>
+            Scrapes Google Maps for local businesses. Best for SME outreach — restaurants, clinics, salons, contractors. Requires Outscraper API key in Settings.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>KEYWORD</div>
+              <input className="input" placeholder="e.g. dental clinic, gym, law firm" value={keyword} onChange={e => setKeyword(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>CITY</div>
+              <input className="input" placeholder="e.g. Kuala Lumpur, Johor Bahru" value={city} onChange={e => setCity(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>MAX RESULTS</div>
+            <select className="input" value={limit} onChange={e => setLimit(parseInt(e.target.value))} style={{ fontSize: 12 }}>
+              {[25, 50, 100, 200, 300].map(n => <option key={n} value={n}>{n} leads</option>)}
+            </select>
+          </div>
+          <button className="btn btn-green btn-sm" disabled={loading || !keyword.trim() || !city.trim()} onClick={() => doScrape('gmaps')}>
+            {loading ? <><Spinner /> Scraping…</> : `Scrape ${limit} leads from Google Maps →`}
+          </button>
+        </div>
+      )}
+
+      {tab === 'apollo' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--s2)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', lineHeight: 1.5 }}>
+            Finds B2B decision makers with work emails. Requires Apollo.io API key in Settings. Best for corporate / SaaS outreach.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>JOB TITLES <span style={{ fontStyle: 'italic', fontWeight: 400 }}>(comma-separated)</span></div>
+              <input className="input" placeholder="e.g. Founder, CEO, HR Director" value={jobTitles} onChange={e => setJobTitles(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>CITY</div>
+              <input className="input" placeholder="e.g. Kuala Lumpur" value={apolloCity} onChange={e => setApolloCity(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>MAX RESULTS</div>
+            <select className="input" value={apolloLimit} onChange={e => setApolloLimit(parseInt(e.target.value))} style={{ fontSize: 12 }}>
+              {[25, 50, 100].map(n => <option key={n} value={n}>{n} contacts</option>)}
+            </select>
+          </div>
+          <button className="btn btn-green btn-sm" disabled={loading || !apolloCity.trim()} onClick={() => doScrape('apollo')}>
+            {loading ? <><Spinner /> Fetching…</> : `Find ${apolloLimit} B2B contacts →`}
+          </button>
+        </div>
+      )}
+
+      {tab === 'csv' && (
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
+            Upload a CSV with columns: <strong>Name, Company, Phone, Email</strong> (any order, extra columns ignored).
+          </div>
+          <label
+            style={{
+              display: 'block',
+              border: `2px dashed ${csvDragOver ? 'var(--blue)' : 'var(--border)'}`,
+              borderRadius: 8, padding: '28px 24px', textAlign: 'center', cursor: 'pointer',
+              background: csvDragOver ? 'oklch(60% 0.2 260 / 0.05)' : 'var(--s2)',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+            onDragOver={e => { e.preventDefault(); setCsvDragOver(true); }}
+            onDragLeave={() => setCsvDragOver(false)}
+            onDrop={e => { e.preventDefault(); setCsvDragOver(false); const f = e.dataTransfer.files[0]; if (f) doUploadCsv(f); }}
+          >
+            <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) doUploadCsv(f); }} />
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
+                <Spinner /> Importing leads…
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 22, marginBottom: 6 }}>📄</div>
+                <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>Drop CSV here or click to browse</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Columns: Name, Company, Phone, Email, Title, Website, Address</div>
+              </>
+            )}
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CampaignPipeline() {
   const { selectedCampaignId, campaigns, updateCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
     selectedCampaignId: s.selectedCampaignId,
@@ -86,6 +241,7 @@ export function CampaignPipeline() {
 
   // Actions
   const [acting, setActing] = useState(false);
+  const [showAddMore, setShowAddMore] = useState(false);
 
   const pollRef = useRef(null);
 
@@ -325,31 +481,51 @@ export function CampaignPipeline() {
             {curIdx <= stageIndex('scraped') && (
               <div className="card fade-up-1">
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div style={{fontWeight:600,fontSize:14}}>Import Leads</div>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14}}>1. Import Leads</div>
+                    <div style={{fontSize:11,color:'var(--muted)'}}>Source leads via Google Maps, Apollo B2B, or CSV upload</div>
+                  </div>
                   <StageStatus stage="scraped" currentStage={stage} />
                 </div>
-                {totalLeads > 0 ? (
+
+                {stage === 'scraping' ? (
                   <div>
-                    <div style={{fontSize:13,color:'var(--text)',marginBottom:8}}>
-                      <span style={{fontWeight:600,fontSize:18,color:'var(--green)'}}>{totalLeads}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)',marginBottom:8}}>
+                      <Spinner /> Scraping leads — Google Maps takes ~90 seconds…
+                    </div>
+                    <div style={{fontSize:11,color:'var(--muted)'}}>This page will update automatically when scraping completes.</div>
+                  </div>
+                ) : totalLeads > 0 ? (
+                  <div>
+                    <div style={{fontSize:13,color:'var(--text)',marginBottom:4}}>
+                      <span style={{fontWeight:700,fontSize:22,color:'var(--green)'}}>{totalLeads}</span>
                       {' '}leads imported
                     </div>
-                    {(stage === 'scraped' || stage === 'draft') && (
-                      <button className="btn btn-green btn-sm" disabled={acting} onClick={doValidate}>
-                        {acting ? <><Spinner /> Starting…</> : 'Start Validation →'}
+                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
+                      You can add more leads before validating.
+                    </div>
+                    <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                      {(stage === 'scraped' || stage === 'draft') && (
+                        <button className="btn btn-green btn-sm" disabled={acting} onClick={doValidate}>
+                          {acting ? <><Spinner /> Starting…</> : 'Start Validation →'}
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-ghost btn-xs"
+                        style={{fontSize:11}}
+                        onClick={() => setShowAddMore(prev => !prev)}
+                      >
+                        {showAddMore ? 'Hide' : '+ Add More Leads'}
                       </button>
+                    </div>
+                    {showAddMore && (
+                      <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--border)'}}>
+                        <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus} />
+                      </div>
                     )}
-                    {stage === 'scraping' && <span style={{fontSize:12,color:'var(--muted)'}}>Importing leads…</span>}
                   </div>
                 ) : (
-                  <div style={{fontSize:12,color:'var(--muted)'}}>
-                    <p style={{marginBottom:8}}>No leads imported yet. Go to Lead Manager to add leads, or trigger a scrape from the campaign config.</p>
-                    {stage === 'draft' && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>
-                        Go to Lead Manager →
-                      </button>
-                    )}
-                  </div>
+                  <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus} />
                 )}
               </div>
             )}
