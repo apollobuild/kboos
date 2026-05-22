@@ -335,7 +335,7 @@ export function Onboard() {
 // Outer wrapper shared across all states
 function Wrap({ children, lang, setLang }) {
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
       {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

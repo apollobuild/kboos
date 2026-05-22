@@ -243,7 +243,7 @@ export function SelfServeDemo() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
       <style>{`
         @keyframes lpIconPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
         @keyframes lpGradShift { from{background-position:0% center} to{background-position:200% center} }
@@ -264,69 +264,22 @@ export function SelfServeDemo() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 20px 160px' }}>
-        {step === 'form' && <FormStep t={t} form={form} set={set} lang={lang} />}
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 20px' }}>
+        {step === 'form' && <FormStep t={t} form={form} set={set} lang={lang} error={error} onGenerate={generate} />}
         {step === 'generating' && <GeneratingStep t={t} />}
-        {step === 'preview' && <PreviewStep t={t} form={form} preview={preview} />}
+        {step === 'preview' && <PreviewStep t={t} form={form} preview={preview} consent={consent} setConsent={setConsent} onSend={send} error={error} />}
         {step === 'sending' && <GeneratingStep t={t} label={t.sending} />}
         {step === 'done' && <DoneStep t={t} results={results} form={form} onReset={() => { setStep('form'); setPreview(null); setResults(null); setConsent(false); setError(''); }} />}
       </div>
 
-      {/* Fixed bottom CTA — always above browser chrome */}
-      {(step === 'form' || step === 'preview') && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-          background: 'var(--bg)', borderTop: '1px solid var(--border)',
-          padding: '12px 20px',
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
-          boxShadow: '0 -8px 32px rgba(0,0,0,0.35)',
-        }}>
-          {step === 'form' && (
-            <>
-              {error && <div style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center', marginBottom: 8 }}>{error}</div>}
-              <button onClick={generate} style={{
-                width: '100%', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700,
-                background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
-                fontFamily: 'var(--font-ui)', letterSpacing: '0.01em',
-              }}>
-                {t.generate}
-              </button>
-              <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 7 }}>
-                No spam. No subscription. Just the demo.
-              </div>
-            </>
-          )}
-          {step === 'preview' && (
-            <>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 10 }}>
-                <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--blue)', width: 16, height: 16 }} />
-                <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{t.consent}</span>
-              </label>
-              {error && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8, textAlign: 'center' }}>{error}</div>}
-              <button onClick={send} disabled={!consent} style={{
-                width: '100%', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-                background: consent ? 'var(--green)' : 'var(--s2)',
-                color: consent ? '#fff' : 'var(--muted)',
-                border: 'none', cursor: consent ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-ui)',
-                transition: 'all 0.2s',
-              }}>
-                {t.send}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {step === 'done' && (
-        <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', opacity: 0.5 }}>
-          {t.poweredBy}
-        </div>
-      )}
+      <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', opacity: 0.5 }}>
+        {t.poweredBy}
+      </div>
     </div>
   );
 }
 
-function FormStep({ t, form, set, lang }) {
+function FormStep({ t, form, set, lang, error, onGenerate }) {
   return (
     <>
       {/* Hero */}
@@ -413,6 +366,19 @@ function FormStep({ t, form, set, lang }) {
           <textarea value={form.challenge} onChange={e => set('challenge', e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} placeholder={t.challengePh} />
         </F>
 
+        {error && <div style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center' }}>{error}</div>}
+
+        <button onClick={onGenerate} style={{
+          width: '100%', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700,
+          background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
+          fontFamily: 'var(--font-ui)', letterSpacing: '0.01em',
+        }}>
+          {t.generate}
+        </button>
+
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}>
+          No spam. No subscription. Just the demo.
+        </div>
       </div>
     </>
   );
@@ -443,7 +409,7 @@ function GeneratingStep({ t, label }) {
   );
 }
 
-function PreviewStep({ t, form, preview }) {
+function PreviewStep({ t, form, preview, consent, setConsent, onSend, error }) {
   const [tab, setTab] = useState('whatsapp');
   return (
     <div style={{ padding: '32px 0 16px' }}>
@@ -495,6 +461,23 @@ function PreviewStep({ t, form, preview }) {
         {t.voiceNote}
       </div>
 
+      {/* Consent */}
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
+        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--blue)', width: 16, height: 16 }} />
+        <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{t.consent}</span>
+      </label>
+
+      {error && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10, textAlign: 'center' }}>{error}</div>}
+
+      <button onClick={onSend} disabled={!consent} style={{
+        width: '100%', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+        background: consent ? 'var(--green)' : 'var(--s2)',
+        color: consent ? '#fff' : 'var(--muted)',
+        border: 'none', cursor: consent ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-ui)',
+        transition: 'all 0.2s',
+      }}>
+        {t.send}
+      </button>
     </div>
   );
 }
