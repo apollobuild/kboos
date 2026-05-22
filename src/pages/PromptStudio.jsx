@@ -50,6 +50,8 @@ export function PromptStudio() {
   const [expandedId, setExpandedId] = useState(null);
   const [editingTp, setEditingTp] = useState(null);
   const [regenId, setRegenId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const biz = businesses.find(b => b.id === selectedBizId);
 
@@ -117,6 +119,21 @@ export function PromptStudio() {
       showToast('Sequence reset to draft', 'amber');
     } catch (e) {
       showToast(e.message, 'red');
+    }
+  }
+
+  async function deleteSequence() {
+    setDeleting(true);
+    try {
+      await apiFetch(`/sequences/${selectedBizId}`, { method: 'DELETE' });
+      setSeq({ bizId: selectedBizId, status: 'empty', brief: {}, touchpoints: [], objections: [] });
+      setBriefEdit({});
+      setConfirmDelete(false);
+      showToast('Sequence deleted', 'red');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -473,6 +490,36 @@ export function PromptStudio() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Delete sequence */}
+          {status !== 'empty' && (
+            <>
+              <div style={{ height: 1, background: 'var(--border)' }} />
+              {confirmDelete ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600, textAlign: 'center' }}>Delete this sequence?</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center' }}>This cannot be undone.</div>
+                  <button
+                    onClick={deleteSequence}
+                    disabled={deleting}
+                    style={{ width: '100%', padding: '8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--red)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                    {deleting ? 'Deleting…' : 'Yes, Delete'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{ width: '100%', padding: '7px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={{ width: '100%', padding: '7px', borderRadius: 7, fontSize: 11, background: 'transparent', color: 'var(--red)', border: '1px solid oklch(55% 0.22 25 / 0.3)', cursor: 'pointer' }}>
+                  🗑 Delete Sequence
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

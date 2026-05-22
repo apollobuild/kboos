@@ -71,6 +71,28 @@ function saveLog(entry) {
   localStorage.setItem(LOG_KEY, JSON.stringify(log.slice(0, 8)));
 }
 
+function ShareDemoLink() {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/try`;
+  function copy() {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:8,border:'1px solid var(--border)',background:'var(--s1)',fontSize:11}}>
+      <span style={{color:'var(--muted)'}}>🔗</span>
+      <span style={{color:'var(--muted)',fontFamily:'var(--font-mono)',fontSize:10}}>/try</span>
+      <span style={{color:'var(--muted)',fontSize:10}}>— self-serve demo</span>
+      <button
+        onClick={copy}
+        style={{marginLeft:4,padding:'3px 9px',borderRadius:5,border:'1px solid var(--border)',background:copied?'var(--green-dim)':'transparent',color:copied?'var(--green)':'var(--blue)',fontSize:10,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+        {copied ? '✓ Copied' : 'Copy Link'}
+      </button>
+    </div>
+  );
+}
+
 export function LiveDemo() {
   const [form, setForm] = useState(() => {
     const defaultIndustry = 'Automotive & Car Sales';
@@ -204,7 +226,10 @@ export function LiveDemo() {
             Fill in their details — AI builds an offer they can't refuse, fires it live. <strong style={{color:'var(--text)'}}>They receive it while sitting with you.</strong>
           </p>
         </div>
-        {step !== 'input' && <button className="btn btn-ghost btn-sm" onClick={reset}>↺ New Demo</button>}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+          {step !== 'input' && <button className="btn btn-ghost btn-sm" onClick={reset}>↺ New Demo</button>}
+          <ShareDemoLink />
+        </div>
       </div>
 
       {/* Social proof ticker */}
