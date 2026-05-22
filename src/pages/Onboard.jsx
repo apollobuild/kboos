@@ -293,7 +293,7 @@ export function Onboard() {
       </div>
 
       {/* Step content — no fixed height, natural scroll */}
-      <div style={{ padding: '20px 24px 100px' }}>
+      <div style={{ padding: '20px 24px 160px' }}>
         {step === 0 && <StepOffer  form={form} set={set} bizName={bizName} t={t} />}
         {step === 1 && <StepCustomer form={form} set={set} t={t} />}
         {step === 2 && <StepResults  form={form} set={set} t={t} />}
@@ -335,7 +335,7 @@ export function Onboard() {
 // Outer wrapper shared across all states
 function Wrap({ children, lang, setLang }) {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
       {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

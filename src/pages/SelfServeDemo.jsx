@@ -15,7 +15,7 @@ const T = {
   EN: {
     badge: 'FREE LIVE DEMO',
     headline: 'AI Is About to Send You a WhatsApp, an Email — and Call Your Phone.',
-    sub: 'Fill in your details. In under 3 minutes, personalised outreach fires across all 3 channels — written by Claude AI, delivered live. This is exactly what your prospects will experience.',
+    sub: 'Fill in your details. In under 3 minutes, personalised outreach fires across all 3 channels — written by KBOOS AI, delivered live. This is exactly what your prospects will experience.',
     channels: [
       { icon: '💬', label: 'WhatsApp', desc: 'Hits their phone instantly' },
       { icon: '📧', label: 'Email', desc: 'Professional, personalised' },
@@ -30,7 +30,7 @@ const T = {
     email: 'Your Email', emailPh: 'you@company.com',
     challenge: 'Biggest challenge getting new clients? (optional)', challengePh: 'e.g. Referrals slowing down. Too busy to follow up. No system.',
     generate: 'Generate My Demo — Fire All 3 Channels →',
-    generating: 'Claude AI is writing your messages…',
+    generating: 'KBOOS AI is writing your messages…',
     previewTitle: 'Your Personalised Outreach — Ready to Fire',
     previewSub: 'Review what\'s about to hit your phone, email, and be called by AI. Then confirm.',
     whatsapp: 'WhatsApp',
@@ -51,7 +51,7 @@ const T = {
     bookCall: 'Want This for Your Business? Book a Call →',
     tryAgain: 'Try Again',
     rateLimited: 'One demo per phone number per 24 hours.',
-    poweredBy: 'Powered by Claude AI · Built by KOBIS Berhad',
+    poweredBy: 'Powered by KBOOS AI · Built by KOBIS Berhad',
     stats: [
       { text: '23% avg reply rate', color: 'green' },
       { text: '3× industry average', color: 'blue' },
@@ -64,7 +64,7 @@ const T = {
   MS: {
     badge: 'DEMO PERCUMA',
     headline: 'AI Akan Hantar WhatsApp, E-mel — dan Telefon Anda Sekarang.',
-    sub: 'Isi maklumat anda. Dalam 3 minit, jangkauan peribadi akan tiba di 3 saluran — ditulis oleh Claude AI, dihantar secara langsung. Ini pengalaman sebenar pelanggan anda.',
+    sub: 'Isi maklumat anda. Dalam 3 minit, jangkauan peribadi akan tiba di 3 saluran — ditulis oleh KBOOS AI, dihantar secara langsung. Ini pengalaman sebenar pelanggan anda.',
     channels: [
       { icon: '💬', label: 'WhatsApp', desc: 'Tiba di telefon serta-merta' },
       { icon: '📧', label: 'E-mel', desc: 'Profesional, diperibadikan' },
@@ -79,7 +79,7 @@ const T = {
     email: 'E-mel Anda', emailPh: 'anda@syarikat.com',
     challenge: 'Cabaran terbesar mendapat pelanggan baru? (pilihan)', challengePh: 'cth. Rujukan semakin berkurangan. Tiada sistem susulan.',
     generate: 'Jana Demo Saya — Tembak 3 Saluran →',
-    generating: 'Claude AI sedang menulis mesej anda…',
+    generating: 'KBOOS AI sedang menulis mesej anda…',
     previewTitle: 'Jangkauan Peribadi Anda — Sedia Dihantar',
     previewSub: 'Semak apa yang akan tiba di telefon, e-mel dan panggilan AI anda. Kemudian sahkan.',
     whatsapp: 'WhatsApp',
@@ -100,7 +100,7 @@ const T = {
     bookCall: 'Mahu Ini untuk Perniagaan Anda? Tempah Panggilan →',
     tryAgain: 'Cuba Lagi',
     rateLimited: 'Satu demo per nombor telefon setiap 24 jam.',
-    poweredBy: 'Dikuasakan oleh Claude AI · Dibina oleh KOBIS Berhad',
+    poweredBy: 'Dikuasakan oleh KBOOS AI · Dibina oleh KOBIS Berhad',
     stats: [
       { text: '23% kadar balasan avg', color: 'green' },
       { text: '3× purata industri', color: 'blue' },
@@ -113,7 +113,7 @@ const T = {
   ZH: {
     badge: '免费现场演示',
     headline: 'AI即将向您发送WhatsApp、邮件 — 并打电话给您。',
-    sub: '填写您的信息。在3分钟内，个性化推广将通过全部3个渠道触达您 — 由Claude AI撰写，即时发送。这正是您的客户将体验到的。',
+    sub: '填写您的信息。在3分钟内，个性化推广将通过全部3个渠道触达您 — 由KBOOS AI撰写，即时发送。这正是您的客户将体验到的。',
     channels: [
       { icon: '💬', label: 'WhatsApp', desc: '即时到达手机' },
       { icon: '📧', label: '电子邮件', desc: '专业、个性化' },
@@ -128,7 +128,7 @@ const T = {
     email: '您的电子邮件', emailPh: 'you@company.com',
     challenge: '获取新客户的最大挑战？（可选）', challengePh: '例如：转介绍越来越少。没有系统跟进。',
     generate: '生成我的演示 — 激活全部3个渠道 →',
-    generating: 'Claude AI正在为您撰写消息…',
+    generating: 'KBOOS AI正在为您撰写消息…',
     previewTitle: '您的个性化推广 — 准备发送',
     previewSub: '查看即将到达您手机、邮箱和AI通话的内容。然后确认。',
     whatsapp: 'WhatsApp',
@@ -149,7 +149,7 @@ const T = {
     bookCall: '想为您的业务使用？立即预约通话 →',
     tryAgain: '重试',
     rateLimited: '每个电话号码每24小时只能演示一次。',
-    poweredBy: '由 Claude AI 驱动 · KOBIS Berhad 开发',
+    poweredBy: '由 KBOOS AI 驱动 · KOBIS Berhad 开发',
     stats: [
       { text: '平均23%回复率', color: 'green' },
       { text: '行业平均3倍', color: 'blue' },
@@ -243,7 +243,7 @@ export function SelfServeDemo() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
       <style>{`
         @keyframes lpIconPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
         @keyframes lpGradShift { from{background-position:0% center} to{background-position:200% center} }
@@ -264,22 +264,69 @@ export function SelfServeDemo() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 20px 80px' }}>
-        {step === 'form' && <FormStep t={t} form={form} set={set} lang={lang} error={error} onGenerate={generate} />}
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 20px 160px' }}>
+        {step === 'form' && <FormStep t={t} form={form} set={set} lang={lang} />}
         {step === 'generating' && <GeneratingStep t={t} />}
-        {step === 'preview' && <PreviewStep t={t} form={form} preview={preview} consent={consent} setConsent={setConsent} onSend={send} error={error} />}
+        {step === 'preview' && <PreviewStep t={t} form={form} preview={preview} />}
         {step === 'sending' && <GeneratingStep t={t} label={t.sending} />}
         {step === 'done' && <DoneStep t={t} results={results} form={form} onReset={() => { setStep('form'); setPreview(null); setResults(null); setConsent(false); setError(''); }} />}
       </div>
 
-      <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', opacity: 0.5 }}>
-        {t.poweredBy}
-      </div>
+      {/* Fixed bottom CTA — always above browser chrome */}
+      {(step === 'form' || step === 'preview') && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+          background: 'var(--bg)', borderTop: '1px solid var(--border)',
+          padding: '12px 20px',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+          boxShadow: '0 -8px 32px rgba(0,0,0,0.35)',
+        }}>
+          {step === 'form' && (
+            <>
+              {error && <div style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center', marginBottom: 8 }}>{error}</div>}
+              <button onClick={generate} style={{
+                width: '100%', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700,
+                background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)', letterSpacing: '0.01em',
+              }}>
+                {t.generate}
+              </button>
+              <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 7 }}>
+                No spam. No subscription. Just the demo.
+              </div>
+            </>
+          )}
+          {step === 'preview' && (
+            <>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 10 }}>
+                <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--blue)', width: 16, height: 16 }} />
+                <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{t.consent}</span>
+              </label>
+              {error && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8, textAlign: 'center' }}>{error}</div>}
+              <button onClick={send} disabled={!consent} style={{
+                width: '100%', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                background: consent ? 'var(--green)' : 'var(--s2)',
+                color: consent ? '#fff' : 'var(--muted)',
+                border: 'none', cursor: consent ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-ui)',
+                transition: 'all 0.2s',
+              }}>
+                {t.send}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {step === 'done' && (
+        <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', opacity: 0.5 }}>
+          {t.poweredBy}
+        </div>
+      )}
     </div>
   );
 }
 
-function FormStep({ t, form, set, lang, error, onGenerate }) {
+function FormStep({ t, form, set, lang }) {
   return (
     <>
       {/* Hero */}
@@ -366,19 +413,6 @@ function FormStep({ t, form, set, lang, error, onGenerate }) {
           <textarea value={form.challenge} onChange={e => set('challenge', e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} placeholder={t.challengePh} />
         </F>
 
-        {error && <div style={{ fontSize: 12, color: 'var(--red)', textAlign: 'center' }}>{error}</div>}
-
-        <button onClick={onGenerate} style={{
-          width: '100%', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700,
-          background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer',
-          fontFamily: 'var(--font-ui)', letterSpacing: '0.01em',
-        }}>
-          {t.generate}
-        </button>
-
-        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}>
-          No spam. No subscription. Just the demo.
-        </div>
       </div>
     </>
   );
@@ -409,7 +443,7 @@ function GeneratingStep({ t, label }) {
   );
 }
 
-function PreviewStep({ t, form, preview, consent, setConsent, onSend, error }) {
+function PreviewStep({ t, form, preview }) {
   const [tab, setTab] = useState('whatsapp');
   return (
     <div style={{ padding: '32px 0 16px' }}>
@@ -461,23 +495,6 @@ function PreviewStep({ t, form, preview, consent, setConsent, onSend, error }) {
         {t.voiceNote}
       </div>
 
-      {/* Consent */}
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 16 }}>
-        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--blue)', width: 16, height: 16 }} />
-        <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{t.consent}</span>
-      </label>
-
-      {error && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10, textAlign: 'center' }}>{error}</div>}
-
-      <button onClick={onSend} disabled={!consent} style={{
-        width: '100%', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-        background: consent ? 'var(--green)' : 'var(--s2)',
-        color: consent ? '#fff' : 'var(--muted)',
-        border: 'none', cursor: consent ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-ui)',
-        transition: 'all 0.2s',
-      }}>
-        {t.send}
-      </button>
     </div>
   );
 }
