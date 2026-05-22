@@ -505,7 +505,7 @@ export function LiveDemo() {
                     color:step==='done'?'var(--green)':'#000',
                     fontSize:15,fontWeight:800,cursor:step==='done'?'default':'pointer',
                     letterSpacing:'0.04em',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-                  {step==='firing' ? <><Spinner/> Firing…</> : step==='done' ? '✓ Sent — now close the deal 👇' : `🔥 Fire All (${allChannelsReady.length} channels)`}
+                  {step==='firing' ? <><Spinner/> Firing…</> : step==='done' ? '✓ Sent — now close the deal 👇' : `🔥 Fire All — 💬 WA + 📧 Email + 📞 AI Call`}
                 </button>
 
                 {step==='done' && Object.keys(results).length > 0 && (

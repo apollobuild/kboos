@@ -29,15 +29,18 @@ const T = {
     whatsapp: 'WhatsApp Message',
     email: 'Email',
     subject: 'Subject:',
-    consent: 'I agree to receive this demo message on my phone and email.',
-    send: 'Send to My Phone & Email →',
-    sending: 'Sending…',
-    doneTitle: 'Check Your Phone & Email.',
-    doneSub: "Your personalised WhatsApp and email just landed. That's exactly how KBOOS works for your clients — AI writes and sends, you just close the deals.",
+    consent: 'I agree to receive a WhatsApp, email, and an AI voice call as part of this demo.',
+    send: '🚀 Send WhatsApp + Email + AI Call →',
+    sending: 'Firing all channels…',
+    doneTitle: 'It\'s Live. Check Everything.',
+    doneSub: "WhatsApp and email just hit your phone. An AI voice agent is calling you right now — answer it and experience exactly what your prospects will feel.",
     doneWa: '✓ WhatsApp sent',
     doneEmail: '✓ Email sent',
+    doneVoice: '📞 AI calling now…',
+    doneVoiceErr: '✗ Call failed',
     doneWaErr: '✗ WhatsApp failed',
     doneEmailErr: '✗ Email failed',
+    voiceNote: '📞 An AI agent will also call your number — answer to experience the full system',
     bookCall: 'Book a Call with KOBIS →',
     tryAgain: 'Try Again',
     rateLimited: 'One demo per phone number per 24 hours.',
@@ -63,15 +66,18 @@ const T = {
     whatsapp: 'Mesej WhatsApp',
     email: 'E-mel',
     subject: 'Tajuk:',
-    consent: 'Saya bersetuju menerima mesej demo ini di telefon dan e-mel saya.',
-    send: 'Hantar ke Telefon & E-mel Saya →',
-    sending: 'Menghantar…',
-    doneTitle: 'Semak Telefon & E-mel Anda.',
-    doneSub: 'WhatsApp dan e-mel peribadi anda baru sahaja tiba. Begitulah cara KBOOS bekerja untuk pelanggan anda — AI menulis dan menghantar, anda hanya tutup tawaran.',
+    consent: 'Saya bersetuju menerima WhatsApp, e-mel, dan panggilan suara AI sebagai sebahagian daripada demo ini.',
+    send: '🚀 Hantar WA + E-mel + Panggilan AI →',
+    sending: 'Menghantar semua saluran…',
+    doneTitle: 'Ia Hidup. Semak Semua.',
+    doneSub: 'WhatsApp dan e-mel baru sahaja tiba di telefon anda. Ejen suara AI sedang menghubungi anda sekarang — angkat untuk rasai sistem penuh.',
     doneWa: '✓ WhatsApp dihantar',
     doneEmail: '✓ E-mel dihantar',
+    doneVoice: '📞 AI memanggil sekarang…',
+    doneVoiceErr: '✗ Panggilan gagal',
     doneWaErr: '✗ WhatsApp gagal',
     doneEmailErr: '✗ E-mel gagal',
+    voiceNote: '📞 Ejen AI juga akan menghubungi nombor anda — angkat untuk rasai sistem penuh',
     bookCall: 'Tempah Panggilan dengan KOBIS →',
     tryAgain: 'Cuba Lagi',
     rateLimited: 'Satu demo per nombor telefon setiap 24 jam.',
@@ -97,15 +103,18 @@ const T = {
     whatsapp: 'WhatsApp消息',
     email: '电子邮件',
     subject: '主题：',
-    consent: '我同意在我的手机和电子邮件上接收此演示消息。',
-    send: '发送到我的手机和邮箱 →',
-    sending: '发送中…',
-    doneTitle: '请查看您的手机和电子邮件。',
-    doneSub: '您的个性化WhatsApp和电子邮件刚刚发送。这就是KBOOS为您的客户工作的方式——AI写作和发送，您只需成交。',
+    consent: '我同意接收此演示的WhatsApp、电子邮件和AI语音通话。',
+    send: '🚀 发送WA + 邮件 + AI通话 →',
+    sending: '正在发送所有渠道…',
+    doneTitle: '已上线，请检查所有内容。',
+    doneSub: 'WhatsApp和电子邮件刚刚到达您的手机。AI语音代理正在现在拨打您的电话——接听以体验完整系统。',
     doneWa: '✓ WhatsApp已发送',
     doneEmail: '✓ 电子邮件已发送',
+    doneVoice: '📞 AI正在拨打…',
+    doneVoiceErr: '✗ 通话失败',
     doneWaErr: '✗ WhatsApp发送失败',
     doneEmailErr: '✗ 电子邮件发送失败',
+    voiceNote: '📞 AI代理也将拨打您的号码——接听以体验完整系统',
     bookCall: '与KOBIS预约通话 →',
     tryAgain: '重试',
     rateLimited: '每个电话号码每24小时只能演示一次。',
@@ -354,10 +363,17 @@ function PreviewStep({ t, form, preview, consent, setConsent, onSend, error }) {
       </div>
 
       {/* Sending to */}
-      <div style={{ background: 'var(--s2)', borderRadius: 9, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 12 }}>
-        <span>📱 {form.phone}</span>
+      <div style={{ background: 'var(--s2)', borderRadius: 9, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: 'var(--muted)', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <span>💬 {form.phone}</span>
         <span style={{ opacity: 0.4 }}>·</span>
         <span>✉ {form.email}</span>
+        <span style={{ opacity: 0.4 }}>·</span>
+        <span>📞 {form.phone}</span>
+      </div>
+
+      {/* Voice note */}
+      <div style={{ background: 'rgba(120,80,255,0.08)', border: '1px solid rgba(120,80,255,0.2)', borderRadius: 9, padding: '9px 14px', marginBottom: 14, fontSize: 12, color: 'var(--purple)', lineHeight: 1.5 }}>
+        {t.voiceNote}
       </div>
 
       {/* Consent */}
@@ -384,6 +400,7 @@ function PreviewStep({ t, form, preview, consent, setConsent, onSend, error }) {
 function DoneStep({ t, results, form, onReset }) {
   const waOk = results?.whatsapp?.ok;
   const emailOk = results?.email?.ok;
+  const voiceOk = results?.voice?.ok;
   const anyOk = waOk || emailOk;
 
   return (
@@ -406,9 +423,9 @@ function DoneStep({ t, results, form, onReset }) {
       </div>
 
       {/* Channel status */}
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 32 }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 32 }}>
         <div style={{
-          padding: '8px 18px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+          padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600,
           background: waOk ? 'rgba(80,200,100,0.10)' : 'rgba(255,80,80,0.10)',
           color: waOk ? 'var(--green)' : 'var(--red)',
           border: `1px solid ${waOk ? 'rgba(80,200,100,0.3)' : 'rgba(255,80,80,0.3)'}`,
@@ -416,12 +433,21 @@ function DoneStep({ t, results, form, onReset }) {
           {waOk ? t.doneWa : t.doneWaErr}
         </div>
         <div style={{
-          padding: '8px 18px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+          padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600,
           background: emailOk ? 'rgba(80,200,100,0.10)' : 'rgba(255,80,80,0.10)',
           color: emailOk ? 'var(--green)' : 'var(--red)',
           border: `1px solid ${emailOk ? 'rgba(80,200,100,0.3)' : 'rgba(255,80,80,0.3)'}`,
         }}>
           {emailOk ? t.doneEmail : t.doneEmailErr}
+        </div>
+        <div style={{
+          padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+          background: voiceOk === false ? 'rgba(255,80,80,0.10)' : 'rgba(120,80,255,0.10)',
+          color: voiceOk === false ? 'var(--red)' : 'var(--purple)',
+          border: `1px solid ${voiceOk === false ? 'rgba(255,80,80,0.3)' : 'rgba(120,80,255,0.3)'}`,
+          animation: voiceOk !== false ? 'pulse 2s infinite' : 'none',
+        }}>
+          {voiceOk === false ? t.doneVoiceErr : t.doneVoice}
         </div>
       </div>
 
