@@ -19,9 +19,12 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+const STAGE_COLORS = { cold: 'muted', engaged: 'blue', qualifying: 'amber', committed: 'green', closed: 'green' };
+const STAGE_LABELS = { cold: 'Cold', engaged: 'Engaged', qualifying: 'Qualifying', committed: 'Committed', closed: 'Closed' };
+
 function HotLeadsPanel({ leads, campaigns }) {
   const [openLead, setOpenLead] = useState(null);
-  const hot = leads.filter(l => l.status === 'hot' || l.score >= 8).slice(0, 5);
+  const hot = leads.filter(l => l.status === 'hot' || l.score >= 8).slice(0, 6);
 
   return (
     <>
@@ -35,7 +38,8 @@ function HotLeadsPanel({ leads, campaigns }) {
             <div style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No hot leads yet</div>
           )}
           {hot.map(l => {
-            const camp = campaigns.find(c => c.id === l.campaignId);
+            const stage = l.aiStage || 'cold';
+            const stageColor = STAGE_COLORS[stage] || 'muted';
             return (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--s2)', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{
@@ -46,16 +50,15 @@ function HotLeadsPanel({ leads, campaigns }) {
                   {l.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500 }}>{l.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{l.company} · <span className="mono">{l.score}/10</span></div>
+                  <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    {l.company} ·{' '}
+                    <span style={{ color: `var(--${stageColor})`, fontWeight: 500 }}>
+                      {STAGE_LABELS[stage] || stage}
+                    </span>
+                  </div>
                 </div>
-                <span className={`badge ${l.score >= 8 ? 'amber' : 'gray'}`}>{l.score >= 8 ? 'High' : 'Med'}</span>
-                <button
-                  className="btn btn-amber btn-xs"
-                  onClick={() => setOpenLead(l)}
-                >
-                  View →
-                </button>
+                <button className="btn btn-amber btn-xs" onClick={() => setOpenLead(l)}>View →</button>
               </div>
             );
           })}
@@ -145,9 +148,11 @@ export function Dashboard() {
   })));
   const [bizFilter, setBizFilter] = useState(null);
   const [walletSpend, setWalletSpend] = useState(null);
+  const [seqSummary, setSeqSummary] = useState(null);
 
   useEffect(() => {
     apiFetch('/wallet/spend-summary').then(setWalletSpend).catch(() => {});
+    apiFetch('/sequences/summary').then(setSeqSummary).catch(() => {});
   }, []);
 
   const totalLeads = leads.length;
@@ -162,12 +167,17 @@ export function Dashboard() {
     ? (ratesWithData.reduce((s, c) => s + parseFloat(c.open), 0) / ratesWithData.length).toFixed(1) + '%'
     : '—';
 
+  const activeSeq = seqSummary?.active ?? '—';
+  const pendingBriefs = seqSummary?.review ?? 0;
+
   const stats = [
     { icon: '👥', label: 'Total Leads', val: totalLeads.toLocaleString(), color: 'text', page: 'leads' },
     { icon: '🔥', label: 'Hot Leads', val: hotLeads, color: 'amber', page: 'leads' },
     { icon: '📅', label: 'Meetings', val: meetings, color: 'green', page: 'leads' },
     { icon: '💬', label: 'Unread Replies', val: unreadReplies, color: unreadReplies > 0 ? 'blue' : 'muted', page: 'replies', pulse: unreadReplies > 0 },
     { icon: '⏳', label: 'Pending Approval', val: pendingApprovals, color: pendingApprovals > 0 ? 'amber' : 'muted', page: 'approval', pulse: pendingApprovals > 0 },
+    { icon: '◈', label: 'Active Sequences', val: activeSeq, color: activeSeq > 0 ? 'green' : 'muted', page: 'prompt-studio' },
+    { icon: '📋', label: 'Briefs Pending', val: pendingBriefs, color: pendingBriefs > 0 ? 'amber' : 'muted', page: 'prompt-studio', pulse: pendingBriefs > 0 },
     { icon: '📬', label: 'Open Rate', val: avgOpen, color: parseFloat(avgOpen) > 30 ? 'green' : avgOpen === '—' ? 'muted' : 'red', page: 'reporting' },
     { icon: '💰', label: 'API Spend', val: spendVal, color: 'muted', page: 'settings', tab: 'wallet' },
   ];

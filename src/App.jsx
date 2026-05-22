@@ -36,6 +36,7 @@ import { Settings } from './pages/Settings.jsx';
 import { ClientPortal } from './pages/ClientPortal.jsx';
 import { LiveDemo } from './pages/LiveDemo.jsx';
 import { Onboard } from './pages/Onboard.jsx';
+import { SelfServeDemo } from './pages/SelfServeDemo.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -61,6 +62,9 @@ const MAX_RETRIES = 3;
 export default function App() {
   if (window.location.pathname.startsWith('/onboard/')) {
     return <Onboard />;
+  }
+  if (window.location.pathname === '/try' || window.location.pathname === '/demo') {
+    return <SelfServeDemo />;
   }
 
   const { page, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({

@@ -89,12 +89,20 @@ export function LiveDemo() {
   const [voiceConfirm, setVoiceConfirm] = useState(null);
   const [closingStep, setClosingStep]   = useState(0);
   const [roiContacts, setRoiContacts]   = useState(200);
+  const [realStats, setRealStats]       = useState(null);
 
   const industryCfg = INDUSTRY_CONFIG[form.industry] || DEFAULT_CFG;
 
   useEffect(() => {
     setForm(f => ({ ...f, monthlyGoal: (INDUSTRY_CONFIG[f.industry] || DEFAULT_CFG).goals[1] }));
   }, [form.industry]);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/demo/stats`)
+      .then(r => r.json())
+      .then(setRealStats)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (step !== 'generating') return;
@@ -201,18 +209,21 @@ export function LiveDemo() {
 
       {/* Social proof ticker */}
       {(() => {
+        const bizCount = realStats?.businesses ?? 47;
+        const msgCount = realStats?.messagesSent ?? 2800;
+        const indCount = realStats?.industries ?? 6;
         const STATS = [
           { n:'23%',      l:'Avg reply rate' },
           { n:'3×',       l:'Industry average' },
           { n:'48 hrs',   l:'First replies' },
-          { n:'47',       l:'Businesses served' },
+          { n:`${bizCount}`,  l:'Businesses served' },
           { n:'8.4×',     l:'Avg ROI' },
           { n:'RM 480K',  l:'Revenue for clients' },
           { n:'97%',      l:'Delivery rate' },
           { n:'< 5 min',  l:'Setup to launch' },
           { n:'4.8 ★',    l:'Client satisfaction' },
-          { n:'2,800+',   l:'Messages sent' },
-          { n:'6',        l:'Industries served' },
+          { n:`${msgCount > 1000 ? Math.floor(msgCount/100)*100+'+' : msgCount+'+'}`, l:'Messages sent' },
+          { n:`${indCount}`,  l:'Industries served' },
           { n:'7 days',   l:'First deal guarantee' },
         ];
         const ITEM_W  = 150;
