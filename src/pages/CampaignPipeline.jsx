@@ -266,6 +266,8 @@ export function CampaignPipeline() {
 
   // Channel strategy (Panel 7)
   const [channelStrategy, setChannelStrategy] = useState(campaign?.channelStrategy || 'balanced');
+  const [manualChannels, setManualChannels] = useState({ email: true, wa: false, voice: false });
+  const [useManualChannels, setUseManualChannels] = useState(false);
 
   // UI toggles
   const [showAddMore, setShowAddMore] = useState(false);
@@ -370,11 +372,13 @@ export function CampaignPipeline() {
   }
 
   async function doConfigureChannels() {
-    const channels =
-      channelStrategy === 'aggressive' ? ['email','wa','voice'] :
-      channelStrategy === 'balanced'   ? ['email','wa'] :
-      ['email'];
-    await doAction('configure-channels', { strategy: channelStrategy, channels }, 'Channel strategy saved', 'Config failed');
+    const channels = useManualChannels
+      ? Object.entries(manualChannels).filter(([, v]) => v).map(([k]) => k)
+      : channelStrategy === 'aggressive' ? ['email','wa','voice']
+      : channelStrategy === 'balanced'   ? ['email','wa']
+      : ['email'];
+    const strategy = useManualChannels ? 'custom' : channelStrategy;
+    await doAction('configure-channels', { strategy, channels }, 'Channel strategy saved', 'Config failed');
   }
 
   async function doRunDeliverability() {
@@ -930,7 +934,7 @@ export function CampaignPipeline() {
 
                 {/* Strategy selector */}
                 <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>OUTREACH STRATEGY</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', opacity: useManualChannels ? 0.35 : 1, pointerEvents: useManualChannels ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
                   {[
                     { id: 'aggressive', icon: '🔥', label: 'Aggressive' },
                     { id: 'balanced',   icon: '⚖️',  label: 'Balanced'   },
@@ -958,13 +962,81 @@ export function CampaignPipeline() {
                 </div>
 
                 {/* Cadence preview */}
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>DEFAULT CADENCE</div>
-                <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
-                  {(CADENCES[channelStrategy] || []).map((line, i) => (
-                    <div key={i} style={{ fontSize: 11, color: 'var(--text)', marginBottom: i < CADENCES[channelStrategy].length - 1 ? 5 : 0 }}>
-                      {line}
+                {!useManualChannels && (
+                  <>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>DEFAULT CADENCE</div>
+                    <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+                      {(CADENCES[channelStrategy] || []).map((line, i) => (
+                        <div key={i} style={{ fontSize: 11, color: 'var(--text)', marginBottom: i < CADENCES[channelStrategy].length - 1 ? 5 : 0 }}>
+                          {line}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </>
+                )}
+
+                {/* Manual channel override */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useManualChannels ? 12 : 0 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>MANUAL OVERRIDE</div>
+                      {!useManualChannels && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>Pick your own channel combination</div>}
+                    </div>
+                    <div
+                      onClick={() => setUseManualChannels(v => !v)}
+                      style={{
+                        width: 36, height: 20, borderRadius: 10, cursor: 'pointer', flexShrink: 0,
+                        background: useManualChannels ? 'var(--blue)' : 'var(--border)',
+                        position: 'relative', transition: 'background 0.2s',
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute', top: 3, left: useManualChannels ? 18 : 3,
+                        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                        transition: 'left 0.2s',
+                      }}/>
+                    </div>
+                  </div>
+                  {useManualChannels && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { key: 'email', icon: '📧', label: 'Email', note: 'Valid email required' },
+                        { key: 'wa',    icon: '💬', label: 'WhatsApp', note: 'MY mobile required' },
+                        { key: 'voice', icon: '📞', label: 'Voice', note: 'Any phone number' },
+                      ].map(ch => {
+                        const on = manualChannels[ch.key];
+                        const eligCount = ch.key === 'email' ? channelEligibility?.eligibleEmail
+                          : ch.key === 'wa' ? channelEligibility?.eligibleWa
+                          : channelEligibility?.eligibleVoice;
+                        return (
+                          <div
+                            key={ch.key}
+                            onClick={() => setManualChannels(prev => {
+                              const next = { ...prev, [ch.key]: !prev[ch.key] };
+                              const anyOn = Object.values(next).some(Boolean);
+                              return anyOn ? next : prev;
+                            })}
+                            style={{
+                              flex: 1, padding: '10px 8px', borderRadius: 8, cursor: 'pointer', textAlign: 'center',
+                              border: `2px solid ${on ? 'var(--blue)' : 'var(--border)'}`,
+                              background: on ? 'color-mix(in srgb, var(--blue) 10%, var(--s2))' : 'var(--s2)',
+                              transition: 'border-color 0.15s',
+                            }}
+                          >
+                            <div style={{ fontSize: 20, marginBottom: 4 }}>{ch.icon}</div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: on ? 'var(--blue)' : 'var(--text)' }}>{ch.label}</div>
+                            {eligCount != null && (
+                              <div style={{ fontSize: 10, color: 'var(--green)', marginTop: 3 }}>{eligCount} eligible</div>
+                            )}
+                            <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 2, lineHeight: 1.3 }}>{ch.note}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {useManualChannels && !Object.values(manualChannels).some(Boolean) && (
+                    <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 8 }}>Select at least one channel</div>
+                  )}
                 </div>
 
                 {/* Channel eligibility */}
@@ -990,7 +1062,11 @@ export function CampaignPipeline() {
                 )}
 
                 {stage === 'channels_configured' && (
-                  <button className="btn btn-green btn-sm" disabled={acting} onClick={doConfigureChannels}>
+                  <button
+                    className="btn btn-green btn-sm"
+                    disabled={acting || (useManualChannels && !Object.values(manualChannels).some(Boolean))}
+                    onClick={doConfigureChannels}
+                  >
                     {acting ? <><Spinner color="#fff"/> Saving…</> : 'Save Channel Strategy →'}
                   </button>
                 )}
