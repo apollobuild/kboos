@@ -41,15 +41,19 @@ const NAV = [
     { id:'replies', icon:'✦', label:'Reply Inbox', badgeColor:'red' },
   ]},
   { section:'CAMPAIGNS', items:[
-    { id:'campaign-dashboard', icon:'▦', label:'Dashboard' },
+    { id:'campaign-dashboard', icon:'▦', label:'Campaign Dashboard' },
     { id:'campaigns', icon:'◉', label:'Campaigns', badgeColor:'blue' },
     { id:'lead-intelligence', icon:'◈', label:'Lead Intelligence', badgeColor:'green' },
-    { id:'ai-studio', icon:'✦', label:'AI Studio' },
+    { id:'ai-campaign-studio', icon:'✦', label:'AI Campaign Studio' },
     { id:'new-campaign', icon:'＋', label:'New Campaign' },
   ]},
   { section:'ANALYTICS', items:[
-    { id:'reporting', icon:'↗', label:'Performance' },
-    { id:'revenue', icon:'◎', label:'Revenue' },
+    { id:'campaign-analytics', icon:'↗', label:'Campaign Analytics' },
+    { id:'revenue-analytics', icon:'◎', label:'Revenue Analytics' },
+    { id:'channel-analytics', icon:'▦', label:'Channel Analytics' },
+  ]},
+  { section:'DEMO', items:[
+    { id:'live-demo', icon:'●', label:'Live Demo' },
   ]},
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },

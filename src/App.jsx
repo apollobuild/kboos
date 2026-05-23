@@ -41,7 +41,10 @@ import { CampaignPipeline } from './pages/CampaignPipeline.jsx';
 import { CampaignDashboard } from './pages/CampaignDashboard.jsx';
 import { LeadIntelligence } from './pages/LeadIntelligence.jsx';
 import { AiStudio } from './pages/AiStudio.jsx';
+import { AiCampaignStudio } from './pages/AiCampaignStudio.jsx';
 import { Revenue } from './pages/Revenue.jsx';
+import { CampaignAnalytics } from './pages/CampaignAnalytics.jsx';
+import { ChannelAnalytics } from './pages/ChannelAnalytics.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -53,12 +56,16 @@ const PAGE_MAP = {
   'lead-intelligence': LeadIntelligence,
   leads: LeadIntelligence,
   'ai-studio': AiStudio,
+  'ai-campaign-studio': AiCampaignStudio,
   revenue: Revenue,
+  'revenue-analytics': Revenue,
+  'campaign-analytics': CampaignAnalytics,
+  reporting: CampaignAnalytics,
+  'channel-analytics': ChannelAnalytics,
   inbox: ReplyInbox,
   replies: ReplyInbox,
   approvals: Approvals,
   approval: Approvals,
-  reporting: Reporting,
   'prompt-studio': PromptStudio,
   'live-demo': LiveDemo,
   settings: Settings,
