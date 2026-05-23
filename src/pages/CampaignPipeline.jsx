@@ -269,6 +269,11 @@ export function CampaignPipeline() {
   const [manualChannels, setManualChannels] = useState({ email: true, wa: false, voice: false });
   const [useManualChannels, setUseManualChannels] = useState(false);
 
+  // Studio modal
+  const [showStudioModal, setShowStudioModal] = useState(false);
+  const [studioSequences, setStudioSequences] = useState([]);
+  const [studioOffers, setStudioOffers] = useState([]);
+
   // UI toggles
   const [showAddMore, setShowAddMore] = useState(false);
   const [acting, setActing] = useState(false);
