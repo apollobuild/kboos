@@ -7,13 +7,12 @@ export function TickerBar() {
     leads: s.leads,
   })));
 
-  const hotCount = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
-  const queueCount = leads.filter(l => l.status === 'personalizing').length;
-  const totalSpend = campaigns.reduce((sum, c) => {
-    return sum + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0);
-  }, 0);
+  const hotCount       = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  const meetingsCount  = leads.filter(l => l.status === 'meeting_booked').length;
+  const qualifiedCount = leads.filter(l => l.score >= 6 || ['engaged', 'qualifying', 'committed'].includes(l.aiStage)).length;
+  const totalSpend     = campaigns.reduce((sum, c) => sum + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0), 0);
   const awaitingApproval = campaigns.filter(c => c.status === 'awaiting_approval');
-  const activeCampaigns = campaigns.filter(c => c.status === 'active');
+  const activeCampaigns  = campaigns.filter(c => c.status === 'active');
 
   const ratesWithData = activeCampaigns.filter(c => c.open && parseFloat(c.open) > 0);
   const avgOpen = ratesWithData.length > 0
@@ -21,25 +20,21 @@ export function TickerBar() {
     : '—';
 
   const waRates = activeCampaigns.filter(c => c.wa && c.wa !== '-' && c.wa !== '—');
-  const avgWa = waRates.length > 0
+  const avgWa   = waRates.length > 0
     ? (waRates.reduce((s, c) => s + parseFloat(c.wa), 0) / waRates.length).toFixed(0) + '%'
     : '—';
 
   const items = [
-    ...activeCampaigns.slice(0, 3).map(c => ({
-      label: c.name,
-      val: `${c.leads}/${c.total} leads`,
-      color: c.color || 'blue',
-    })),
-    { label: 'Open Rate', val: avgOpen, color: 'text' },
-    { label: 'WA Response', val: avgWa, color: parseFloat(avgWa) > 40 ? 'green' : 'amber' },
-    { label: 'Hot Leads', val: `${hotCount} total`, color: 'amber' },
-    { label: 'Queue', val: `${queueCount} personalizing`, color: 'muted' },
-    ...(awaitingApproval.length > 0 ? awaitingApproval.map(c => ({
-      label: c.name, val: 'AWAITING REVIEW', color: 'amber',
-    })) : []),
-    { label: 'Spend', val: `RM ${totalSpend}`, color: 'text' },
-    { label: 'Total Leads', val: `${leads.length} leads`, color: 'blue' },
+    ...activeCampaigns.slice(0, 3).map(c => ({ label: c.name, val: `${c.leads}/${c.total} leads`, color: c.color || 'blue' })),
+    { label: 'Active Campaigns', val: `${activeCampaigns.length}`, color: activeCampaigns.length > 0 ? 'green' : 'muted' },
+    { label: 'Open Rate',        val: avgOpen, color: 'text' },
+    { label: 'WA Response',      val: avgWa,   color: parseFloat(avgWa) > 40 ? 'green' : 'amber' },
+    { label: 'Hot Leads',        val: `${hotCount}`, color: 'amber' },
+    { label: 'Meetings Booked',  val: `${meetingsCount}`, color: meetingsCount > 0 ? 'blue' : 'muted' },
+    { label: 'Qualified',        val: `${qualifiedCount}`, color: qualifiedCount > 0 ? 'text' : 'muted' },
+    ...(awaitingApproval.length > 0 ? awaitingApproval.map(c => ({ label: c.name, val: 'AWAITING REVIEW', color: 'amber' })) : []),
+    { label: 'Total Spend',      val: `RM ${totalSpend.toLocaleString()}`, color: 'text' },
+    { label: 'Total Leads',      val: `${leads.length}`, color: 'blue' },
   ];
 
   const doubled = [...items, ...items];

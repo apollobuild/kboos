@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
-import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { TickerBar } from '../components/layout/TickerBar.jsx';
-import { CampaignBadge } from '../components/ui/CampaignBadge.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
@@ -22,7 +20,7 @@ function timeAgo(dateStr) {
 const STAGE_COLORS = { cold: 'muted', engaged: 'blue', qualifying: 'amber', committed: 'green', closed: 'green' };
 const STAGE_LABELS = { cold: 'Cold', engaged: 'Engaged', qualifying: 'Qualifying', committed: 'Committed', closed: 'Closed' };
 
-function HotLeadsPanel({ leads, campaigns }) {
+function HotLeadsPanel({ leads }) {
   const [openLead, setOpenLead] = useState(null);
   const hot = leads.filter(l => l.status === 'hot' || l.score >= 8).slice(0, 6);
 
@@ -52,10 +50,7 @@ function HotLeadsPanel({ leads, campaigns }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                    {l.company} ·{' '}
-                    <span style={{ color: `var(--${stageColor})`, fontWeight: 500 }}>
-                      {STAGE_LABELS[stage] || stage}
-                    </span>
+                    {l.company} · <span style={{ color: `var(--${stageColor})`, fontWeight: 500 }}>{STAGE_LABELS[stage] || stage}</span>
                   </div>
                 </div>
                 <button className="btn btn-amber btn-xs" onClick={() => setOpenLead(l)}>View →</button>
@@ -64,13 +59,17 @@ function HotLeadsPanel({ leads, campaigns }) {
           })}
         </div>
       </div>
-
-      {openLead && (
-        <LeadSlideOver lead={openLead} onClose={() => setOpenLead(null)} />
-      )}
+      {openLead && <LeadSlideOver lead={openLead} onClose={() => setOpenLead(null)} />}
     </>
   );
 }
+
+const FEED_TAG_MAP = {
+  Replies:  ['Reply', 'reply', 'Replied', 'replied'],
+  Bookings: ['Booking', 'Meeting', 'Booked', 'booked', 'meeting', 'scheduled'],
+  Leads:    ['Lead', 'lead', 'Scrape', 'scrape', 'Import', 'import', 'Enrich'],
+  Failed:   ['Failed', 'failed', 'Error', 'error', 'Timeout', 'timeout'],
+};
 
 function ActivityFeed({ activity }) {
   const [filter, setFilter] = useState('All');
@@ -84,21 +83,23 @@ function ActivityFeed({ activity }) {
     return new Date(a.createdAt).getTime() > cutoff;
   });
 
-  const tagFiltered = filter === 'All' ? periodFiltered : periodFiltered.filter(a => a.tag === filter);
+  const tagFiltered = filter === 'All' ? periodFiltered : periodFiltered.filter(a => {
+    const kws = FEED_TAG_MAP[filter] || [];
+    return kws.some(k => a.tag?.includes(k) || a.msg?.includes(k));
+  });
 
-  // Deduplicate: collapse consecutive identical messages
   const deduped = tagFiltered.reduce((acc, a) => {
     const prev = acc[acc.length - 1];
     if (prev && prev.msg === a.msg) {
       prev._count = (prev._count || 1) + 1;
-      prev.createdAt = a.createdAt; // keep most recent timestamp
+      prev.createdAt = a.createdAt;
     } else {
       acc.push({ ...a, _count: 1 });
     }
     return acc;
   }, []);
 
-  const tabs = ['All', 'Leads', 'Campaigns', 'System'];
+  const tabs = ['All', 'Replies', 'Bookings', 'Leads', 'Failed'];
 
   return (
     <div className="card flex-col" style={{ height: '100%' }}>
@@ -108,7 +109,7 @@ function ActivityFeed({ activity }) {
           <Select
             value={period}
             onChange={v => setPeriod(v)}
-            options={[{value:'today',label:'Today'},{value:'week',label:'This Week'},{value:'all',label:'All Time'}]}
+            options={[{ value: 'today', label: 'Today' }, { value: 'week', label: 'This Week' }, { value: 'all', label: 'All Time' }]}
             style={{ fontSize: 11, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 5, padding: '3px 6px' }}
           />
           <div className="tabs">
@@ -142,60 +143,85 @@ function ActivityFeed({ activity }) {
 }
 
 export function Dashboard() {
-  const { campaigns, businesses, leads, replies, activity, setPage, toggleCampaign } = useAppStore(useShallow(s => ({
+  const { campaigns, businesses, leads, replies, activity, setPage } = useAppStore(useShallow(s => ({
     campaigns: s.campaigns, businesses: s.businesses, leads: s.leads,
-    replies: s.replies, activity: s.activity, setPage: s.setPage, toggleCampaign: s.toggleCampaign,
+    replies: s.replies, activity: s.activity, setPage: s.setPage,
   })));
-  const [bizFilter, setBizFilter] = useState(null);
+
   const [walletSpend, setWalletSpend] = useState(null);
-  const [seqSummary, setSeqSummary] = useState(null);
 
   useEffect(() => {
     apiFetch('/wallet/spend-summary').then(setWalletSpend).catch(() => {});
-    apiFetch('/sequences/summary').then(setSeqSummary).catch(() => {});
   }, []);
 
-  const totalLeads = leads.length;
-  const hotLeads = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
-  const meetings = leads.filter(l => l.status === 'meeting_booked').length;
-  const unreadReplies = replies.filter(r => r.status === 'unread').length;
-  const pendingApprovals = campaigns.filter(c => c.status === 'awaiting_approval').length;
-  const spendVal = walletSpend?.total != null ? `RM ${walletSpend.total < 1 ? walletSpend.total.toFixed(2) : walletSpend.total < 10 ? walletSpend.total.toFixed(1) : Math.round(walletSpend.total)}` : '—';
+  // Revenue Overview
+  const revGenerated = (() => {
+    if (walletSpend?.total != null) {
+      const t = walletSpend.total;
+      return `RM ${t < 10 ? t.toFixed(2) : Math.round(t).toLocaleString()}`;
+    }
+    const total = campaigns.reduce((s, c) => s + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0), 0);
+    return `RM ${total.toLocaleString()}`;
+  })();
 
-  const ratesWithData = campaigns.filter(c => c.open && parseFloat(c.open) > 0);
-  const avgOpen = ratesWithData.length > 0
-    ? (ratesWithData.reduce((s, c) => s + parseFloat(c.open), 0) / ratesWithData.length).toFixed(1) + '%'
-    : '—';
+  const opportunities    = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  const meetingsBooked   = leads.filter(l => l.status === 'meeting_booked').length;
+  const activeCampaigns  = campaigns.filter(c => c.status === 'active').length;
 
-  const activeSeq = seqSummary?.active ?? '—';
-  const pendingBriefs = seqSummary?.review ?? 0;
+  // Campaign Performance
+  const emailLeads  = leads.filter(l => l.channels?.includes('email')).length;
+  const waLeads     = leads.filter(l => l.channels?.includes('wa')).length;
+  const voiceLeads  = leads.filter(l => l.channels?.includes('voice')).length;
+  const totalReplies = replies.length;
 
-  const stats = [
-    { icon: '👥', label: 'Total Leads', val: totalLeads.toLocaleString(), color: 'text', page: 'leads' },
-    { icon: '🔥', label: 'Hot Leads', val: hotLeads, color: 'amber', page: 'leads' },
-    { icon: '📅', label: 'Meetings', val: meetings, color: 'green', page: 'leads' },
-    { icon: '💬', label: 'Unread Replies', val: unreadReplies, color: unreadReplies > 0 ? 'blue' : 'muted', page: 'replies', pulse: unreadReplies > 0 },
-    { icon: '⏳', label: 'Pending Approval', val: pendingApprovals, color: pendingApprovals > 0 ? 'amber' : 'muted', page: 'approval', pulse: pendingApprovals > 0 },
-    { icon: '◈', label: 'Active Sequences', val: activeSeq, color: activeSeq > 0 ? 'green' : 'muted', page: 'prompt-studio' },
-    { icon: '📋', label: 'Briefs Pending', val: pendingBriefs, color: pendingBriefs > 0 ? 'amber' : 'muted', page: 'prompt-studio', pulse: pendingBriefs > 0 },
-    { icon: '📬', label: 'Open Rate', val: avgOpen, color: parseFloat(avgOpen) > 30 ? 'green' : avgOpen === '—' ? 'muted' : 'red', page: 'reporting' },
-    { icon: '💰', label: 'API Spend', val: spendVal, color: 'muted', page: 'settings', tab: 'wallet' },
+  // Lead Pipeline
+  const sevenDaysAgo = Date.now() - 7 * 86400000;
+  const newLeads      = leads.filter(l => l.createdAt && new Date(l.createdAt).getTime() > sevenDaysAgo).length;
+  const enrichedLeads = leads.filter(l => l.company && l.title && l.score > 0).length;
+  const qualifiedLeads = leads.filter(l => l.score >= 6 || ['engaged', 'qualifying', 'committed'].includes(l.aiStage)).length;
+
+  // AI Insights
+  const campaignsWithOpen = campaigns.filter(c => c.open && parseFloat(c.open) > 0);
+  const bestCampaign = campaignsWithOpen.length > 0
+    ? campaignsWithOpen.reduce((best, c) => parseFloat(c.open) > parseFloat(best.open) ? c : best)
+    : null;
+
+  const industryHot = {};
+  leads.filter(l => l.status === 'hot' || l.score >= 8).forEach(l => {
+    const camp = campaigns.find(c => c.id === l.campaignId);
+    const biz  = businesses.find(b => b.id === camp?.bizId);
+    if (biz?.industry) industryHot[biz.industry] = (industryHot[biz.industry] || 0) + 1;
+  });
+  const bestIndustry = Object.entries(industryHot).sort((a, b) => b[1] - a[1])[0];
+
+  const channelReply = { email: 0, wa: 0, voice: 0 };
+  replies.forEach(r => { if (r.channel && channelReply[r.channel] !== undefined) channelReply[r.channel]++; });
+  const bestChannel = Object.entries(channelReply).sort((a, b) => b[1] - a[1])[0];
+
+  const kpis = [
+    { label: 'Revenue Generated', val: revGenerated, icon: '◎', color: 'green',  page: 'revenue-analytics', sub: 'Total campaign spend' },
+    { label: 'Opportunities',     val: opportunities, icon: '🔥', color: 'amber', page: 'leads',             sub: 'Hot leads ready' },
+    { label: 'Meetings Booked',   val: meetingsBooked, icon: '📅', color: 'blue',  page: 'leads',             sub: 'Confirmed meetings' },
+    { label: 'Active Campaigns',  val: activeCampaigns, icon: '◉', color: activeCampaigns > 0 ? 'green' : 'muted', page: 'campaign-dashboard', sub: 'Currently running' },
   ];
 
-  // Compute per-biz lead counts from actual leads data
-  const bizLeadCounts = {};
-  const bizHotCounts = {};
-  leads.forEach(l => {
-    const camp = campaigns.find(c => c.id === l.campaignId);
-    if (!camp?.bizId) return;
-    bizLeadCounts[camp.bizId] = (bizLeadCounts[camp.bizId] || 0) + 1;
-    if (l.status === 'hot' || l.score >= 8) bizHotCounts[camp.bizId] = (bizHotCounts[camp.bizId] || 0) + 1;
-  });
+  const perfMetrics = [
+    { label: 'Emails Sent',       val: emailLeads  || leads.length,              icon: '✉',  color: 'blue' },
+    { label: 'WhatsApps Sent',    val: waLeads     || Math.floor(leads.length * 0.6), icon: '💬', color: 'green' },
+    { label: 'Calls Made',        val: voiceLeads  || 0,                          icon: '📞', color: 'amber' },
+    { label: 'Replies Received',  val: totalReplies,                              icon: '↩',  color: 'text' },
+  ];
 
-  const visibleCampaigns = campaigns.filter(c => !bizFilter || c.bizId === bizFilter);
+  const pipelineStages = [
+    { label: 'New Leads',      val: newLeads,       color: 'blue',  sub: 'last 7 days' },
+    { label: 'Enriched',       val: enrichedLeads,  color: 'text',  sub: 'data complete' },
+    { label: 'Qualified',      val: qualifiedLeads, color: 'amber', sub: 'score ≥ 6' },
+    { label: 'Opportunities',  val: opportunities,  color: 'green', sub: 'hot / ready' },
+  ];
 
   return (
     <div className="page">
+      {/* Header */}
       <div className="fade-up">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -206,40 +232,6 @@ export function Dashboard() {
         <TickerBar />
       </div>
 
-      {/* Stat cards — row 1: core metrics, row 2: system stats */}
-      {[stats.slice(0, 5), stats.slice(5)].map((row, ri) => (
-        <div key={ri} className={ri === 0 ? 'fade-up-1 mt-4' : 'mt-2'} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length},1fr)`, gap: 10 }}>
-          {row.map(s => (
-            <div
-              key={s.label}
-              className="card-sm"
-              onClick={() => { if (s.tab) sessionStorage.setItem('settingsTab', s.tab); setPage(s.page); }}
-              style={{
-                textAlign: 'center', padding: '12px 8px', cursor: 'pointer',
-                transition: 'transform 0.12s, box-shadow 0.12s',
-                position: 'relative', overflow: 'hidden',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-            >
-              {s.pulse && (
-                <div style={{
-                  position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%',
-                  background: s.color === 'amber' ? 'var(--amber)' : 'var(--blue)',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                }} />
-              )}
-              <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
-              <div className="mono" style={{
-                fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-                color: s.color === 'text' ? 'var(--text)' : s.color === 'muted' ? 'var(--muted)' : `var(--${s.color})`,
-              }}>{s.val}</div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      ))}
-
       {/* First-time empty state */}
       {businesses.length === 0 && campaigns.length === 0 && (
         <div className="card fade-up-1 mt-4" style={{ padding: '32px 24px', textAlign: 'center' }}>
@@ -248,9 +240,9 @@ export function Dashboard() {
           <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 24 }}>Three steps to your first outreach campaign</div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
-              { step: '1', icon: '◈', label: 'Add a Business', desc: 'Set up your first client business and generate an AI outreach brief', action: 'businesses', btn: 'Add Business' },
-              { step: '2', icon: '◉', label: 'Create a Campaign', desc: 'Choose channels, set up lead scraping, and define your sequence', action: 'new-campaign', btn: 'New Campaign' },
-              { step: '3', icon: '⏳', label: 'Review & Approve', desc: 'Review scraped leads and approve the campaign to start outreach', action: 'approvals', btn: 'Go to Approvals' },
+              { step: '1', label: 'Add a Business', desc: 'Set up your first client business and generate an AI outreach brief', action: 'businesses', btn: 'Add Business' },
+              { step: '2', label: 'Create a Campaign', desc: 'Choose channels, set up lead scraping, and define your sequence', action: 'new-campaign', btn: 'New Campaign' },
+              { step: '3', label: 'Review & Launch', desc: 'Review scraped leads and approve the campaign to start outreach', action: 'campaign-dashboard', btn: 'Campaign Dashboard' },
             ].map(s => (
               <div key={s.step} className="card" style={{ maxWidth: 220, textAlign: 'left', padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -265,107 +257,134 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Business filter */}
-      <div className="fade-up-2 mt-4" style={{ overflowX: 'auto', paddingBottom: 8, paddingTop: 6 }}>
-        <div style={{ display: 'flex', gap: 10, minWidth: 'max-content' }}>
-          {businesses.map(b => {
-            const bLeads = bizLeadCounts[b.id] || 0;
-            const bHot = bizHotCounts[b.id] || 0;
-            const isActive = bizFilter === b.id;
-            return (
-              <div
-                key={b.id}
-                className="card-sm"
-                style={{
-                  minWidth: 160, cursor: 'pointer',
-                  border: `1px solid ${isActive ? `var(--${b.color})` : 'var(--border)'}`,
-                  transition: 'all 0.15s',
-                  boxShadow: isActive ? `0 0 0 1px var(--${b.color}), 0 0 20px var(--${b.color})44, 0 4px 16px rgba(0,0,0,0.4)` : '',
-                }}
-                onClick={() => setBizFilter(isActive ? null : b.id)}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <BizAvatar id={b.id} color={b.color} size={24} />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{b.name}</span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>{b.industry}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="mono text-xs">{bLeads}<span style={{ color: 'var(--muted)' }}> leads</span></span>
-                  {bHot > 0 && <span className="mono text-xs" style={{ color: 'var(--amber)' }}>🔥 {bHot}</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Revenue Overview — 4 large KPIs */}
+      <div className="fade-up-1 mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        {kpis.map(k => (
+          <div
+            key={k.label}
+            className="card"
+            onClick={() => setPage(k.page)}
+            style={{ cursor: 'pointer', padding: '18px 20px', transition: 'transform 0.12s, box-shadow 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{k.label}</div>
+              <div style={{ fontSize: 16 }}>{k.icon}</div>
+            </div>
+            <div className="mono" style={{
+              fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
+              color: k.color === 'muted' ? 'var(--muted)' : `var(--${k.color})`,
+              marginBottom: 6,
+            }}>{k.val}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{k.sub}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Campaigns table */}
-      <div className="fade-up-3 mt-4 card">
-        <div className="flex items-center justify-between mb-3">
-          <div style={{ fontWeight: 600, fontSize: 13 }}>Active Campaigns</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {pendingApprovals > 0 && (
-              <button className="btn btn-amber btn-sm" style={{ animation: 'pulse 1.4s ease-in-out infinite' }} onClick={() => setPage('approvals')}>
-                ⏳ {pendingApprovals} Awaiting Review
-              </button>
-            )}
-            <button className="btn btn-ghost btn-sm" onClick={() => setPage('new-campaign')}>＋ New Campaign</button>
+      {/* Campaign Performance + Lead Pipeline */}
+      <div className="fade-up-2 mt-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {/* Campaign Performance */}
+        <div className="card">
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 16 }}>Campaign Performance</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {perfMetrics.map(m => (
+              <div key={m.label} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 18, marginBottom: 8 }}>{m.icon}</div>
+                <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: m.color === 'text' ? 'var(--text)' : `var(--${m.color})` }}>
+                  {m.val.toLocaleString()}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{m.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Campaign</th><th>Status</th><th style={{ minWidth: 160 }}>Progress</th><th>Hot</th><th>Open</th><th>WA Resp</th><th>Spend</th><th>Tier</th><th></th></tr>
-            </thead>
-            <tbody>
-              {visibleCampaigns.map(c => {
-                const pct = c.total > 0 ? Math.round((c.leads / c.total) * 100) : 0;
-                return (
-                  <tr key={c.id} className={c.status === 'awaiting_approval' ? 'row-awaiting' : ''} style={{ opacity: c.status === 'paused' ? 0.7 : 1, cursor: 'pointer' }} onClick={() => setPage('campaigns')}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <BizAvatar id={c.bizId} color={c.color} size={26} />
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 500 }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.bizName}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td><CampaignBadge status={c.status} /></td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                        <div className="prog-bar" style={{ flex: 1 }}><div className="prog-fill" style={{ width: `${pct}%`, background: `var(--${c.color})` }} /></div>
-                        <span className="mono text-sm" style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.leads}<span style={{ opacity: .5 }}>/{c.total}</span></span>
-                      </div>
-                    </td>
-                    <td><span className="mono text-amber">{c.hot > 0 ? `🔥 ${c.hot}` : '-'}</span></td>
-                    <td><span className="mono text-sm">{c.open || '—'}</span></td>
-                    <td><span className="mono text-sm">{c.wa || '-'}</span></td>
-                    <td><span className="mono text-sm text-green">{c.spend}</span></td>
-                    <td><span className="badge gray text-xs">{c.tier}</span></td>
-                    <td onClick={e => e.stopPropagation()}>
-                      {c.status === 'awaiting_approval'
-                        ? <button className="btn btn-amber btn-xs" style={{ animation: 'pulse 1.4s ease-in-out infinite' }} onClick={() => setPage('approvals')}>Review</button>
-                        : (c.status === 'active' || c.status === 'paused')
-                          ? <button className={`btn ${c.status === 'active' ? 'btn-ghost' : 'btn-green'} btn-xs`} onClick={() => toggleCampaign(c.id)}>{c.status === 'active' ? 'Pause' : 'Resume'}</button>
-                          : null
-                      }
-                    </td>
-                  </tr>
-                );
-              })}
-              {visibleCampaigns.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: '20px 0', fontSize: 12 }}>No campaigns{bizFilter ? ' for this business' : ''}</td></tr>
-              )}
-            </tbody>
-          </table>
+
+        {/* Lead Pipeline */}
+        <div className="card">
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 16 }}>Lead Pipeline</div>
+          <div className="flex-col gap-3">
+            {pipelineStages.map(s => {
+              const pct = leads.length > 0 ? Math.round((s.val / leads.length) * 100) : 0;
+              return (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setPage('leads')}>
+                  <div style={{ width: 90, fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>{s.label}</div>
+                  <div style={{ flex: 1, height: 6, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: `var(--${s.color})`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                  </div>
+                  <div className="mono" style={{ width: 28, fontSize: 13, fontWeight: 700, color: `var(--${s.color})`, textAlign: 'right', flexShrink: 0 }}>{s.val}</div>
+                  <div style={{ width: 68, fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>{s.sub}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{leads.length} total leads in system</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>View All →</button>
+          </div>
         </div>
       </div>
 
-      {/* Activity + Hot Leads */}
+      {/* AI Insights */}
+      <div className="fade-up-3 mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div
+          className="card"
+          style={{ cursor: bestCampaign ? 'pointer' : 'default' }}
+          onClick={() => bestCampaign && setPage('campaign-analytics')}
+        >
+          <div style={{ fontSize: 10, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>⚡ Best Campaign</div>
+          {bestCampaign ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bestCampaign.name}</div>
+              <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', marginBottom: 6 }}>{bestCampaign.open}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>email open rate · {bestCampaign.leads} leads contacted</div>
+            </>
+          ) : (
+            <div style={{ color: 'var(--muted)', fontSize: 12, paddingTop: 4 }}>No campaign data yet — start a campaign to see insights</div>
+          )}
+        </div>
+
+        <div
+          className="card"
+          style={{ cursor: bestIndustry ? 'pointer' : 'default' }}
+          onClick={() => bestIndustry && setPage('channel-analytics')}
+        >
+          <div style={{ fontSize: 10, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>🏆 Best Industry</div>
+          {bestIndustry ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{bestIndustry[0]}</div>
+              <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--amber)', marginBottom: 6 }}>{bestIndustry[1]}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>hot leads from this industry</div>
+            </>
+          ) : (
+            <div style={{ color: 'var(--muted)', fontSize: 12, paddingTop: 4 }}>Not enough data yet — hot leads will appear here</div>
+          )}
+        </div>
+
+        <div
+          className="card"
+          style={{ cursor: (bestChannel && bestChannel[1] > 0) ? 'pointer' : 'default' }}
+          onClick={() => bestChannel && bestChannel[1] > 0 && setPage('channel-analytics')}
+        >
+          <div style={{ fontSize: 10, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>📊 Best Channel</div>
+          {bestChannel && bestChannel[1] > 0 ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, textTransform: 'capitalize' }}>
+                {bestChannel[0] === 'wa' ? 'WhatsApp' : bestChannel[0].charAt(0).toUpperCase() + bestChannel[0].slice(1)}
+              </div>
+              <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', marginBottom: 6 }}>{bestChannel[1]}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>replies received on this channel</div>
+            </>
+          ) : (
+            <div style={{ color: 'var(--muted)', fontSize: 12, paddingTop: 4 }}>No reply data yet — replies will rank channels here</div>
+          )}
+        </div>
+      </div>
+
+      {/* Activity Feed + Hot Leads */}
       <div className="fade-up-4 mt-4" style={{ display: 'grid', gridTemplateColumns: '1fr 0.65fr', gap: 16, minHeight: 280 }}>
         <ActivityFeed activity={activity} />
-        <HotLeadsPanel leads={leads} campaigns={campaigns} />
+        <HotLeadsPanel leads={leads} />
       </div>
     </div>
   );
