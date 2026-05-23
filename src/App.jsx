@@ -38,6 +38,10 @@ import { LiveDemo } from './pages/LiveDemo.jsx';
 import { Onboard } from './pages/Onboard.jsx';
 import { SelfServeDemo } from './pages/SelfServeDemo.jsx';
 import { CampaignPipeline } from './pages/CampaignPipeline.jsx';
+import { CampaignDashboard } from './pages/CampaignDashboard.jsx';
+import { LeadIntelligence } from './pages/LeadIntelligence.jsx';
+import { AiStudio } from './pages/AiStudio.jsx';
+import { Revenue } from './pages/Revenue.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -45,7 +49,11 @@ const PAGE_MAP = {
   'add-business': AddBusiness,
   'new-campaign': NewCampaign,
   campaigns: AllCampaigns,
-  leads: LeadManager,
+  'campaign-dashboard': CampaignDashboard,
+  'lead-intelligence': LeadIntelligence,
+  leads: LeadIntelligence,
+  'ai-studio': AiStudio,
+  revenue: Revenue,
   inbox: ReplyInbox,
   replies: ReplyInbox,
   approvals: Approvals,

@@ -42,12 +42,17 @@ const NAV = [
     { id:'approval', icon:'⏳', label:'Approvals', badgeColor:'amber' },
   ]},
   { section:'CAMPAIGNS', items:[
-    { id:'campaigns', icon:'◉', label:'All Campaigns', badgeColor:'blue' },
-    { id:'leads', icon:'👥', label:'Lead Manager' },
+    { id:'campaign-dashboard', icon:'▦', label:'Dashboard' },
+    { id:'campaigns', icon:'◉', label:'Campaigns', badgeColor:'blue' },
+    { id:'lead-intelligence', icon:'◈', label:'Lead Intelligence', badgeColor:'green' },
+    { id:'ai-studio', icon:'✦', label:'AI Studio' },
     { id:'new-campaign', icon:'＋', label:'New Campaign' },
   ]},
   { section:'ANALYTICS', items:[
-    { id:'reporting', icon:'↗', label:'Reporting & ROI' },
+    { id:'reporting', icon:'↗', label:'Performance' },
+    { id:'revenue', icon:'◎', label:'Revenue' },
+  ]},
+  { section:'AI TOOLS', items:[
     { id:'prompt-studio', icon:'⚡', label:'Prompt Studio' },
   ]},
   { section:'DEMO', items:[
@@ -84,11 +89,14 @@ export function Sidebar() {
     closeSidebar();
   }
 
+  const totalLeads = useAppStore(s => s.leads?.length || 0);
+
   function getBadge(id) {
     if (id === 'businesses') return totalBusinesses || null;
     if (id === 'replies') return unreadReplies || null;
     if (id === 'approval') return pendingApprovals || null;
     if (id === 'campaigns') return totalCampaigns || null;
+    if (id === 'lead-intelligence') return totalLeads || null;
     return null;
   }
 
