@@ -38,7 +38,6 @@ const NAV = [
   ]},
   { section:'BUSINESSES', items:[
     { id:'businesses', icon:'◈', label:'All Businesses', badgeColor:'green' },
-    { id:'replies', icon:'✦', label:'Reply Inbox', badgeColor:'red' },
   ]},
   { section:'CAMPAIGNS', items:[
     { id:'campaign-dashboard', icon:'▦', label:'Campaign Dashboard' },
@@ -46,6 +45,12 @@ const NAV = [
     { id:'lead-intelligence', icon:'◈', label:'Lead Intelligence', badgeColor:'green' },
     { id:'ai-campaign-studio', icon:'✦', label:'AI Campaign Studio' },
     { id:'new-campaign', icon:'＋', label:'New Campaign' },
+  ]},
+  { section:'COMMUNICATIONS', items:[
+    { id:'unified-inbox', icon:'◎', label:'Unified Inbox', badgeColor:'red' },
+    { id:'email-inbox', icon:'✉', label:'Email Inbox' },
+    { id:'whatsapp-inbox', icon:'💬', label:'WhatsApp Inbox' },
+    { id:'voice-outcomes', icon:'📞', label:'Voice Outcomes' },
   ]},
   { section:'ANALYTICS', items:[
     { id:'campaign-analytics', icon:'↗', label:'Campaign Analytics' },
@@ -90,6 +95,7 @@ export function Sidebar() {
 
   function getBadge(id) {
     if (id === 'businesses') return totalBusinesses || null;
+    if (id === 'unified-inbox') return unreadReplies || null;
     if (id === 'replies') return unreadReplies || null;
     if (id === 'approval') return pendingApprovals || null;
     if (id === 'campaigns') return totalCampaigns || null;
@@ -109,7 +115,7 @@ export function Sidebar() {
             <div className="nav-label">{section.section}</div>
             {section.items.filter(item => canAccess(item.id)).map(item => {
               const badge = getBadge(item.id);
-              const pulse = item.id === 'replies' && unreadReplies > 0;
+              const pulse = (item.id === 'replies' || item.id === 'unified-inbox') && unreadReplies > 0;
               return (
                 <div
                   key={item.id}

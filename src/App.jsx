@@ -45,6 +45,11 @@ import { AiCampaignStudio } from './pages/AiCampaignStudio.jsx';
 import { Revenue } from './pages/Revenue.jsx';
 import { CampaignAnalytics } from './pages/CampaignAnalytics.jsx';
 import { ChannelAnalytics } from './pages/ChannelAnalytics.jsx';
+import { BusinessDetail } from './pages/BusinessDetail.jsx';
+import { UnifiedInbox } from './pages/UnifiedInbox.jsx';
+import { EmailInbox } from './pages/EmailInbox.jsx';
+import { WhatsAppInbox } from './pages/WhatsAppInbox.jsx';
+import { VoiceOutcomes } from './pages/VoiceOutcomes.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -72,6 +77,11 @@ const PAGE_MAP = {
   portal: ClientPortal,
   'client-portal': ClientPortal,
   pipeline: CampaignPipeline,
+  'business-detail': BusinessDetail,
+  'unified-inbox': UnifiedInbox,
+  'email-inbox': EmailInbox,
+  'whatsapp-inbox': WhatsAppInbox,
+  'voice-outcomes': VoiceOutcomes,
 };
 
 const MAX_RETRIES = 3;
@@ -84,8 +94,8 @@ export default function App() {
     return <SelfServeDemo />;
   }
 
-  const { page, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({
-    page: s.page, init: s.init,
+  const { page, pageParams, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({
+    page: s.page, pageParams: s.pageParams, init: s.init,
     sidebarOpen: s.sidebarOpen, toggleSidebar: s.toggleSidebar, closeSidebar: s.closeSidebar,
   })));
 
@@ -173,7 +183,7 @@ export default function App() {
         <Sidebar />
         <main className="main-content" onClick={() => sidebarOpen && closeSidebar()}>
           <ErrorBoundary key={page}>
-            <PageComponent />
+            <PageComponent {...(pageParams || {})} />
           </ErrorBoundary>
         </main>
         <TweaksPanel />

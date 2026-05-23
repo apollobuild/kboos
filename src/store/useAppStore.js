@@ -26,6 +26,7 @@ function applyTweaks({ accent, density }) {
 
 export const useAppStore = create((set, get) => ({
   page: 'dashboard',
+  pageParams: {},
   selectedBizId: null,
   selectedCampaignId: null,
   businesses: [],
@@ -53,7 +54,7 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
-  setPage: (page) => set({ page }),
+  setPage: (page, params = {}) => set({ page, pageParams: params || {} }),
   setSelectedCampaign: (id) => set({ selectedCampaignId: id }),
   openCampaignPipeline: (id) => set({ selectedCampaignId: id, page: 'pipeline' }),
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),

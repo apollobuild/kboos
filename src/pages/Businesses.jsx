@@ -40,7 +40,7 @@ export function Businesses() {
           <div key={b.id} className="card" style={{transition:'all 0.2s',cursor:'pointer'}}
             onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
             onMouseLeave={e => e.currentTarget.style.transform=''}
-            onClick={() => setOpenBiz(b)}
+            onClick={() => setPage('business-detail', { bizId: b.id })}
           >
             <div className="flex items-center gap-3 mb-3">
               <BizAvatar id={b.id} name={b.name} color={b.color} size={40}/>
@@ -76,7 +76,7 @@ export function Businesses() {
             </div>
             {b.status==='setup' && <div className="badge amber mb-3" style={{width:'100%',justifyContent:'center'}}>In Setup</div>}
             <div className="flex gap-2">
-              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e => { e.stopPropagation(); handleManage(b.id); }}>Manage →</button>
+              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={e => { e.stopPropagation(); setPage('business-detail', { bizId: b.id }); }}>Manage →</button>
               <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setPage('client-portal'); }}>Portal ↗</button>
               <button
                 className="btn btn-sm"
