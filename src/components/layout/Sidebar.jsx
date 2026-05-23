@@ -39,7 +39,6 @@ const NAV = [
   { section:'BUSINESSES', items:[
     { id:'businesses', icon:'◈', label:'All Businesses', badgeColor:'green' },
     { id:'replies', icon:'✦', label:'Reply Inbox', badgeColor:'red' },
-    { id:'approval', icon:'⏳', label:'Approvals', badgeColor:'amber' },
   ]},
   { section:'CAMPAIGNS', items:[
     { id:'campaign-dashboard', icon:'▦', label:'Dashboard' },
@@ -54,9 +53,6 @@ const NAV = [
   ]},
   { section:'AI TOOLS', items:[
     { id:'prompt-studio', icon:'⚡', label:'Prompt Studio' },
-  ]},
-  { section:'DEMO', items:[
-    { id:'live-demo', icon:'●', label:'Live Demo' },
   ]},
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },
