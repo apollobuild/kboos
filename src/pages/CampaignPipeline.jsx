@@ -76,6 +76,67 @@ function StageStatus({ stageKey, currentStage }) {
   );
 }
 
+// ─────────────────────── LiveCampaignStats ───────────────────────
+function LiveCampaignStats({ campaignId, setPage, dailyLimit }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    apiFetch(`/campaigns/${campaignId}/actions/today`).then(setStats).catch(() => {});
+    apiFetch(`/analytics/campaign/${campaignId}`).then(d => setStats(prev => ({ ...prev, allTime: d?.stats }))).catch(() => {});
+  }, [campaignId]);
+
+  const sent = stats?.totalSent ?? 0;
+  const limit = stats?.dailyLimit ?? dailyLimit;
+  const pct = Math.min(100, Math.round((sent / limit) * 100));
+  const ch = stats?.channels || {};
+
+  return (
+    <div>
+      <div style={{ fontSize: 14, color: 'var(--green)', fontWeight: 600, marginBottom: 14 }}>
+        ● Campaign is live — engine sending 9am–6pm KL daily
+      </div>
+      {/* Today's send progress */}
+      <div style={{ marginBottom: 16, padding: 14, background: 'var(--s2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
+          <span>Today's sends</span>
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{sent} / {limit}</span>
+        </div>
+        <div style={{ height: 6, background: 'var(--bg)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: pct >= 90 ? 'var(--amber)' : 'var(--green)', borderRadius: 3, transition: 'width 0.4s ease' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {[['✉', 'email', 'var(--blue)'], ['💬', 'wa', 'var(--green)'], ['📞', 'voice', 'var(--amber)']].map(([icon, key, color]) => (
+            <div key={key} style={{ fontSize: 11 }}>
+              <span style={{ color }}>{icon}</span>
+              <span style={{ color: 'var(--text)', marginLeft: 4, fontFamily: 'var(--font-mono)' }}>{ch[key]?.sent ?? 0} sent</span>
+              {(ch[key]?.failed ?? 0) > 0 && <span style={{ color: 'var(--red)', marginLeft: 4 }}>✗ {ch[key].failed}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* All-time stats */}
+      {stats?.allTime && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Emails Sent',  val: stats.allTime.emailActions ?? 0 },
+            { label: 'WA Sent',      val: stats.allTime.waActions ?? 0 },
+            { label: 'Replies',      val: stats.allTime.replies ?? 0 },
+            { label: 'Meetings',     val: stats.allTime.meetings ?? 0 },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{stat.val.toLocaleString()}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)' }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage('unified-inbox')}>Reply Inbox →</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage('lead-intelligence')}>Lead Manager →</button>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────── LeadAcquisition ───────────────────────
 function LeadAcquisition({ campaignId, onImported, showToast }) {
   const [tab, setTab] = useState('gmaps');
@@ -277,6 +338,13 @@ export function CampaignPipeline() {
   // UI toggles
   const [showAddMore, setShowAddMore] = useState(false);
   const [acting, setActing] = useState(false);
+  const [sendConfig, setSendConfig] = useState({
+    fromName: campaign?.config?.fromName || '',
+    fromEmail: campaign?.config?.fromEmail || '',
+    replyTo: campaign?.config?.replyTo || '',
+    dailyLimit: String(campaign?.dailyLimit || 200),
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
 
   const pollRef = useRef(null);
 
@@ -397,6 +465,31 @@ export function CampaignPipeline() {
       showToast(e.message, 'red');
     } finally {
       setActing(false);
+    }
+  }
+
+  async function doSaveConfig() {
+    setSavingConfig(true);
+    try {
+      const limit = Math.max(50, Math.min(1000, parseInt(sendConfig.dailyLimit) || 200));
+      await apiFetch(`/campaigns/${selectedCampaignId}`, {
+        method: 'PATCH',
+        body: {
+          dailyLimit: limit,
+          config: {
+            ...(campaign?.config || {}),
+            fromName: sendConfig.fromName,
+            fromEmail: sendConfig.fromEmail,
+            replyTo: sendConfig.replyTo,
+          },
+        },
+      });
+      await updateCampaign(selectedCampaignId, {});
+      showToast('Sending config saved', 'green');
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setSavingConfig(false);
     }
   }
 
@@ -1342,11 +1435,11 @@ export function CampaignPipeline() {
                     </div>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
                       {[
-                        { label: 'Total Leads',         val: totalLeads },
-                        { label: 'Personalized',         val: personalizedLeads },
-                        { label: 'AI Assets',            val: assetCount },
-                        { label: 'Personalization',      val: `Level ${plvl}` },
-                        { label: 'Channels',             val: campaign.channels?.join(', ') || '—' },
+                        { label: 'Total Leads',    val: totalLeads },
+                        { label: 'Personalized',   val: personalizedLeads },
+                        { label: 'AI Assets',      val: assetCount },
+                        { label: 'Personalization', val: `Level ${plvl}` },
+                        { label: 'Channels',        val: campaign.channels?.join(', ') || '—' },
                       ].map(stat => (
                         <div key={stat.label} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--border)' }}>
                           <div style={{ fontSize: 10, color: 'var(--muted)' }}>{stat.label}</div>
@@ -1354,6 +1447,59 @@ export function CampaignPipeline() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Sending config */}
+                    <div style={{ marginBottom: 20, padding: 16, background: 'var(--s2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: 'var(--text)' }}>Sending Settings</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>FROM NAME</div>
+                          <input
+                            className="input"
+                            placeholder={`${campaign.bizName} Team`}
+                            value={sendConfig.fromName}
+                            onChange={e => setSendConfig(s => ({ ...s, fromName: e.target.value }))}
+                            style={{ width: '100%', fontSize: 12 }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>FROM EMAIL</div>
+                          <input
+                            className="input"
+                            placeholder="outreach@yourdomain.com"
+                            value={sendConfig.fromEmail}
+                            onChange={e => setSendConfig(s => ({ ...s, fromEmail: e.target.value }))}
+                            style={{ width: '100%', fontSize: 12 }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>REPLY-TO</div>
+                          <input
+                            className="input"
+                            placeholder="replies@yourdomain.com"
+                            value={sendConfig.replyTo}
+                            onChange={e => setSendConfig(s => ({ ...s, replyTo: e.target.value }))}
+                            style={{ width: '100%', fontSize: 12 }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>DAILY LIMIT</div>
+                          <input
+                            className="input"
+                            type="number"
+                            min={50}
+                            max={1000}
+                            value={sendConfig.dailyLimit}
+                            onChange={e => setSendConfig(s => ({ ...s, dailyLimit: e.target.value }))}
+                            style={{ width: '100%', fontSize: 12 }}
+                          />
+                        </div>
+                      </div>
+                      <button className="btn btn-ghost btn-sm" onClick={doSaveConfig} disabled={savingConfig}>
+                        {savingConfig ? 'Saving…' : 'Save Config'}
+                      </button>
+                    </div>
+
                     <button
                       className="btn btn-green"
                       style={{ padding: '12px 32px', fontSize: 15, fontWeight: 700 }}
@@ -1366,33 +1512,7 @@ export function CampaignPipeline() {
                 )}
 
                 {isLive && (
-                  <div>
-                    <div style={{ fontSize: 14, color: 'var(--green)', fontWeight: 600, marginBottom: 14 }}>
-                      ● Campaign is live — engine sending 9am–6pm KL daily
-                    </div>
-
-                    {/* Quick analytics */}
-                    {campaign.stats && (
-                      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                        {[
-                          { label: 'Emails Sent',  val: campaign.stats.emailsSent ?? 0  },
-                          { label: 'WA Sent',      val: campaign.stats.waSent ?? 0      },
-                          { label: 'Replies',      val: campaign.stats.replies ?? 0     },
-                          { label: 'Meetings',     val: campaign.stats.meetings ?? 0    },
-                        ].map(stat => (
-                          <div key={stat.label} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{stat.val}</div>
-                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{stat.label}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>Lead Manager →</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('inbox')}>Reply Inbox →</button>
-                    </div>
-                  </div>
+                  <LiveCampaignStats campaignId={selectedCampaignId} setPage={setPage} dailyLimit={campaign?.dailyLimit || 200} />
                 )}
               </div>
             )}

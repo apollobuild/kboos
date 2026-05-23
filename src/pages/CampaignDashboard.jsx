@@ -12,10 +12,18 @@ export function CampaignDashboard() {
 
   const [overview, setOverview] = useState(null);
   const [activity, setActivity] = useState([]);
+  const [todayStats, setTodayStats] = useState({});
 
   useEffect(() => {
     apiFetch('/analytics/overview').then(setOverview).catch(() => {});
     apiFetch('/activity').then(d => setActivity(d || [])).catch(() => {});
+    apiFetch('/analytics/campaigns/today')
+      .then(rows => {
+        const map = {};
+        (rows || []).forEach(r => { map[r.id] = r; });
+        setTodayStats(map);
+      })
+      .catch(() => {});
   }, []);
 
   const active = campaigns.filter(c => c.status === 'active');
@@ -87,34 +95,51 @@ export function CampaignDashboard() {
             {active.length === 0 ? (
               <div style={{fontSize:12,color:'var(--muted)',padding:'16px 0',textAlign:'center'}}>No active campaigns — <span style={{color:'var(--blue)',cursor:'pointer'}} onClick={() => setPage('new-campaign')}>start one →</span></div>
             ) : (
-              <table style={{width:'100%',borderCollapse:'collapse'}}>
-                <thead>
-                  <tr style={{borderBottom:'1px solid var(--border)'}}>
-                    {['Campaign','Business','Stage','Leads',''].map(h => (
-                      <th key={h} style={{textAlign:'left',fontSize:10,color:'var(--muted)',fontWeight:600,padding:'0 8px 8px',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {active.slice(0,6).map(c => (
-                    <tr key={c.id} style={{borderBottom:'1px solid var(--border)'}} className="table-row">
-                      <td style={{padding:'10px 8px'}}>
-                        <div style={{fontSize:12,fontWeight:500,color:'var(--blue)',cursor:'pointer'}} onClick={() => openCampaignPipeline(c.id)}>{c.name}</div>
-                      </td>
-                      <td style={{padding:'10px 8px',fontSize:11,color:'var(--muted)'}}>{c.bizName}</td>
-                      <td style={{padding:'10px 8px'}}>
-                        <span style={{fontSize:10,background:'var(--green-dim,oklch(70% 0.18 145 / 0.12))',color:'var(--green)',borderRadius:4,padding:'2px 8px',fontWeight:600}}>
-                          {stageLabel(c._pipeline?.stage || 'active')}
-                        </span>
-                      </td>
-                      <td style={{padding:'10px 8px',fontSize:12,fontFamily:'var(--font-mono)',color:'var(--text)'}}>{(c.leads||0).toLocaleString()}</td>
-                      <td style={{padding:'10px 8px'}}>
-                        <button className="btn btn-ghost btn-sm" style={{fontSize:10,padding:'3px 8px'}} onClick={() => openCampaignPipeline(c.id)}>Open →</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {active.slice(0,6).map(c => {
+                  const ts = todayStats[c.id];
+                  const sent = ts?.totalSent ?? 0;
+                  const limit = ts?.dailyLimit ?? c.dailyLimit ?? 200;
+                  const pct = Math.min(100, Math.round((sent / limit) * 100));
+                  const ch = ts?.channels || {};
+                  return (
+                    <div key={c.id} style={{padding:'12px 14px',background:'var(--s2)',borderRadius:8,border:'1px solid var(--border)'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:'var(--blue)',cursor:'pointer'}} onClick={() => openCampaignPipeline(c.id)}>{c.name}</div>
+                          <div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>{c.bizName}</div>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:10,background:'oklch(70% 0.18 145 / 0.12)',color:'var(--green)',borderRadius:4,padding:'2px 8px',fontWeight:600}}>● Live</span>
+                          <button className="btn btn-ghost btn-sm" style={{fontSize:10,padding:'3px 8px'}} onClick={() => openCampaignPipeline(c.id)}>Open →</button>
+                        </div>
+                      </div>
+                      {/* Daily progress bar */}
+                      <div style={{marginBottom:6}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--muted)',marginBottom:3}}>
+                          <span>Today's sends</span>
+                          <span style={{fontFamily:'var(--font-mono)',color:'var(--text)'}}>{sent} / {limit}</span>
+                        </div>
+                        <div style={{height:5,background:'var(--bg)',borderRadius:3,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${pct}%`,background: pct >= 90 ? 'var(--amber)' : 'var(--green)',borderRadius:3,transition:'width 0.4s ease'}}/>
+                        </div>
+                      </div>
+                      {/* Channel breakdown */}
+                      {ts && (
+                        <div style={{display:'flex',gap:12,marginTop:4}}>
+                          {[['✉', 'email','var(--blue)'], ['💬','wa','var(--green)'], ['📞','voice','var(--amber)']].map(([icon, key, color]) => (
+                            <span key={key} style={{fontSize:10,color:'var(--muted)'}}>
+                              <span style={{color}}>{icon}</span> {ch[key]?.sent ?? 0}
+                              {(ch[key]?.failed ?? 0) > 0 && <span style={{color:'var(--red)',marginLeft:3}}>✗{ch[key].failed}</span>}
+                            </span>
+                          ))}
+                          <span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto'}}>{(c.leads||0).toLocaleString()} leads</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
