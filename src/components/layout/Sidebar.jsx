@@ -51,9 +51,6 @@ const NAV = [
     { id:'reporting', icon:'↗', label:'Performance' },
     { id:'revenue', icon:'◎', label:'Revenue' },
   ]},
-  { section:'AI TOOLS', items:[
-    { id:'prompt-studio', icon:'⚡', label:'Prompt Studio' },
-  ]},
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },
     { id:'client-portal', icon:'🌐', label:'Client Portal' },
