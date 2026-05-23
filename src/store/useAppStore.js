@@ -129,4 +129,9 @@ export const useAppStore = create((set, get) => ({
     await repliesService[action](id);
     set(s => ({ replies: s.replies.map(r => r.id === id ? { ...r, ...patch } : r) }));
   },
+
+  refreshReplies: async () => {
+    const fresh = await repliesService.getAll().catch(() => null);
+    if (fresh) set({ replies: fresh });
+  },
 }));

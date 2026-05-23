@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
@@ -46,7 +46,7 @@ const STATUS_TABS = [
 ];
 
 export function UnifiedInbox({ defaultChannel = 'All' }) {
-  const { replies, leads, campaigns, businesses, updateReply, showToast } = useAppStore(
+  const { replies, leads, campaigns, businesses, updateReply, showToast, refreshReplies } = useAppStore(
     useShallow(s => ({
       replies:    s.replies,
       leads:      s.leads,
@@ -54,6 +54,7 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
       businesses: s.businesses,
       updateReply: s.updateReply,
       showToast:  s.showToast,
+      refreshReplies: s.refreshReplies,
     }))
   );
 
@@ -63,6 +64,18 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
   const [selected,   setSelected]     = useState(null);
   const [draft,      setDraft]        = useState('');
   const [suggesting, setSuggesting]   = useState(false);
+  const [newBadge,   setNewBadge]     = useState(0);
+  const prevUnreadRef = useRef(replies.filter(r => r.status === 'unread').length);
+
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      await refreshReplies();
+      const now = useAppStore.getState().replies.filter(r => r.status === 'unread').length;
+      if (now > prevUnreadRef.current) setNewBadge(now - prevUnreadRef.current);
+      prevUnreadRef.current = now;
+    }, 30000);
+    return () => clearInterval(poll);
+  }, []);
 
   const normaliseChannel = (ch = '') => ch.toLowerCase();
 
@@ -157,6 +170,16 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {newBadge > 0 && (
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green)', fontSize: 11 }}
+              onClick={() => { setNewBadge(0); setStatusTab('unread'); }}
+            >
+              ● {newBadge} new
+            </button>
+          )}
+          <button className="btn btn-ghost btn-sm" title="Refresh" onClick={() => refreshReplies()} style={{ fontSize: 13, padding: '4px 8px' }}>↻</button>
           <Select
             value={bizFilter}
             onChange={setBizFilter}

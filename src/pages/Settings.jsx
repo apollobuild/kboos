@@ -58,8 +58,15 @@ const INTEGRATION_GROUPS = [
     id: 'comms',
     label: 'Communication Providers',
     providers: [
-      { key: 'sendgrid',              label: 'SendGrid',               icon: '📧', color: '#0078ff', desc: 'Email delivery' },
-      { key: 'wati',                  label: 'WATI (WhatsApp)',        icon: '💬', color: '#00d97e', desc: 'WhatsApp Business messaging' },
+      { key: 'sendgrid', label: 'SendGrid', icon: '📧', color: '#0078ff', desc: 'Email delivery',
+        webhookPaths: [
+          { path: '/webhooks/sendgrid',          label: 'Event Webhook URL (opens, bounces, unsubscribes)' },
+          { path: '/webhooks/sendgrid-inbound',  label: 'Inbound Parse URL (email replies → inbox)' },
+        ],
+      },
+      { key: 'wati', label: 'WATI (WhatsApp)', icon: '💬', color: '#00d97e', desc: 'WhatsApp Business messaging',
+        webhookPath: '/webhooks/wati', webhookLabel: 'Inbound Webhook URL (paste into WATI → Webhooks)',
+      },
       { key: 'vapi',                  label: 'Vapi (AI Voice)',        icon: '📞', color: '#f5a623', desc: 'AI voice calls', extraKey: 'vapi_phone_number_id' },
       { key: 'billplz_api_key',       label: 'Billplz (Payments)',     icon: '💳', color: '#0078ff', desc: 'FPX client billing', extraKeys: ['billplz_collection_id','billplz_x_signature_key'] },
     ],
@@ -474,10 +481,35 @@ export function Settings() {
                     <ApiKeyInput apiKey={ek} />
                   </div>
                 ))}
+                {provider.webhookPath && (
+                  <WebhookUrlCard path={provider.webhookPath} label={provider.webhookLabel} />
+                )}
+                {provider.webhookPaths?.map(wp => (
+                  <WebhookUrlCard key={wp.path} path={wp.path} label={wp.label} />
+                ))}
               </>
             )}
           </div>
         )}
+      </div>
+    );
+  }
+
+  function WebhookUrlCard({ path, label }) {
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const url = `${base}${path}`;
+    const [copied, setCopied] = useState(false);
+    function copy() {
+      navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    }
+    return (
+      <div style={{ marginTop:14, padding:'10px 12px', background:'var(--s2)', borderRadius:6, border:'1px solid var(--border)' }}>
+        <div style={{ fontSize:10, color:'var(--muted)', marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <code style={{ flex:1, fontSize:10, color:'var(--text)', fontFamily:'var(--font-mono)', wordBreak:'break-all', background:'var(--bg)', padding:'4px 8px', borderRadius:4, border:'1px solid var(--border)' }}>{url}</code>
+          <button className="btn btn-ghost btn-sm" style={{ flexShrink:0, fontSize:10 }} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+        </div>
+        <div style={{ fontSize:10, color:'var(--muted)', marginTop:6 }}>Append <code style={{ color:'var(--amber)' }}>?secret=YOUR_WEBHOOK_SECRET</code> from Railway env vars</div>
       </div>
     );
   }
