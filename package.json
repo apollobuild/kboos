@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npm run build && npx serve -s dist -l ${PORT:-3000}",
+    "start": "npm run build && node server.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
