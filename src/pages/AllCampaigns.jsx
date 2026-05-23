@@ -107,24 +107,28 @@ export function AllCampaigns() {
   };
 
   function pipelineStage(c) {
-    const s = c.status;
-    if (s === 'active' && c.startedAt) {
-      const days = Math.floor((Date.now() - new Date(c.startedAt).getTime()) / 86400000);
-      return { label: `Day ${days + 1} · Live`, color: 'var(--green)', dot: true };
-    }
-    if (s === 'active')             return { label: 'Live', color: 'var(--green)', dot: true };
-    if (s === 'awaiting_launch')    return { label: 'Ready to Launch', color: 'var(--amber)', dot: false };
-    if (s === 'personalized')       return { label: '5 · Personalized', color: 'var(--blue)', dot: false };
-    if (s === 'personalizing')      return { label: '5 · Personalizing…', color: 'var(--blue)', dot: true };
-    if (s === 'ai_content_ready')   return { label: '4 · Review Assets', color: 'var(--amber)', dot: false };
-    if (s === 'ai_generating')      return { label: '4 · AI Writing…', color: 'var(--blue)', dot: true };
-    if (s === 'enriched')           return { label: '3 · Enriched', color: 'var(--blue)', dot: false };
-    if (s === 'enriching')          return { label: '3 · Enriching…', color: 'var(--blue)', dot: true };
-    if (s === 'validated')          return { label: '2 · Approve Tiers', color: 'var(--amber)', dot: false };
-    if (s === 'validating')         return { label: '2 · Validating…', color: 'var(--blue)', dot: true };
-    if (s === 'awaiting_approval')  return { label: '1 · Import Leads', color: 'var(--muted)', dot: false };
-    if (s === 'paused')             return { label: 'Paused', color: 'var(--muted)', dot: false };
-    return { label: '1 · Start Pipeline', color: 'var(--muted)', dot: false };
+    const p = c._pipeline;
+    const stage = p?.stage || 'draft';
+    const stageMap = {
+      'draft':                  { label: '1 · Import Leads',        color: 'var(--muted)', num: 1 },
+      'scraping':               { label: '1 · Scraping...',         color: 'var(--blue)',  num: 1 },
+      'scraped':                { label: '1 · Leads Ready',         color: 'var(--blue)',  num: 1 },
+      'qualifying':             { label: '2 · Qualifying...',       color: 'var(--amber)', num: 2 },
+      'ready_for_enrichment':   { label: '2 · Awaiting Enrichment', color: 'var(--amber)', num: 2 },
+      'enriching':              { label: '3 · Enriching...',        color: 'var(--amber)', num: 3 },
+      'enrichment_complete':    { label: '3 · Enriched',            color: 'var(--blue)',  num: 3 },
+      'ai_scoring':             { label: '4 · AI Scoring...',       color: 'var(--blue)',  num: 4 },
+      'ai_content_ready':       { label: '5 · Assets Ready',        color: 'var(--blue)',  num: 5 },
+      'personalizing':          { label: '6 · Personalizing...',    color: 'var(--blue)',  num: 6 },
+      'channels_configured':    { label: '7 · Channels Set',        color: 'var(--blue)',  num: 7 },
+      'deliverability_check':   { label: '8 · Checking...',         color: 'var(--amber)', num: 8 },
+      'ready_to_launch':        { label: '8 · Ready to Launch',     color: 'var(--amber)', num: 8 },
+      'active':                 { label: '● Live',                   color: 'var(--green)', num: 9 },
+      'completed':              { label: '✓ Completed',              color: 'var(--green)', num: 9 },
+    };
+    const mapped = stageMap[stage] || { label: stage, color: 'var(--muted)', num: 0 };
+    const dot = ['scraping','qualifying','enriching','ai_scoring','personalizing','deliverability_check','active'].includes(stage);
+    return { ...mapped, dot };
   }
 
   const tabs = ['All', 'Active', 'Paused', 'In Pipeline'];

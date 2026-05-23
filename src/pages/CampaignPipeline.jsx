@@ -3,35 +3,45 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 
+// ─────────────────────── Stage config ───────────────────────
 const STAGE_ORDER = [
   'draft', 'scraping', 'scraped',
-  'validating', 'validated',
-  'enriching', 'enriched',
-  'ai_generating', 'ai_content_ready',
-  'personalizing', 'personalized',
-  'eligibility_checking', 'awaiting_launch',
+  'qualifying', 'ready_for_enrichment',
+  'enriching', 'enrichment_complete',
+  'ai_scoring',
+  'ai_content_ready',
+  'personalizing', 'channels_configured',
+  'deliverability_check', 'ready_to_launch',
   'active', 'completed',
 ];
-const STAGES_IN_PROGRESS = new Set(['scraping', 'validating', 'enriching', 'ai_generating', 'personalizing', 'eligibility_checking']);
+
+const POLL_STAGES = new Set([
+  'scraping', 'qualifying', 'enriching', 'ai_scoring', 'personalizing',
+]);
 
 function stageIndex(stage) { return STAGE_ORDER.indexOf(stage ?? 'draft'); }
 
-function StageStatus({ stage, currentStage }) {
-  const idx = stageIndex(stage);
-  const cur = stageIndex(currentStage);
-  if (idx < cur) return <span style={{color:'var(--green)',fontSize:14}}>✓</span>;
-  if (idx === cur) return <span style={{width:8,height:8,borderRadius:'50%',background:'var(--blue)',display:'inline-block',flexShrink:0}}></span>;
-  return <span style={{width:8,height:8,borderRadius:'50%',background:'var(--border)',display:'inline-block',flexShrink:0}}></span>;
+// ─────────────────────── Shared UI ───────────────────────
+function Spinner({ color = 'var(--blue)' }) {
+  return (
+    <span style={{
+      display: 'inline-block', width: 12, height: 12,
+      border: `2px solid var(--border)`, borderTopColor: color,
+      borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0,
+    }}/>
+  );
 }
 
 function ProgressBar({ value, max, color = 'var(--blue)' }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
   return (
-    <div style={{display:'flex',alignItems:'center',gap:10}}>
-      <div className="prog-bar" style={{flex:1,height:6}}>
-        <div className="prog-fill" style={{width:`${pct}%`,background:color}}/>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="prog-bar" style={{ flex: 1, height: 6 }}>
+        <div className="prog-fill" style={{ width: `${pct}%`, background: color }}/>
       </div>
-      <span className="mono" style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap'}}>{value}/{max}</span>
+      <span className="mono" style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+        {value}/{max}
+      </span>
     </div>
   );
 }
@@ -39,18 +49,34 @@ function ProgressBar({ value, max, color = 'var(--blue)' }) {
 function TierBadge({ tier }) {
   const color = tier === 'A' ? 'var(--green)' : tier === 'B' ? 'var(--amber)' : 'var(--muted)';
   return (
-    <span style={{background:color,color:'#fff',borderRadius:4,padding:'1px 7px',fontSize:11,fontWeight:700}}>
+    <span style={{
+      background: color, color: '#fff', borderRadius: 4,
+      padding: '1px 7px', fontSize: 11, fontWeight: 700,
+    }}>
       {tier}
     </span>
   );
 }
 
-function Spinner() {
+function StageStatus({ stageKey, currentStage }) {
+  const idx = stageIndex(stageKey);
+  const cur = stageIndex(currentStage);
+  if (idx < cur) return <span style={{ color: 'var(--green)', fontSize: 14 }}>✓</span>;
+  if (idx === cur) return (
+    <span style={{
+      width: 8, height: 8, borderRadius: '50%', background: 'var(--blue)',
+      display: 'inline-block', flexShrink: 0,
+    }}/>
+  );
   return (
-    <span style={{display:'inline-block',width:12,height:12,border:'2px solid var(--border)',borderTopColor:'var(--blue)',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
+    <span style={{
+      width: 8, height: 8, borderRadius: '50%', background: 'var(--border)',
+      display: 'inline-block', flexShrink: 0,
+    }}/>
   );
 }
 
+// ─────────────────────── LeadAcquisition ───────────────────────
 function LeadAcquisition({ campaignId, onImported, showToast }) {
   const [tab, setTab] = useState('gmaps');
   const [loading, setLoading] = useState(false);
@@ -88,15 +114,15 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
     setLoading(false);
   }
 
-  const tabBtn = (id, label, active) => (
+  const tabBtn = (id, label) => (
     <button
       key={id}
       style={{
-        padding: '6px 14px', fontSize: 12, fontWeight: active ? 600 : 400,
-        background: active ? 'var(--s3,var(--s2))' : 'transparent',
-        border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
+        padding: '6px 14px', fontSize: 12, fontWeight: tab === id ? 600 : 400,
+        background: tab === id ? 'var(--s3,var(--s2))' : 'transparent',
+        border: `1px solid ${tab === id ? 'var(--blue)' : 'var(--border)'}`,
         borderRadius: 6, cursor: 'pointer',
-        color: active ? 'var(--blue)' : 'var(--muted)',
+        color: tab === id ? 'var(--blue)' : 'var(--muted)',
       }}
       onClick={() => setTab(id)}
     >
@@ -109,11 +135,10 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
         Choose a source to import leads for this campaign:
       </div>
-
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {tabBtn('gmaps', '🗺 Google Maps', tab === 'gmaps')}
-        {tabBtn('apollo', '👔 B2B Contacts', tab === 'apollo')}
-        {tabBtn('csv', '📄 Upload CSV', tab === 'csv')}
+        {tabBtn('gmaps', '🗺 Google Maps')}
+        {tabBtn('apollo', '👔 B2B Contacts')}
+        {tabBtn('csv', '📄 Upload CSV')}
       </div>
 
       {tab === 'gmaps' && (
@@ -124,11 +149,11 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>KEYWORD</div>
-              <input className="input" placeholder="e.g. dental clinic, gym, law firm" value={keyword} onChange={e => setKeyword(e.target.value)} style={{ fontSize: 12 }} />
+              <input className="input" placeholder="e.g. dental clinic, gym, law firm" value={keyword} onChange={e => setKeyword(e.target.value)} style={{ fontSize: 12 }}/>
             </div>
             <div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>CITY</div>
-              <input className="input" placeholder="e.g. Kuala Lumpur, Johor Bahru" value={city} onChange={e => setCity(e.target.value)} style={{ fontSize: 12 }} />
+              <input className="input" placeholder="e.g. Kuala Lumpur, Johor Bahru" value={city} onChange={e => setCity(e.target.value)} style={{ fontSize: 12 }}/>
             </div>
           </div>
           <div>
@@ -138,7 +163,7 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
             </select>
           </div>
           <button className="btn btn-green btn-sm" disabled={loading || !keyword.trim() || !city.trim()} onClick={() => doScrape('gmaps')}>
-            {loading ? <><Spinner /> Scraping…</> : `Scrape ${limit} leads from Google Maps →`}
+            {loading ? <><Spinner color="#fff"/> Scraping…</> : `Scrape ${limit} leads from Google Maps →`}
           </button>
         </div>
       )}
@@ -151,11 +176,11 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>JOB TITLES <span style={{ fontStyle: 'italic', fontWeight: 400 }}>(comma-separated)</span></div>
-              <input className="input" placeholder="e.g. Founder, CEO, HR Director" value={jobTitles} onChange={e => setJobTitles(e.target.value)} style={{ fontSize: 12 }} />
+              <input className="input" placeholder="e.g. Founder, CEO, HR Director" value={jobTitles} onChange={e => setJobTitles(e.target.value)} style={{ fontSize: 12 }}/>
             </div>
             <div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3, fontWeight: 600 }}>CITY</div>
-              <input className="input" placeholder="e.g. Kuala Lumpur" value={apolloCity} onChange={e => setApolloCity(e.target.value)} style={{ fontSize: 12 }} />
+              <input className="input" placeholder="e.g. Kuala Lumpur" value={apolloCity} onChange={e => setApolloCity(e.target.value)} style={{ fontSize: 12 }}/>
             </div>
           </div>
           <div>
@@ -165,7 +190,7 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
             </select>
           </div>
           <button className="btn btn-green btn-sm" disabled={loading || !apolloCity.trim()} onClick={() => doScrape('apollo')}>
-            {loading ? <><Spinner /> Fetching…</> : `Find ${apolloLimit} B2B contacts →`}
+            {loading ? <><Spinner color="#fff"/> Fetching…</> : `Find ${apolloLimit} B2B contacts →`}
           </button>
         </div>
       )}
@@ -187,10 +212,10 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
             onDragLeave={() => setCsvDragOver(false)}
             onDrop={e => { e.preventDefault(); setCsvDragOver(false); const f = e.dataTransfer.files[0]; if (f) doUploadCsv(f); }}
           >
-            <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) doUploadCsv(f); }} />
+            <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) doUploadCsv(f); }}/>
             {loading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                <Spinner /> Importing leads…
+                <Spinner/> Importing leads…
               </div>
             ) : (
               <>
@@ -206,6 +231,7 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
   );
 }
 
+// ─────────────────────── Main Component ───────────────────────
 export function CampaignPipeline() {
   const { selectedCampaignId, campaigns, updateCampaign, showToast, setPage } = useAppStore(useShallow(s => ({
     selectedCampaignId: s.selectedCampaignId,
@@ -217,17 +243,19 @@ export function CampaignPipeline() {
 
   const campaign = campaigns.find(c => c.id === selectedCampaignId);
 
+  // ── State ──
   const [pipeline, setPipeline] = useState(null);
+  const [totalLeads, setTotalLeads] = useState(0);
   const [assetCount, setAssetCount] = useState(0);
   const [approvedAssets, setApprovedAssets] = useState(0);
   const [personalizedLeads, setPersonalizedLeads] = useState(0);
-  const [totalLeads, setTotalLeads] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Validation
-  const [validationSummary, setValidationSummary] = useState(null);
-  const [approvedTiers, setApprovedTiers] = useState(['A', 'B']);
-  const [approvingTiers, setApprovingTiers] = useState(false);
+  // Panel-specific state
+  const [qualifySummary, setQualifySummary] = useState(null);
+  const [selectedTiers, setSelectedTiers] = useState(['A', 'B']);
+  const [channelEligibility, setChannelEligibility] = useState(null);
+  const [deliverabilityResult, setDeliverabilityResult] = useState(null);
 
   // Assets
   const [assets, setAssets] = useState([]);
@@ -236,24 +264,25 @@ export function CampaignPipeline() {
   const [savingAsset, setSavingAsset] = useState(null);
   const [approvingAll, setApprovingAll] = useState(false);
 
-  // Eligibility
-  const [eligibility, setEligibility] = useState(null);
+  // Channel strategy (Panel 7)
+  const [channelStrategy, setChannelStrategy] = useState(campaign?.channelStrategy || 'balanced');
 
-  // Actions
-  const [acting, setActing] = useState(false);
+  // UI toggles
   const [showAddMore, setShowAddMore] = useState(false);
+  const [acting, setActing] = useState(false);
 
   const pollRef = useRef(null);
 
+  // ── Fetch pipeline status ──
   const fetchStatus = useCallback(async () => {
     if (!selectedCampaignId) return;
     try {
       const data = await apiFetch(`/pipeline/${selectedCampaignId}`);
       setPipeline(data.pipeline);
+      setTotalLeads(data.totalLeads ?? 0);
       setAssetCount(data.assetCount ?? 0);
       setApprovedAssets(data.approvedAssets ?? 0);
       setPersonalizedLeads(data.personalizedLeads ?? 0);
-      setTotalLeads(data.totalLeads ?? 0);
     } catch (e) {
       console.error('Pipeline fetch failed:', e.message);
     } finally {
@@ -261,79 +290,119 @@ export function CampaignPipeline() {
     }
   }, [selectedCampaignId]);
 
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  // Poll while in-progress stage
+  // ── Poll in-progress stages ──
   useEffect(() => {
-    if (!pipeline) return;
-    if (STAGES_IN_PROGRESS.has(pipeline.stage)) {
-      pollRef.current = setInterval(fetchStatus, 4000);
-    } else {
-      clearInterval(pollRef.current);
+    clearInterval(pollRef.current);
+    if (pipeline && POLL_STAGES.has(pipeline.stage)) {
+      pollRef.current = setInterval(fetchStatus, 5000);
     }
     return () => clearInterval(pollRef.current);
   }, [pipeline?.stage, fetchStatus]);
 
-  // Load validation summary when validated
+  // ── Load qualify summary ──
   useEffect(() => {
-    const stage = pipeline?.stage;
-    if (stage === 'validated' || stage === 'validating') {
-      apiFetch(`/pipeline/${selectedCampaignId}/validation-summary`)
-        .then(d => setValidationSummary(d))
+    const s = pipeline?.stage;
+    if (s === 'ready_for_enrichment' || s === 'qualifying') {
+      apiFetch(`/pipeline/${selectedCampaignId}/qualify-summary`)
+        .then(d => setQualifySummary(d))
         .catch(() => {});
     }
   }, [pipeline?.stage, selectedCampaignId]);
 
-  // Load assets when ready
+  // ── Load assets ──
   useEffect(() => {
-    const stage = pipeline?.stage;
-    if (stage === 'ai_content_ready' || stage === 'personalizing' || stage === 'personalized' || stage === 'eligibility_checking' || stage === 'awaiting_launch' || stage === 'active') {
+    const s = pipeline?.stage;
+    const assetStages = ['ai_content_ready','personalizing','channels_configured','deliverability_check','ready_to_launch','active','completed'];
+    if (assetStages.includes(s)) {
       apiFetch(`/pipeline/${selectedCampaignId}/assets`)
         .then(d => setAssets(d || []))
         .catch(() => {});
     }
   }, [pipeline?.stage, selectedCampaignId]);
 
-  // Load eligibility when available
+  // ── Load channel eligibility ──
   useEffect(() => {
-    const stage = pipeline?.stage;
-    if (stage === 'awaiting_launch' || stage === 'active' || stage === 'eligibility_checking') {
-      apiFetch(`/pipeline/${selectedCampaignId}/eligibility`)
-        .then(d => setEligibility(d))
+    const s = pipeline?.stage;
+    const eligStages = ['channels_configured','deliverability_check','ready_to_launch','active','completed'];
+    if (eligStages.includes(s)) {
+      apiFetch(`/pipeline/${selectedCampaignId}/channel-eligibility`)
+        .then(d => setChannelEligibility(d))
         .catch(() => {});
     }
   }, [pipeline?.stage, selectedCampaignId]);
 
-  async function doValidate() {
+  // ── Actions ──
+  async function doAction(endpoint, body, successMsg, errorPrefix) {
     setActing(true);
     try {
-      await apiFetch(`/pipeline/${selectedCampaignId}/validate`, { method: 'POST' });
-      showToast('Validation started');
+      const res = await apiFetch(`/pipeline/${selectedCampaignId}/${endpoint}`, { method: 'POST', body });
+      if (successMsg) showToast(successMsg);
       await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setActing(false);
+      return res;
+    } catch (e) {
+      showToast(`${errorPrefix || 'Error'}: ${e.message}`, 'red');
+    } finally {
+      setActing(false);
+    }
   }
 
-  async function doApproveTiers() {
-    setApprovingTiers(true);
-    try {
-      const res = await apiFetch(`/pipeline/${selectedCampaignId}/approve-tiers`, { method: 'POST', body: { tiers: approvedTiers } });
-      showToast(`Approved ${res.approved} leads, enrichment started`);
-      await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setApprovingTiers(false);
+  async function doQualify() {
+    await doAction('qualify', {}, 'Qualifying leads…', 'Qualify failed');
+  }
+
+  async function doEnrichTiers() {
+    await doAction('select-enrichment-tiers', { tiers: selectedTiers }, null, 'Error');
+    await doAction('enrich', {}, 'Enrichment started', 'Enrich failed');
+  }
+
+  async function doAiScore() {
+    await doAction('ai-score', {}, 'AI scoring started', 'AI Score failed');
   }
 
   async function doGenerateAssets() {
+    await doAction('generate-assets', {}, 'Generating AI assets…', 'Generate failed');
+  }
+
+  async function doPersonalize() {
+    await doAction('personalize', {}, 'Personalisation started', 'Personalise failed');
+  }
+
+  async function doConfigureChannels() {
+    const channels =
+      channelStrategy === 'aggressive' ? ['email','wa','voice'] :
+      channelStrategy === 'balanced'   ? ['email','wa'] :
+      ['email'];
+    await doAction('configure-channels', { strategy: channelStrategy, channels }, 'Channel strategy saved', 'Config failed');
+  }
+
+  async function doRunDeliverability() {
     setActing(true);
     try {
-      await apiFetch(`/pipeline/${selectedCampaignId}/generate-assets`, { method: 'POST' });
-      showToast('Generating AI assets with Claude Opus…');
+      const res = await apiFetch(`/pipeline/${selectedCampaignId}/run-deliverability`, { method: 'POST' });
+      setDeliverabilityResult(res);
+      showToast('Deliverability check complete');
       await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setActing(false);
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function doLaunch() {
+    setActing(true);
+    try {
+      await apiFetch(`/pipeline/${selectedCampaignId}/launch`, { method: 'POST' });
+      await updateCampaign(selectedCampaignId, { status: 'active' });
+      showToast('Campaign launched! 🚀', 'green');
+      await fetchStatus();
+    } catch (e) {
+      showToast(e.message, 'red');
+    } finally {
+      setActing(false);
+    }
   }
 
   async function doSaveAsset(asset) {
@@ -341,7 +410,11 @@ export function CampaignPipeline() {
     try {
       const updated = await apiFetch(`/pipeline/${selectedCampaignId}/assets/${asset.id}`, {
         method: 'PATCH',
-        body: { editedBody: editingAsset[asset.id]?.body ?? asset.editedBody ?? asset.body, subject: editingAsset[asset.id]?.subject ?? asset.subject, approved: true },
+        body: {
+          editedBody: editingAsset[asset.id]?.body ?? asset.editedBody ?? asset.body,
+          subject: editingAsset[asset.id]?.subject ?? asset.subject,
+          approved: true,
+        },
       });
       setAssets(prev => prev.map(a => a.id === asset.id ? updated : a));
       setApprovedAssets(prev => prev + 1);
@@ -354,55 +427,85 @@ export function CampaignPipeline() {
     setApprovingAll(true);
     try {
       await apiFetch(`/pipeline/${selectedCampaignId}/approve-all-assets`, { method: 'POST' });
-      await apiFetch(`/pipeline/${selectedCampaignId}/assets`).then(d => setAssets(d || []));
+      const fresh = await apiFetch(`/pipeline/${selectedCampaignId}/assets`);
+      setAssets(fresh || []);
       setApprovedAssets(assetCount);
       showToast('All assets approved');
     } catch (e) { showToast(e.message, 'red'); }
     setApprovingAll(false);
   }
 
-  async function doPersonalize() {
-    setActing(true);
-    try {
-      const res = await apiFetch(`/pipeline/${selectedCampaignId}/personalize`, { method: 'POST' });
-      showToast(`Personalizing ${res.total} leads…`);
-      await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setActing(false);
-  }
-
-  async function doCheckEligibility() {
-    setActing(true);
-    try {
-      await apiFetch(`/pipeline/${selectedCampaignId}/check-eligibility`, { method: 'POST' });
-      showToast('Checking channel eligibility…');
-      await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setActing(false);
-  }
-
-  async function doLaunch() {
-    setActing(true);
-    try {
-      await apiFetch(`/pipeline/${selectedCampaignId}/launch`, { method: 'POST' });
-      await updateCampaign(selectedCampaignId, { status: 'active' });
-      showToast('Campaign launched! 🚀', 'green');
-      await fetchStatus();
-    } catch (e) { showToast(e.message, 'red'); }
-    setActing(false);
-  }
-
+  // ── Guard ──
   if (!campaign) {
     return (
       <div className="page">
-        <div style={{color:'var(--muted)',fontSize:13}}>Campaign not found. <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>Back</button></div>
+        <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+          Campaign not found.{' '}
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>Back</button>
+        </div>
       </div>
     );
   }
 
   const stage = pipeline?.stage || 'draft';
   const curIdx = stageIndex(stage);
-  const isActive = stage === 'active' || stage === 'completed';
+  const isLive = stage === 'active' || stage === 'completed';
+
+  // ── Sidebar nav items ──
+  const NAV = [
+    { label: '1. Import Leads',     stages: ['draft','scraping','scraped'],                  doneStage: 'scraped'              },
+    { label: '2. Qualify & Score',  stages: ['qualifying','ready_for_enrichment'],            doneStage: 'ready_for_enrichment' },
+    { label: '3. Enrich Leads',     stages: ['enriching','enrichment_complete'],              doneStage: 'enrichment_complete'  },
+    { label: '4. AI Scoring',       stages: ['ai_scoring'],                                   doneStage: 'ai_scoring'           },
+    { label: '5. AI Assets',        stages: ['ai_content_ready'],                             doneStage: 'ai_content_ready'     },
+    { label: '6. Personalize',      stages: ['personalizing'],                                doneStage: 'personalizing'        },
+    { label: '7. Channel Strategy', stages: ['channels_configured'],                          doneStage: 'channels_configured'  },
+    { label: '8. Deliverability',   stages: ['deliverability_check','ready_to_launch'],       doneStage: 'ready_to_launch'      },
+    { label: '9. Launch',           stages: ['active','completed'],                           doneStage: 'active'               },
+  ];
+
+  // ── Helper: is section done? ──
+  function sectionDone(item) {
+    return stageIndex(item.doneStage) < curIdx;
+  }
+  function sectionCurrent(item) {
+    return item.stages.some(s => s === stage);
+  }
+  function sectionLocked(item) {
+    return stageIndex(item.stages[0]) > curIdx && !sectionDone(item);
+  }
+
+  // ── Personalization label ──
+  const plvl = campaign.personalizationLevel || 2;
+  const plvlLabel = plvl === 1 ? 'Variable Merge' : plvl === 3 ? 'Deep Research' : 'Smart Opening Line';
+  const plvlSpinner = plvl === 3 ? 'Claude Sonnet deep research…' : plvl === 1 ? 'Merging variables…' : 'Claude Haiku personalizing leads…';
+
+  // ── Estimated Apollo cost ──
+  function enrichCost() {
+    if (!qualifySummary?.tiers) return 0;
+    return qualifySummary.tiers
+      .filter(t => selectedTiers.includes(t.tier))
+      .reduce((sum, t) => sum + (t.count || 0), 0);
+  }
+
+  // ── Deliverability score color ──
+  function scoreColor(s) {
+    if (s >= 80) return 'var(--green)';
+    if (s >= 50) return 'var(--amber)';
+    return 'var(--red, oklch(62% 0.22 25))';
+  }
+
+  // ── Channel strategy cadences ──
+  const CADENCES = {
+    aggressive: ['Day 1 → Email','Day 2 → WhatsApp','Day 4 → Voice (Tier A only)','Day 7 → Email follow-up','Day 10 → Voice retry (Tier A only)'],
+    balanced:   ['Day 1 → Email','Day 2 → WhatsApp','Day 7 → Email follow-up','Day 14 → WhatsApp retry'],
+    low_risk:   ['Day 1 → Email','Day 5 → Email follow-up','Day 12 → Email final'],
+  };
+  const STRATEGY_DESC = {
+    aggressive: 'Tier A: Email+WA+Voice, Tier B: Email+WA, Tier C: Email',
+    balanced:   'Tier A+B: Email+WA, Tier C: Email only',
+    low_risk:   'All tiers: Email only',
+  };
 
   return (
     <div className="page">
@@ -410,63 +513,56 @@ export function CampaignPipeline() {
       <div className="flex items-center justify-between mb-4 fade-up">
         <div>
           <div className="breadcrumb">
-            <span style={{cursor:'pointer',color:'var(--blue)'}} onClick={() => setPage('campaigns')}>Campaigns</span>
+            <span style={{ cursor: 'pointer', color: 'var(--blue)' }} onClick={() => setPage('campaigns')}>Campaigns</span>
             {' / '}<span>{campaign.name}</span>
             {' / '}<span>Pipeline</span>
           </div>
-          <h1 className="page-title" style={{marginTop:4}}>{campaign.name}</h1>
+          <h1 className="page-title" style={{ marginTop: 4 }}>{campaign.name}</h1>
         </div>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{
-            fontSize:11,padding:'3px 10px',borderRadius:12,fontWeight:600,
-            background: isActive ? 'var(--green-dim)' : stage === 'awaiting_launch' ? 'oklch(72% 0.18 65 / 0.15)' : 'var(--s2)',
-            color: isActive ? 'var(--green)' : stage === 'awaiting_launch' ? 'var(--amber)' : 'var(--muted)',
-            border: `1px solid ${isActive ? 'var(--green)' : stage === 'awaiting_launch' ? 'var(--amber)' : 'var(--border)'}`,
+            fontSize: 11, padding: '3px 10px', borderRadius: 12, fontWeight: 600,
+            background: isLive ? 'var(--green-dim)' : stage === 'ready_to_launch' ? 'oklch(72% 0.18 65 / 0.15)' : 'var(--s2)',
+            color: isLive ? 'var(--green)' : stage === 'ready_to_launch' ? 'var(--amber)' : 'var(--muted)',
+            border: `1px solid ${isLive ? 'var(--green)' : stage === 'ready_to_launch' ? 'var(--amber)' : 'var(--border)'}`,
           }}>
-            {isActive ? '● Active' : stage === 'awaiting_launch' ? '● Ready to Launch' : stage.replace(/_/g,' ')}
+            {isLive ? '● Live' : stage === 'ready_to_launch' ? '● Ready to Launch' : stage.replace(/_/g, ' ')}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')}>← Back</button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{padding:40,textAlign:'center',color:'var(--muted)',fontSize:13}}>
-          <Spinner /> Loading pipeline…
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+          <Spinner/> Loading pipeline…
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'220px 1fr',gap:16,alignItems:'start'}}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, alignItems: 'start' }}>
 
-          {/* Left: Stage list nav */}
-          <div className="card fade-up-1" style={{padding:'12px 0',position:'sticky',top:16}}>
-            {[
-              { key:'scraped', label:'1. Import Leads', stages:['draft','scraping','scraped'] },
-              { key:'validated', label:'2. Validate & Tier', stages:['validating','validated'] },
-              { key:'enriched', label:'3. Enrich', stages:['enriching','enriched'] },
-              { key:'ai_content_ready', label:'4. AI Assets', stages:['ai_generating','ai_content_ready'] },
-              { key:'personalized', label:'5. Personalize', stages:['personalizing','personalized'] },
-              { key:'awaiting_launch', label:'6. Eligibility', stages:['eligibility_checking','awaiting_launch'] },
-              { key:'active', label:'7. Launch', stages:['active','completed'] },
-            ].map(item => {
-              const isDone = stageIndex(item.stages[item.stages.length - 1]) < curIdx;
-              const isCurrentSection = item.stages.some(s => s === stage);
-              const isLocked = stageIndex(item.stages[0]) > curIdx + 1;
+          {/* ── Left sidebar nav ── */}
+          <div className="card fade-up-1" style={{ padding: '12px 0', position: 'sticky', top: 16 }}>
+            {NAV.map(item => {
+              const done = sectionDone(item);
+              const current = sectionCurrent(item);
+              const locked = sectionLocked(item);
+              const inProgress = current && POLL_STAGES.has(stage);
               return (
                 <div
-                  key={item.key}
+                  key={item.label}
                   style={{
-                    display:'flex',alignItems:'center',gap:10,padding:'8px 16px',
-                    fontSize:12,fontWeight: isCurrentSection ? 600 : 400,
-                    color: isLocked ? 'var(--muted)' : isCurrentSection ? 'var(--text)' : 'var(--muted)',
-                    background: isCurrentSection ? 'var(--s2)' : 'transparent',
-                    borderLeft: isCurrentSection ? '2px solid var(--blue)' : '2px solid transparent',
-                    cursor: isLocked ? 'default' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
+                    fontSize: 12, fontWeight: current ? 600 : 400,
+                    color: locked ? 'var(--muted)' : current ? 'var(--text)' : 'var(--muted)',
+                    background: current ? 'var(--s2)' : 'transparent',
+                    borderLeft: current ? '2px solid var(--blue)' : '2px solid transparent',
+                    cursor: locked ? 'default' : 'pointer',
                   }}
                 >
-                  {isDone
-                    ? <span style={{color:'var(--green)',fontSize:12,flexShrink:0}}>✓</span>
-                    : isCurrentSection && STAGES_IN_PROGRESS.has(stage)
-                    ? <Spinner />
-                    : <span style={{width:8,height:8,borderRadius:'50%',background: isCurrentSection ? 'var(--blue)' : 'var(--border)',display:'inline-block',flexShrink:0}}/>
+                  {done
+                    ? <span style={{ color: 'var(--green)', fontSize: 12, flexShrink: 0 }}>✓</span>
+                    : inProgress
+                    ? <Spinner/>
+                    : <span style={{ width: 8, height: 8, borderRadius: '50%', background: current ? 'var(--blue)' : 'var(--border)', display: 'inline-block', flexShrink: 0 }}/>
                   }
                   {item.label}
                 </div>
@@ -474,131 +570,140 @@ export function CampaignPipeline() {
             })}
           </div>
 
-          {/* Right: Active stage panel */}
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {/* ── Right panel area ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-            {/* Stage 1: Import Leads */}
+            {/* Error banner */}
+            {pipeline?.lastError && (
+              <div style={{ background: 'oklch(62% 0.22 25 / 0.12)', border: '1px solid oklch(62% 0.22 25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'oklch(62% 0.22 25)' }}>
+                ⚠ {pipeline.lastError}
+              </div>
+            )}
+
+            {/* ══════════ Panel 1: Import Leads ══════════ */}
             {curIdx <= stageIndex('scraped') && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{fontWeight:600,fontSize:14}}>1. Import Leads</div>
-                    <div style={{fontSize:11,color:'var(--muted)'}}>Source leads via Google Maps, Apollo B2B, or CSV upload</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>1. Import Leads</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>Source leads via Google Maps, Apollo B2B, or CSV upload</div>
                   </div>
-                  <StageStatus stage="scraped" currentStage={stage} />
+                  <StageStatus stageKey="scraped" currentStage={stage}/>
                 </div>
 
                 {stage === 'scraping' ? (
                   <div>
-                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)',marginBottom:8}}>
-                      <Spinner /> Scraping leads — Google Maps takes ~90 seconds…
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                      <Spinner/> Scraping leads (~90s)
                     </div>
-                    <div style={{fontSize:11,color:'var(--muted)'}}>This page will update automatically when scraping completes.</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>This page will update automatically when scraping completes.</div>
                   </div>
                 ) : totalLeads > 0 ? (
                   <div>
-                    <div style={{fontSize:13,color:'var(--text)',marginBottom:4}}>
-                      <span style={{fontWeight:700,fontSize:22,color:'var(--green)'}}>{totalLeads}</span>
-                      {' '}leads imported
+                    <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 22, color: 'var(--green)' }}>{totalLeads}</span>{' '}leads imported
                     </div>
-                    <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
-                      You can add more leads before validating.
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+                      You can add more leads before qualifying.
                     </div>
-                    <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       {(stage === 'scraped' || stage === 'draft') && (
-                        <button className="btn btn-green btn-sm" disabled={acting} onClick={doValidate}>
-                          {acting ? <><Spinner /> Starting…</> : 'Start Validation →'}
+                        <button className="btn btn-green btn-sm" disabled={acting} onClick={doQualify}>
+                          {acting ? <><Spinner color="#fff"/> Starting…</> : 'Start Qualifying →'}
                         </button>
                       )}
                       <button
                         className="btn btn-ghost btn-xs"
-                        style={{fontSize:11}}
-                        onClick={() => setShowAddMore(prev => !prev)}
+                        style={{ fontSize: 11 }}
+                        onClick={() => setShowAddMore(p => !p)}
                       >
                         {showAddMore ? 'Hide' : '+ Add More Leads'}
                       </button>
                     </div>
                     {showAddMore && (
-                      <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--border)'}}>
-                        <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus} />
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                        <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus}/>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus} />
+                  <LeadAcquisition campaignId={selectedCampaignId} showToast={showToast} onImported={fetchStatus}/>
                 )}
               </div>
             )}
 
-            {/* Stage 2: Validate & Tier */}
-            {curIdx >= stageIndex('validating') && curIdx <= stageIndex('validated') + 2 && (
+            {/* ══════════ Panel 2: Qualify & Score ══════════ */}
+            {curIdx >= stageIndex('qualifying') && curIdx <= stageIndex('ready_for_enrichment') + 1 && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div style={{fontWeight:600,fontSize:14}}>Validate & Tier Leads</div>
-                  <StageStatus stage="validated" currentStage={stage} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>2. Qualify & Score</div>
+                  <StageStatus stageKey="ready_for_enrichment" currentStage={stage}/>
                 </div>
 
-                {stage === 'validating' && (
-                  <div style={{display:'flex',alignItems:'center',gap:10,fontSize:12,color:'var(--muted)'}}>
-                    <Spinner />
-                    Scoring leads by quality (phone, email, website, reviews, category match)…
+                {stage === 'qualifying' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--muted)' }}>
+                    <Spinner/> Scoring leads by quality…
                   </div>
                 )}
 
-                {(stage === 'validated' || curIdx > stageIndex('validated')) && validationSummary && (
+                {(stage === 'ready_for_enrichment' || curIdx > stageIndex('ready_for_enrichment')) && qualifySummary && (
                   <div>
-                    <div style={{display:'flex',gap:10,marginBottom:16}}>
-                      {validationSummary.tiers?.map(t => (
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                      {qualifySummary.tiers?.map(t => (
                         <div key={t.tier} style={{
-                          flex:1,background:'var(--s2)',borderRadius:8,padding:'12px 14px',
-                          border:`1px solid var(--border)`,
-                          borderLeft:`3px solid ${t.tier==='A'?'var(--green)':t.tier==='B'?'var(--amber)':'var(--border)'}`,
+                          flex: 1, minWidth: 130, background: 'var(--s2)', borderRadius: 8, padding: '12px 14px',
+                          border: '1px solid var(--border)',
+                          borderLeft: `3px solid ${t.tier==='A'?'var(--green)':t.tier==='B'?'var(--amber)':'var(--border)'}`,
                         }}>
-                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                            <TierBadge tier={t.tier} />
-                            <span style={{fontSize:20,fontWeight:700,color:'var(--text)'}}>{t.count}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <TierBadge tier={t.tier}/>
+                            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{t.count}</span>
                           </div>
-                          <div style={{fontSize:11,color:'var(--muted)'}}>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
                             {t.tier === 'A' ? 'Score ≥60 · Hot prospects' : t.tier === 'B' ? 'Score 35-59 · Good leads' : 'Score <35 · Low quality'}
                           </div>
-                          {t.samples?.slice(0, 2).map(s => (
-                            <div key={s.id} style={{fontSize:10,color:'var(--muted)',marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                              {s.name} · {s.company}
+                          {t.samples?.slice(0, 3).map((s, i) => (
+                            <div key={i} style={{ fontSize: 10, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {s.name}
                             </div>
                           ))}
                         </div>
                       ))}
                     </div>
 
-                    {stage === 'validated' && (
+                    {stage === 'ready_for_enrichment' && (
                       <div>
-                        <div style={{fontSize:12,color:'var(--text)',marginBottom:8,fontWeight:500}}>
-                          Which tiers to include in outreach?
+                        <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 8, fontWeight: 500 }}>Select tiers to enrich:</div>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                          {['A','B','C'].map(tier => {
+                            const t = qualifySummary.tiers?.find(x => x.tier === tier);
+                            const cnt = t?.count ?? 0;
+                            const checked = selectedTiers.includes(tier);
+                            return (
+                              <label key={tier} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={e => setSelectedTiers(prev =>
+                                    e.target.checked ? [...prev, tier] : prev.filter(x => x !== tier)
+                                  )}
+                                  style={{ accentColor: 'var(--blue)', width: 14, height: 14 }}
+                                />
+                                <TierBadge tier={tier}/>
+                                <span style={{ color: 'var(--muted)' }}>Enrich Tier {tier} ({cnt} leads)</span>
+                              </label>
+                            );
+                          })}
                         </div>
-                        <div style={{display:'flex',gap:12,marginBottom:14}}>
-                          {['A', 'B', 'C'].map(tier => (
-                            <label key={tier} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12}}>
-                              <input
-                                type="checkbox"
-                                checked={approvedTiers.includes(tier)}
-                                onChange={e => setApprovedTiers(prev =>
-                                  e.target.checked ? [...prev, tier] : prev.filter(t => t !== tier)
-                                )}
-                                style={{accentColor:'var(--blue)',width:14,height:14}}
-                              />
-                              <TierBadge tier={tier} />
-                              <span style={{color:'var(--muted)'}}>
-                                {validationSummary.tiers?.find(t => t.tier === tier)?.count ?? 0} leads
-                              </span>
-                            </label>
-                          ))}
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+                          ~{enrichCost()} Apollo credits estimated
                         </div>
                         <button
                           className="btn btn-green btn-sm"
-                          disabled={approvingTiers || approvedTiers.length === 0}
-                          onClick={doApproveTiers}
+                          disabled={acting || selectedTiers.length === 0}
+                          onClick={doEnrichTiers}
                         >
-                          {approvingTiers ? <><Spinner /> Approving…</> : `Approve & Start Enrichment →`}
+                          {acting ? <><Spinner color="#fff"/> Starting…</> : 'Enrich Selected Tiers →'}
                         </button>
                       </div>
                     )}
@@ -607,29 +712,30 @@ export function CampaignPipeline() {
               </div>
             )}
 
-            {/* Stage 3: Enrich */}
-            {curIdx >= stageIndex('enriching') && curIdx <= stageIndex('enriched') + 2 && (
+            {/* ══════════ Panel 3: Enrich Leads ══════════ */}
+            {curIdx >= stageIndex('enriching') && curIdx <= stageIndex('enrichment_complete') + 1 && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div style={{fontWeight:600,fontSize:14}}>Enrich Leads</div>
-                  <StageStatus stage="enriched" currentStage={stage} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>3. Enrich Leads</div>
+                  <StageStatus stageKey="enrichment_complete" currentStage={stage}/>
                 </div>
+
                 {stage === 'enriching' ? (
                   <div>
-                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)',marginBottom:10}}>
-                      <Spinner /> Enriching via Apollo.io…
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                      <Spinner/> Enriching via Apollo.io…
                     </div>
-                    <ProgressBar value={pipeline?.enrichComplete || 0} max={pipeline?.enrichTotal || totalLeads} />
+                    <ProgressBar value={pipeline?.enrichComplete || 0} max={pipeline?.enrichTotal || totalLeads}/>
                   </div>
                 ) : (
                   <div>
-                    <div style={{fontSize:13,marginBottom:8,color:'var(--text)'}}>
-                      <span style={{fontWeight:600,color:'var(--green)'}}>{pipeline?.enrichComplete || 0}</span>
-                      /{pipeline?.enrichTotal || totalLeads} leads enriched
+                    <div style={{ fontSize: 13, marginBottom: 10, color: 'var(--text)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--green)' }}>{pipeline?.enrichComplete || 0}</span>
+                      {' '}leads enriched successfully
                     </div>
-                    {stage === 'enriched' && (
-                      <button className="btn btn-green btn-sm" disabled={acting} onClick={doGenerateAssets}>
-                        {acting ? <><Spinner /> Starting…</> : 'Generate AI Assets →'}
+                    {stage === 'enrichment_complete' && (
+                      <button className="btn btn-green btn-sm" disabled={acting} onClick={doAiScore}>
+                        {acting ? <><Spinner color="#fff"/> Starting…</> : 'Start AI Scoring →'}
                       </button>
                     )}
                   </div>
@@ -637,93 +743,125 @@ export function CampaignPipeline() {
               </div>
             )}
 
-            {/* Stage 4: AI Assets */}
-            {curIdx >= stageIndex('ai_generating') && curIdx <= stageIndex('ai_content_ready') + 2 && (
+            {/* ══════════ Panel 4: AI Scoring ══════════ */}
+            {curIdx >= stageIndex('ai_scoring') && curIdx <= stageIndex('ai_content_ready') && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div>
-                    <div style={{fontWeight:600,fontSize:14}}>AI-Generated Assets</div>
-                    <div style={{fontSize:11,color:'var(--muted)'}}>Written by Claude Opus — review and approve before launch</div>
-                  </div>
-                  <StageStatus stage="ai_content_ready" currentStage={stage} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>4. AI Scoring</div>
+                  <StageStatus stageKey="ai_scoring" currentStage={stage}/>
                 </div>
 
-                {stage === 'ai_generating' && (
-                  <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)'}}>
-                    <Spinner /> Claude Opus is generating campaign assets…
+                {stage === 'ai_scoring' ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                      <Spinner/> Claude Sonnet is scoring and segmenting leads…
+                    </div>
+                    <ProgressBar
+                      value={pipeline?.aiScoreComplete || 0}
+                      max={pipeline?.aiScoreTotal || totalLeads}
+                      color="var(--blue)"
+                    />
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+                      This page will update automatically when scoring completes.
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--green)', fontWeight: 500 }}>
+                    ✓ AI scoring complete — assets ready to generate
                   </div>
                 )}
+              </div>
+            )}
 
-                {(stage === 'ai_content_ready' || curIdx > stageIndex('ai_content_ready')) && assets.length > 0 && (
+            {/* ══════════ Panel 5: AI Assets ══════════ */}
+            {curIdx >= stageIndex('ai_content_ready') && curIdx <= stageIndex('personalizing') && (
+              <div className="card fade-up-1">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                      <span style={{fontSize:12,color:'var(--muted)'}}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>5. AI Assets</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>Written by Claude — review and approve before launch</div>
+                  </div>
+                  <StageStatus stageKey="ai_content_ready" currentStage={stage}/>
+                </div>
+
+                {/* Personalization level badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Personalization:</span>
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    background: 'color-mix(in srgb, var(--blue) 12%, var(--s2))',
+                    color: 'var(--blue)', border: '1px solid var(--blue)',
+                  }}>
+                    Level {plvl} — {plvlLabel}
+                  </span>
+                </div>
+
+                {assets.length === 0 && stage === 'ai_content_ready' && (
+                  <button className="btn btn-green btn-sm" disabled={acting} onClick={doGenerateAssets}>
+                    {acting ? <><Spinner color="#fff"/> Generating…</> : 'Generate AI Assets →'}
+                  </button>
+                )}
+
+                {assets.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                         {approvedAssets}/{assetCount} assets approved
                       </span>
                       {stage === 'ai_content_ready' && (
-                        <div style={{display:'flex',gap:8}}>
-                          <button className="btn btn-ghost btn-xs" disabled={approvingAll} onClick={doApproveAll}>
-                            {approvingAll ? <Spinner /> : 'Approve All'}
-                          </button>
-                        </div>
+                        <button className="btn btn-ghost btn-xs" disabled={approvingAll} onClick={doApproveAll}>
+                          {approvingAll ? <Spinner/> : 'Approve All'}
+                        </button>
                       )}
                     </div>
 
-                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {assets.map(asset => {
                         const isExpanded = expandedAsset === asset.id;
                         const isApproved = asset.approved;
                         const channelIcon = asset.channel === 'email' ? '📧' : asset.channel === 'wa' ? '💬' : '📞';
                         return (
-                          <div key={asset.id} style={{
-                            border:`1px solid ${isApproved ? 'var(--green)' : 'var(--border)'}`,
-                            borderRadius:8,overflow:'hidden',
-                          }}>
+                          <div key={asset.id} style={{ border: `1px solid ${isApproved ? 'var(--green)' : 'var(--border)'}`, borderRadius: 8, overflow: 'hidden' }}>
                             <div
-                              style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',background:'var(--s1)'}}
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', background: 'var(--s1)' }}
                               onClick={() => setExpandedAsset(isExpanded ? null : asset.id)}
                             >
-                              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                                <span style={{fontSize:13}}>{channelIcon}</span>
-                                <span style={{fontSize:12,fontWeight:500,color:'var(--text)'}}>{asset.label}</span>
-                                {isApproved && <span style={{fontSize:10,color:'var(--green)',fontWeight:600}}>✓ Approved</span>}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 13 }}>{channelIcon}</span>
+                                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{asset.label}</span>
+                                {isApproved && <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600 }}>✓ Approved</span>}
                               </div>
-                              <span style={{fontSize:11,color:'var(--muted)'}}>{isExpanded ? '▲' : '▼'}</span>
+                              <span style={{ fontSize: 11, color: 'var(--muted)' }}>{isExpanded ? '▲' : '▼'}</span>
                             </div>
-
                             {isExpanded && (
-                              <div style={{padding:'12px 14px',background:'var(--s2)'}}>
+                              <div style={{ padding: '12px 14px', background: 'var(--s2)' }}>
                                 {asset.subject && (
-                                  <div style={{marginBottom:8}}>
-                                    <div style={{fontSize:10,color:'var(--muted)',marginBottom:2}}>SUBJECT</div>
+                                  <div style={{ marginBottom: 8 }}>
+                                    <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 2 }}>SUBJECT</div>
                                     <input
                                       className="input"
-                                      style={{fontSize:12,padding:'5px 8px'}}
+                                      style={{ fontSize: 12, padding: '5px 8px' }}
                                       defaultValue={asset.subject}
                                       onChange={e => setEditingAsset(prev => ({ ...prev, [asset.id]: { ...prev[asset.id], subject: e.target.value } }))}
                                     />
                                   </div>
                                 )}
-                                <div style={{marginBottom:10}}>
-                                  <div style={{fontSize:10,color:'var(--muted)',marginBottom:2}}>BODY</div>
+                                <div style={{ marginBottom: 10 }}>
+                                  <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 2 }}>BODY</div>
                                   <textarea
-                                    style={{width:'100%',minHeight:120,background:'var(--s1)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px',fontSize:12,color:'var(--text)',fontFamily:'inherit',resize:'vertical',boxSizing:'border-box'}}
+                                    style={{ width: '100%', minHeight: 120, background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: 'var(--text)', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
                                     defaultValue={asset.editedBody || asset.body}
                                     onChange={e => setEditingAsset(prev => ({ ...prev, [asset.id]: { ...prev[asset.id], body: e.target.value } }))}
                                   />
                                 </div>
                                 {asset.notes && (
-                                  <div style={{fontSize:11,color:'var(--muted)',fontStyle:'italic',marginBottom:10}}>
+                                  <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 10 }}>
                                     Note: {asset.notes}
                                   </div>
                                 )}
                                 {!isApproved && stage === 'ai_content_ready' && (
-                                  <button
-                                    className="btn btn-green btn-xs"
-                                    disabled={savingAsset === asset.id}
-                                    onClick={() => doSaveAsset(asset)}
-                                  >
-                                    {savingAsset === asset.id ? <><Spinner /> Saving…</> : '✓ Approve Asset'}
+                                  <button className="btn btn-green btn-xs" disabled={savingAsset === asset.id} onClick={() => doSaveAsset(asset)}>
+                                    {savingAsset === asset.id ? <><Spinner color="#fff"/> Saving…</> : '✓ Approve Asset'}
                                   </button>
                                 )}
                               </div>
@@ -734,9 +872,9 @@ export function CampaignPipeline() {
                     </div>
 
                     {stage === 'ai_content_ready' && approvedAssets >= assetCount && assetCount > 0 && (
-                      <div style={{marginTop:14}}>
+                      <div style={{ marginTop: 14 }}>
                         <button className="btn btn-green btn-sm" disabled={acting} onClick={doPersonalize}>
-                          {acting ? <><Spinner /> Starting…</> : 'Start Personalisation →'}
+                          {acting ? <><Spinner color="#fff"/> Starting…</> : 'Start Personalization →'}
                         </button>
                       </div>
                     )}
@@ -745,21 +883,23 @@ export function CampaignPipeline() {
               </div>
             )}
 
-            {/* Stage 5: Personalize */}
-            {curIdx >= stageIndex('personalizing') && curIdx <= stageIndex('personalized') + 2 && (
+            {/* ══════════ Panel 6: Personalize ══════════ */}
+            {curIdx >= stageIndex('personalizing') && curIdx <= stageIndex('channels_configured') && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{fontWeight:600,fontSize:14}}>AI Personalisation</div>
-                    <div style={{fontSize:11,color:'var(--muted)'}}>Haiku writes a unique opening line per lead</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>6. Personalize</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                      {plvlLabel} — Level {plvl}
+                    </div>
                   </div>
-                  <StageStatus stage="personalized" currentStage={stage} />
+                  <StageStatus stageKey="personalizing" currentStage={stage}/>
                 </div>
 
                 {stage === 'personalizing' ? (
                   <div>
-                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)',marginBottom:10}}>
-                      <Spinner /> Claude Haiku personalizing leads…
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                      <Spinner/> {plvlSpinner}
                     </div>
                     <ProgressBar
                       value={pipeline?.personalizeComplete || 0}
@@ -769,104 +909,231 @@ export function CampaignPipeline() {
                   </div>
                 ) : (
                   <div>
-                    <div style={{fontSize:13,marginBottom:10,color:'var(--text)'}}>
-                      <span style={{fontWeight:600,color:'var(--green)'}}>{personalizedLeads}</span>
-                      /{totalLeads} leads personalised
+                    <div style={{ fontSize: 13, marginBottom: 10, color: 'var(--text)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--green)' }}>{personalizedLeads}</span>{' '}leads personalized
                     </div>
-                    {stage === 'personalized' && (
-                      <button className="btn btn-green btn-sm" disabled={acting} onClick={doCheckEligibility}>
-                        {acting ? <><Spinner /> Starting…</> : 'Check Channel Eligibility →'}
-                      </button>
+                    {(stage === 'channels_configured' || curIdx === stageIndex('channels_configured')) && (
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>Proceed to configure channels below.</div>
                     )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Stage 6: Eligibility */}
-            {curIdx >= stageIndex('eligibility_checking') && curIdx <= stageIndex('awaiting_launch') + 1 && (
+            {/* ══════════ Panel 7: Channel Strategy ══════════ */}
+            {curIdx >= stageIndex('channels_configured') && curIdx <= stageIndex('deliverability_check') && (
               <div className="card fade-up-1">
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div style={{fontWeight:600,fontSize:14}}>Channel Eligibility</div>
-                  <StageStatus stage="awaiting_launch" currentStage={stage} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>7. Channel Strategy</div>
+                  <StageStatus stageKey="channels_configured" currentStage={stage}/>
                 </div>
 
-                {stage === 'eligibility_checking' && (
-                  <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--muted)'}}>
-                    <Spinner /> Validating email addresses and phone numbers…
-                  </div>
-                )}
+                {/* Strategy selector */}
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>OUTREACH STRATEGY</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'aggressive', icon: '🔥', label: 'Aggressive' },
+                    { id: 'balanced',   icon: '⚖️',  label: 'Balanced'   },
+                    { id: 'low_risk',   icon: '📧', label: 'Low Risk'  },
+                  ].map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => setChannelStrategy(s.id)}
+                      style={{
+                        flex: 1, minWidth: 120, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                        border: `2px solid ${channelStrategy === s.id ? 'var(--blue)' : 'var(--border)'}`,
+                        background: channelStrategy === s.id ? 'color-mix(in srgb, var(--blue) 8%, var(--s2))' : 'var(--s2)',
+                        textAlign: 'center', transition: 'border-color 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 18, marginBottom: 3 }}>{s.icon}</div>
+                      <div style={{ fontSize: 12, fontWeight: channelStrategy === s.id ? 700 : 500, color: channelStrategy === s.id ? 'var(--blue)' : 'var(--text)' }}>
+                        {s.label}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, lineHeight: 1.4 }}>
+                        {STRATEGY_DESC[s.id]}
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-                {eligibility && (
-                  <div>
-                    <div style={{display:'flex',gap:12,marginBottom:14}}>
+                {/* Cadence preview */}
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>DEFAULT CADENCE</div>
+                <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+                  {(CADENCES[channelStrategy] || []).map((line, i) => (
+                    <div key={i} style={{ fontSize: 11, color: 'var(--text)', marginBottom: i < CADENCES[channelStrategy].length - 1 ? 5 : 0 }}>
+                      {line}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Channel eligibility */}
+                {channelEligibility && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>CHANNEL ELIGIBILITY</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {[
-                        { icon:'📧', label:'Email', count:eligibility.eligibleEmail },
-                        { icon:'💬', label:'WhatsApp', count:eligibility.eligibleWa },
-                        { icon:'📞', label:'Voice', count:eligibility.eligibleVoice },
-                        { icon:'⛔', label:'Ineligible', count:eligibility.ineligibleCount },
+                        { icon: '📧', label: 'Email',     eli: channelEligibility.eligibleEmail, ineli: channelEligibility.ineligibleEmail },
+                        { icon: '💬', label: 'WhatsApp',  eli: channelEligibility.eligibleWa,    ineli: channelEligibility.ineligibleWa    },
+                        { icon: '📞', label: 'Voice',     eli: channelEligibility.eligibleVoice, ineli: channelEligibility.ineligibleVoice },
                       ].map(ch => (
-                        <div key={ch.label} style={{flex:1,background:'var(--s2)',borderRadius:8,padding:'10px 12px',border:'1px solid var(--border)',textAlign:'center'}}>
-                          <div style={{fontSize:18,marginBottom:2}}>{ch.icon}</div>
-                          <div style={{fontSize:18,fontWeight:700,color: ch.label==='Ineligible'?'var(--muted)':'var(--text)'}}>{ch.count}</div>
-                          <div style={{fontSize:10,color:'var(--muted)'}}>{ch.label}</div>
+                        <div key={ch.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                          <span style={{ fontSize: 14, width: 20 }}>{ch.icon}</span>
+                          <span style={{ color: 'var(--text)', minWidth: 80 }}>{ch.label}:</span>
+                          <span style={{ color: 'var(--green)', fontWeight: 500 }}>{ch.eli ?? '—'} eligible</span>
+                          <span style={{ color: 'var(--muted)' }}>/</span>
+                          <span style={{ color: 'var(--muted)' }}>{ch.ineli ?? '—'} ineligible</span>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {stage === 'channels_configured' && (
+                  <button className="btn btn-green btn-sm" disabled={acting} onClick={doConfigureChannels}>
+                    {acting ? <><Spinner color="#fff"/> Saving…</> : 'Save Channel Strategy →'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ══════════ Panel 8: Deliverability ══════════ */}
+            {curIdx >= stageIndex('deliverability_check') && curIdx <= stageIndex('active') && (
+              <div className="card fade-up-1">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>8. Deliverability Check</div>
+                  <StageStatus stageKey="ready_to_launch" currentStage={stage}/>
+                </div>
+
+                {!deliverabilityResult && stage === 'deliverability_check' && (
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.6 }}>
+                      Run a deliverability check to validate DNS, SPF, DKIM, and email warm-up status before launch.
+                    </div>
+                    <button className="btn btn-blue btn-sm" disabled={acting} onClick={doRunDeliverability}>
+                      {acting ? <><Spinner color="#fff"/> Checking…</> : 'Run Deliverability Check'}
+                    </button>
+                  </div>
+                )}
+
+                {deliverabilityResult && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                      <div style={{
+                        fontSize: 48, fontWeight: 800, lineHeight: 1,
+                        color: scoreColor(deliverabilityResult.score || 0),
+                      }}>
+                        {deliverabilityResult.score ?? '—'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Readiness Score</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                          {(deliverabilityResult.score ?? 0) >= 80 ? 'Excellent — ready to launch' :
+                           (deliverabilityResult.score ?? 0) >= 50 ? 'Acceptable — proceed with caution' :
+                           'Poor — fix issues before launching'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {deliverabilityResult.checks?.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                        {deliverabilityResult.checks.map((chk, i) => {
+                          const icon = chk.pass === true ? '✓' : chk.pass === false ? '✗' : '⚠';
+                          const color = chk.pass === true ? 'var(--green)' : chk.pass === false ? 'oklch(62% 0.22 25)' : 'var(--amber)';
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+                              <span style={{ color, flexShrink: 0, fontWeight: 700 }}>{icon}</span>
+                              <div>
+                                <span style={{ color: 'var(--text)', fontWeight: 500 }}>{chk.label}</span>
+                                {chk.detail && <span style={{ color: 'var(--muted)', marginLeft: 6 }}>— {chk.detail}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {(deliverabilityResult.score ?? 0) >= 50 && stage !== 'active' && stage !== 'completed' && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        Score ≥ 50 — proceed to launch below.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {stage === 'ready_to_launch' && (
+                  <div style={{ marginTop: deliverabilityResult ? 10 : 0, fontSize: 12, color: 'var(--green)', fontWeight: 500 }}>
+                    ✓ Deliverability check passed — ready to launch
                   </div>
                 )}
               </div>
             )}
 
-            {/* Stage 7: Launch */}
-            {curIdx >= stageIndex('awaiting_launch') && (
-              <div className="card fade-up-1" style={{border: stage === 'awaiting_launch' ? '1px solid var(--green)' : '1px solid var(--border)'}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                  <div style={{fontWeight:600,fontSize:14}}>Ready to Launch</div>
-                  <StageStatus stage="active" currentStage={stage} />
+            {/* ══════════ Panel 9: Launch ══════════ */}
+            {curIdx >= stageIndex('ready_to_launch') && (
+              <div className="card fade-up-1" style={{ border: (stage === 'ready_to_launch' || stage === 'active') ? '1px solid var(--green)' : '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>9. Launch</div>
+                  <StageStatus stageKey="active" currentStage={stage}/>
                 </div>
 
-                {stage === 'awaiting_launch' && (
+                {/* Pre-launch summary */}
+                {!isLive && (
                   <div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,lineHeight:1.6}}>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
                       All pipeline stages complete. The campaign engine will start sending within the 9am–6pm KL send window.
                     </div>
-                    <div style={{display:'flex',gap:10,marginBottom:14,flexWrap:'wrap'}}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
                       {[
-                        { label:'Total Leads', val: totalLeads },
-                        { label:'Personalised', val: personalizedLeads },
-                        { label:'AI Assets', val: assetCount },
-                        { label:'Channels', val: campaign.channels?.join(', ') || 'wa' },
+                        { label: 'Total Leads',         val: totalLeads },
+                        { label: 'Personalized',         val: personalizedLeads },
+                        { label: 'AI Assets',            val: assetCount },
+                        { label: 'Personalization',      val: `Level ${plvl}` },
+                        { label: 'Channels',             val: campaign.channels?.join(', ') || '—' },
                       ].map(stat => (
-                        <div key={stat.label} style={{background:'var(--s2)',borderRadius:6,padding:'8px 12px',border:'1px solid var(--border)'}}>
-                          <div style={{fontSize:10,color:'var(--muted)'}}>{stat.label}</div>
-                          <div style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>{stat.val}</div>
+                        <div key={stat.label} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 10, color: 'var(--muted)' }}>{stat.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{stat.val}</div>
                         </div>
                       ))}
                     </div>
                     <button
                       className="btn btn-green"
-                      style={{padding:'10px 28px',fontSize:14,fontWeight:600}}
+                      style={{ padding: '12px 32px', fontSize: 15, fontWeight: 700 }}
                       disabled={acting}
                       onClick={doLaunch}
                     >
-                      {acting ? <><Spinner /> Launching…</> : '🚀 Launch Campaign'}
+                      {acting ? <><Spinner color="#fff"/> Launching…</> : '🚀 Launch Campaign'}
                     </button>
                   </div>
                 )}
 
-                {isActive && (
+                {isLive && (
                   <div>
-                    <div style={{fontSize:13,color:'var(--green)',fontWeight:500,marginBottom:10}}>
+                    <div style={{ fontSize: 14, color: 'var(--green)', fontWeight: 600, marginBottom: 14 }}>
                       ● Campaign is live — engine sending 9am–6pm KL daily
                     </div>
-                    <div style={{display:'flex',gap:8}}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>
-                        View Leads →
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('inbox')}>
-                        Reply Inbox →
-                      </button>
+
+                    {/* Quick analytics */}
+                    {campaign.stats && (
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Emails Sent',  val: campaign.stats.emailsSent ?? 0  },
+                          { label: 'WA Sent',      val: campaign.stats.waSent ?? 0      },
+                          { label: 'Replies',      val: campaign.stats.replies ?? 0     },
+                          { label: 'Meetings',     val: campaign.stats.meetings ?? 0    },
+                        ].map(stat => (
+                          <div key={stat.label} style={{ background: 'var(--s2)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{stat.val}</div>
+                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{stat.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('leads')}>Lead Manager →</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setPage('inbox')}>Reply Inbox →</button>
                     </div>
                   </div>
                 )}
