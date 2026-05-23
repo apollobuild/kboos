@@ -806,9 +806,185 @@ export function CampaignPipeline() {
                 </div>
 
                 {assets.length === 0 && stage === 'ai_content_ready' && (
-                  <button className="btn btn-green btn-sm" disabled={acting} onClick={doGenerateAssets}>
-                    {acting ? <><Spinner color="#fff"/> Generating…</> : 'Generate AI Assets →'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', position: 'relative' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        const seqs = JSON.parse(localStorage.getItem('kboos_sequences') || '[]');
+                        const offs = JSON.parse(localStorage.getItem('kboos_offers') || '[]');
+                        setStudioSequences(seqs);
+                        setStudioOffers(offs);
+                        setShowStudioModal(true);
+                      }}
+                    >
+                      Load from Studio →
+                    </button>
+                    <button className="btn btn-green btn-sm" disabled={acting} onClick={doGenerateAssets}>
+                      {acting ? <><Spinner color="#fff"/> Generating…</> : 'Generate AI Assets →'}
+                    </button>
+
+                    {/* Studio Modal */}
+                    {showStudioModal && (
+                      <>
+                        {/* Backdrop */}
+                        <div
+                          onClick={() => setShowStudioModal(false)}
+                          style={{
+                            position: 'fixed', inset: 0,
+                            background: 'rgba(0,0,0,0.5)',
+                            zIndex: 49,
+                          }}
+                        />
+                        {/* Modal */}
+                        <div style={{
+                          position: 'fixed',
+                          top: '50%', left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          zIndex: 50,
+                          width: 'min(560px, 92vw)',
+                          maxHeight: '80vh',
+                          overflowY: 'auto',
+                          background: 'var(--card)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 12,
+                          boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
+                          padding: '20px 24px',
+                        }}>
+                          {/* Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
+                              Load from AI Campaign Studio
+                            </div>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: '3px 8px', fontSize: 14, lineHeight: 1 }}
+                              onClick={() => setShowStudioModal(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          {studioSequences.length === 0 && studioOffers.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                                Nothing saved yet. Build sequences and offers in AI Campaign Studio first.
+                              </div>
+                              <button
+                                className="btn btn-blue btn-sm"
+                                onClick={() => { setShowStudioModal(false); setPage('ai-campaign-studio'); }}
+                              >
+                                Go to AI Campaign Studio →
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Section 1: Saved Sequences */}
+                              <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 10, letterSpacing: '0.05em' }}>
+                                  SAVED SEQUENCES
+                                </div>
+                                {studioSequences.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
+                                    No saved sequences yet. Visit AI Campaign Studio to create some.
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {studioSequences.map(seq => {
+                                      const uniqueChannels = [...new Set((seq.steps || []).map(s => s.channel).filter(Boolean))];
+                                      const channelIcons = { email: '📧', wa: '💬', whatsapp: '💬', voice: '📞' };
+                                      return (
+                                        <div
+                                          key={seq.id}
+                                          onClick={() => {
+                                            showToast('Sequence loaded');
+                                            setShowStudioModal(false);
+                                          }}
+                                          style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                            border: '1px solid var(--border)',
+                                            background: 'var(--s1)',
+                                            transition: 'border-color 0.15s',
+                                          }}
+                                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--blue)'}
+                                          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                                        >
+                                          <div>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>
+                                              {seq.name}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                                              {(seq.steps || []).length} step{(seq.steps || []).length !== 1 ? 's' : ''}
+                                              {uniqueChannels.length > 0 && (
+                                                <span style={{ marginLeft: 8 }}>
+                                                  {uniqueChannels.map(ch => channelIcons[ch] || ch).join(' ')}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <span style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 500 }}>Load →</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Section 2: Saved Offers */}
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 10, letterSpacing: '0.05em' }}>
+                                  SAVED OFFERS
+                                </div>
+                                {studioOffers.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
+                                    No saved offers yet. Visit AI Campaign Studio to create some.
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {studioOffers.map(offer => (
+                                      <div
+                                        key={offer.id}
+                                        onClick={() => {
+                                          showToast('Offer loaded — click Generate to build assets');
+                                          setShowStudioModal(false);
+                                        }}
+                                        style={{
+                                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                          padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                          border: '1px solid var(--border)',
+                                          background: 'var(--s1)',
+                                          transition: 'border-color 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--green)'}
+                                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                                      >
+                                        <div>
+                                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>
+                                            {offer.name}
+                                          </div>
+                                          {offer.targetAudience && (
+                                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                                              Audience: {offer.targetAudience}
+                                            </div>
+                                          )}
+                                          {offer.keyBenefit && (
+                                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                                              Benefit: {offer.keyBenefit}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 500 }}>Load →</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 {assets.length > 0 && (
