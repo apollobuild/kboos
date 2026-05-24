@@ -51,6 +51,7 @@ import { UnifiedInbox } from './pages/UnifiedInbox.jsx';
 import { Meetings } from './pages/Meetings.jsx';
 import { EmailInbox } from './pages/EmailInbox.jsx';
 import { WhatsAppInbox } from './pages/WhatsAppInbox.jsx';
+import { WAConnectInbox } from './pages/WAConnectInbox.jsx';
 import { VoiceOutcomes } from './pages/VoiceOutcomes.jsx';
 import { Changelog } from './pages/Changelog.jsx';
 
@@ -85,6 +86,7 @@ const PAGE_MAP = {
   meetings: Meetings,
   'email-inbox': EmailInbox,
   'whatsapp-inbox': WhatsAppInbox,
+  'wa-connect-inbox': WAConnectInbox,
   'voice-outcomes': VoiceOutcomes,
   changelog: Changelog,
 };

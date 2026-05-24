@@ -40,6 +40,7 @@ const NAV = [
     { id:'meetings', icon:'📅', label:'Meetings', badgeColor:'green' },
     { id:'email-inbox', icon:'✉', label:'Email Inbox' },
     { id:'whatsapp-inbox', icon:'💬', label:'WhatsApp Inbox' },
+    { id:'wa-connect-inbox', icon:'📲', label:'WA Connect Inbox', badgeColor:'green' },
     { id:'voice-outcomes', icon:'📞', label:'Voice Outcomes' },
   ]},
   { section:'ANALYTICS', items:[
@@ -117,6 +118,7 @@ export function Sidebar({ onSearch }) {
   function getBadge(id) {
     if (id === 'businesses') return totalBusinesses || null;
     if (id === 'unified-inbox') return unreadReplies || null;
+    if (id === 'wa-connect-inbox') return unreadReplies || null;
     if (id === 'replies') return unreadReplies || null;
     if (id === 'approval') return pendingApprovals || null;
     if (id === 'campaigns') return totalCampaigns || null;
