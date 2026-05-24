@@ -1,5 +1,13 @@
 import { jsPDF } from 'jspdf';
 
+function getCurrencySymbol() {
+  try {
+    const t = JSON.parse(localStorage.getItem('kboos_tenant') || '{}');
+    const symbols = { MYR: 'RM', USD: '$', GBP: '£', EUR: '€', SGD: 'S$', AUD: 'A$' };
+    return symbols[t.currency] || 'RM';
+  } catch { return 'RM'; }
+}
+
 export async function generateCampaignPDF(bizName, reportData) {
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const { funnel, campaigns, roi, costs, date } = reportData;
@@ -46,14 +54,15 @@ export async function generateCampaignPDF(bizName, reportData) {
   }
 
   if (roi) {
+    const sym = getCurrencySymbol();
     doc.setTextColor(238, 242, 255);
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
     doc.text('ROI Summary', 20, 170);
     const roiItems = [
-      ['Pipeline Revenue', `RM ${(roi.meetings * roi.dealValue).toLocaleString()}`],
-      ['Platform Cost', `RM ${roi.platformCost}`],
-      ['Net Profit', `RM ${((roi.meetings * roi.dealValue) - roi.platformCost).toLocaleString()}`],
+      ['Pipeline Revenue', `${sym}${(roi.meetings * roi.dealValue).toLocaleString()}`],
+      ['Platform Cost', `${sym}${roi.platformCost}`],
+      ['Net Profit', `${sym}${((roi.meetings * roi.dealValue) - roi.platformCost).toLocaleString()}`],
       ['ROI', `${roi.roiPct}%`],
     ];
     roiItems.forEach(([label, val], i) => {

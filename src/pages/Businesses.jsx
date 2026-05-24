@@ -3,8 +3,10 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { BizSlideOver } from '../components/ui/BizSlideOver.jsx';
+import { useTenant } from '../hooks/useTenant.js';
 
 export function Businesses() {
+  const { formatCurrency, currencySymbol } = useTenant();
   const { businesses, setPage, setSelectedBiz, removeBusiness } = useAppStore(useShallow(s => ({
     businesses: s.businesses,
     setPage: s.setPage,
@@ -55,7 +57,7 @@ export function Businesses() {
                 {label:'Campaigns',val:b.campaigns},
                 {label:'Total Leads',val:(b.leads||0).toLocaleString()},
                 {label:'Hot Leads',val:b.hot,color:'amber'},
-                {label:'Pipeline',val:b.hot && b.avgDealValue ? `RM ${((b.hot||0)*(b.avgDealValue||0)).toLocaleString()}` : '—',color:'green'},
+                {label:'Pipeline',val:b.hot && b.avgDealValue ? formatCurrency((b.hot||0)*(b.avgDealValue||0)) : '—',color:'green'},
               ].map(s => (
                 <div key={s.label} style={{background:'var(--s2)',borderRadius:8,padding:'8px 10px'}}>
                   <div style={{fontSize:10,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{s.label}</div>
@@ -65,7 +67,7 @@ export function Businesses() {
             </div>
             {b.commissionValue && (
               <div style={{fontSize:11,color:'var(--muted)',marginBottom:8,padding:'5px 8px',background:'var(--s2)',borderRadius:6}}>
-                Commission: {b.commissionType==='percent' ? `${b.commissionValue}% per sale` : b.commissionType==='flat_lead' ? `RM ${b.commissionValue}/lead` : b.commissionType==='flat_sale' ? `RM ${b.commissionValue}/sale` : `RM ${b.commissionValue}/mo retainer`}
+                Commission: {b.commissionType==='percent' ? `${b.commissionValue}% per sale` : b.commissionType==='flat_lead' ? `${currencySymbol}${b.commissionValue}/lead` : b.commissionType==='flat_sale' ? `${currencySymbol}${b.commissionValue}/sale` : `${currencySymbol}${b.commissionValue}/mo retainer`}
               </div>
             )}
             <div className="flex items-center justify-between mb-3">

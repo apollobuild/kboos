@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../services/api.js';
-
-function fmtRM(n) {
-  if (n < 0.01) return 'RM 0.00';
-  if (n < 1)    return `RM ${n.toFixed(2)}`;
-  if (n < 10)   return `RM ${n.toFixed(1)}`;
-  return `RM ${Math.round(n)}`;
-}
+import { useTenant } from '../../hooks/useTenant.js';
 
 export function CreditWalletWidget({ onClick }) {
+  const { formatCurrency } = useTenant();
   const [spend, setSpend] = useState(null);
 
   useEffect(() => {
@@ -32,14 +27,14 @@ export function CreditWalletWidget({ onClick }) {
           This Month
         </span>
         <span className="mono" style={{ fontSize: 12, color, fontWeight: 600 }}>
-          {fmtRM(total)}
+          {formatCurrency(total)}
         </span>
       </div>
       <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.5s' }} />
       </div>
       <div style={{ fontSize: 10, color: pct > 80 ? color : 'var(--muted)' }}>
-        {spend ? `${pctLabel} of ${fmtRM(budget)} budget` : 'API spend · click to view'}
+        {spend ? `${pctLabel} of ${formatCurrency(budget)} budget` : 'API spend · click to view'}
       </div>
     </div>
   );

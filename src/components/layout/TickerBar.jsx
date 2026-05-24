@@ -1,7 +1,9 @@
 import { useAppStore } from '../../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
+import { useTenant } from '../../hooks/useTenant.js';
 
 export function TickerBar() {
+  const { formatCurrency } = useTenant();
   const { campaigns, leads } = useAppStore(useShallow(s => ({
     campaigns: s.campaigns,
     leads: s.leads,
@@ -33,7 +35,7 @@ export function TickerBar() {
     { label: 'Meetings Booked',  val: `${meetingsCount}`, color: meetingsCount > 0 ? 'blue' : 'muted' },
     { label: 'Qualified',        val: `${qualifiedCount}`, color: qualifiedCount > 0 ? 'text' : 'muted' },
     ...(awaitingApproval.length > 0 ? awaitingApproval.map(c => ({ label: c.name, val: 'AWAITING REVIEW', color: 'amber' })) : []),
-    { label: 'Total Spend',      val: `RM ${totalSpend.toLocaleString()}`, color: 'text' },
+    { label: 'Total Spend',      val: formatCurrency(totalSpend), color: 'text' },
     { label: 'Total Leads',      val: `${leads.length}`, color: 'blue' },
   ];
 

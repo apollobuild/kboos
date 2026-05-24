@@ -418,6 +418,9 @@ export function Login({ onLogin }) {
       if (!res.ok) throw new Error(data.error || 'Login failed');
       localStorage.setItem('kboos_token', data.token);
       localStorage.setItem('kboos_user', JSON.stringify(data.user));
+      if (data.tenantConfig) {
+        localStorage.setItem('kboos_tenant', JSON.stringify(data.tenantConfig));
+      }
       onLogin(data.user);
     } catch (e) {
       setError(e.message);
@@ -441,6 +444,9 @@ export function Login({ onLogin }) {
       if (!res.ok) throw new Error(data.error || 'Failed to set password');
       localStorage.setItem('kboos_token', data.token);
       localStorage.setItem('kboos_user', JSON.stringify(data.user));
+      if (data.tenantConfig) {
+        localStorage.setItem('kboos_tenant', JSON.stringify(data.tenantConfig));
+      }
       window.history.replaceState({}, '', '/');
       onLogin(data.user);
     } catch (e) {

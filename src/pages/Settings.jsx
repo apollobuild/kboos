@@ -7,6 +7,7 @@ import { settingsService } from '../services/settings.js';
 import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
+import { useTenant } from '../hooks/useTenant.js';
 
 function timeAgoShort(iso) {
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
@@ -144,6 +145,7 @@ function fmtDate(iso) {
 }
 
 export function Settings() {
+  const { formatCurrency, currencySymbol } = useTenant();
   const { showToast, businesses, activity, setPage } = useAppStore(useShallow(s => ({
     showToast: s.showToast, businesses: s.businesses, activity: s.activity, setPage: s.setPage,
   })));
@@ -333,12 +335,12 @@ export function Settings() {
   const cardMM     = String(new Date().getMonth() + 1).padStart(2, '0');
 
   const API_ROWS = [
-    { key:'wa',      label:'WhatsApp (Meta)',   icon:'💬', color:'#00d97e', rate:`$0.045/conv × RM ${rmRate}`, sub:'WATI RM 245/mo separate' },
-    { key:'email',   label:'Email (SendGrid)',  icon:'📧', color:'#0078ff', rate:`$0.0004/email × RM ${rmRate}` },
+    { key:'wa',      label:'WhatsApp (Meta)',   icon:'💬', color:'#00d97e', rate:`$0.045/conv × ${currencySymbol}${rmRate}`, sub:`WATI ${currencySymbol}245/mo separate` },
+    { key:'email',   label:'Email (SendGrid)',  icon:'📧', color:'#0078ff', rate:`$0.0004/email × ${currencySymbol}${rmRate}` },
     { key:'claude',  label:'Claude AI Writing', icon:'🤖', color:'#a855f7', rate:'Exact token cost (Sonnet 4.6)' },
     { key:'call',    label:'AI Voice (Vapi)',   icon:'📞', color:'#f5a623', rate:'Exact cost from Vapi API per call' },
-    { key:'enrich',  label:'Apollo Enrichment', icon:'🔭', color:'#7c3aed', rate:'Flat subscription', sub:'Apollo Professional RM 465/mo' },
-    { key:'scraper', label:'Outscraper (Maps)', icon:'📍', color:'#06b6d4', rate:`$0.001/record × RM ${rmRate}` },
+    { key:'enrich',  label:'Apollo Enrichment', icon:'🔭', color:'#7c3aed', rate:'Flat subscription', sub:`Apollo Professional ${currencySymbol}465/mo` },
+    { key:'scraper', label:'Outscraper (Maps)', icon:'📍', color:'#06b6d4', rate:`$0.001/record × ${currencySymbol}${rmRate}` },
   ];
 
   function isConnected(key) {
@@ -1015,10 +1017,10 @@ export function Settings() {
                 <div style={{ marginBottom:18 }}>
                   <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginBottom:4, letterSpacing:'0.08em' }}>THIS MONTH'S USAGE</div>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:38, fontWeight:700, color:'#fff', letterSpacing:'-1px', lineHeight:1 }}>
-                    RM {spend.total.toFixed(2)}
+                    {formatCurrency(spend.total)}
                   </div>
                   <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', marginTop:6 }}>
-                    {pct.toFixed(0)}% of RM {spend.budget.toFixed(0)} budget · RM {remaining.toFixed(2)} remaining
+                    {pct.toFixed(0)}% of {formatCurrency(spend.budget)} budget · {formatCurrency(remaining)} remaining
                   </div>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
@@ -1040,7 +1042,7 @@ export function Settings() {
                     <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>Campaigns auto-pause when budget is exceeded</div>
                   </div>
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <span style={{ fontSize:13, color:'var(--muted)' }}>RM</span>
+                    <span style={{ fontSize:13, color:'var(--muted)' }}>{currencySymbol}</span>
                     <input type="number" min={100} step={100} value={budget} onChange={e => setBudget(Number(e.target.value))}
                       style={{ width:100, background:'var(--s2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 10px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:14, textAlign:'right' }} />
                     <button className="btn btn-green btn-sm" onClick={saveBudget} disabled={budgetSaving}>{budgetSaving ? '…' : 'Save'}</button>
@@ -1050,8 +1052,8 @@ export function Settings() {
                   <div style={{ height:'100%', borderRadius:6, transition:'width 0.6s ease', width:`${pct}%`, background:gaugeColor }}/>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}>
-                  <span style={{ color:gaugeColor, fontWeight:500 }}>RM {spend.total.toFixed(2)} used</span>
-                  <span style={{ color:'var(--muted)' }}>RM {remaining.toFixed(2)} left of RM {spend.budget.toFixed(0)}</span>
+                  <span style={{ color:gaugeColor, fontWeight:500 }}>{formatCurrency(spend.total)} used</span>
+                  <span style={{ color:'var(--muted)' }}>{formatCurrency(remaining)} left of {formatCurrency(spend.budget)}</span>
                 </div>
                 {pct > 80 && (
                   <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(255,50,50,0.08)', border:'1px solid rgba(255,50,50,0.25)', borderRadius:6, fontSize:12, color:'var(--red)' }}>
@@ -1072,7 +1074,7 @@ export function Settings() {
                       try {
                         const r = await apiFetch('/wallet/fx-rate');
                         setSpend(p => ({ ...p, usdRmRate: r.rate, rateUpdatedAt: r.updatedAt }));
-                        showToast(`Rate updated: 1 USD = RM ${r.rate.toFixed(4)}`, 'green');
+                        showToast(`Rate updated: 1 USD = ${currencySymbol}${r.rate.toFixed(4)}`, 'green');
                       } catch { showToast('Could not fetch rate', 'red'); }
                       setFxRefreshing(false);
                     }}>{fxRefreshing ? '…' : '↻ Refresh'}</button>
@@ -1101,7 +1103,7 @@ export function Settings() {
                           </div>
                           <div style={{ textAlign:'right', flexShrink:0 }}>
                             <div style={{ fontFamily:'var(--font-mono)', fontSize:15, fontWeight:600, color: costRm > 0 ? 'var(--text)' : 'var(--muted)' }}>
-                              {d.source === 'subscription' ? '—' : `RM ${costRm.toFixed(2)}`}
+                              {d.source === 'subscription' ? '—' : formatCurrency(costRm)}
                             </div>
                             {d.count > 0 && <div style={{ fontSize:10, color:'var(--muted)' }}>{d.count.toLocaleString()} actions</div>}
                             {d.tokens > 0 && <div style={{ fontSize:10, color:'var(--muted)' }}>{d.tokens.toLocaleString()} tokens</div>}
@@ -1117,7 +1119,7 @@ export function Settings() {
                   })}
                 </div>
                 <div style={{ marginTop:14, paddingTop:12, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--muted)' }}>
-                  WATI RM 245 + Apollo RM 465 billed directly to your card · auto-updated via ECB{spend.rateUpdatedAt ? ` ${timeAgoShort(spend.rateUpdatedAt)}` : ''}
+                  {`WATI ${currencySymbol}245 + Apollo ${currencySymbol}465 billed directly to your card · auto-updated via ECB${spend.rateUpdatedAt ? ` ${timeAgoShort(spend.rateUpdatedAt)}` : ''}`}
                 </div>
               </div>
             </div>
@@ -1139,7 +1141,7 @@ export function Settings() {
                 <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'radial-gradient(circle,rgba(0,120,255,0.15) 0%,transparent 70%)', pointerEvents:'none' }}/>
                 <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:6 }}>Total Collected</div>
                 <div style={{ fontFamily:'var(--font-mono)', fontSize:32, fontWeight:700, color:'#fff', letterSpacing:'-0.5px', lineHeight:1, marginBottom:6 }}>
-                  RM {((wallet.balance || 0) / 100).toFixed(2)}
+                  {formatCurrency((wallet.balance || 0) / 100)}
                 </div>
                 <div style={{ fontSize:11, color:'rgba(255,255,255,0.3)' }}>via Billplz FPX · transfers to your bank account</div>
               </div>
@@ -1169,7 +1171,7 @@ export function Settings() {
                               {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
                             </span>
                             <span style={{ fontFamily:'var(--font-mono)', fontSize:15, fontWeight:700, color: tx.status==='paid' ? 'var(--green)' : 'var(--muted)' }}>
-                              RM {(tx.amountSen/100).toFixed(2)}
+                              {formatCurrency(tx.amountSen/100)}
                             </span>
                           </div>
                         </div>

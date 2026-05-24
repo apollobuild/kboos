@@ -1,16 +1,18 @@
 import { useAppStore } from '../../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../ui/BizAvatar.jsx';
+import { useTenant } from '../../hooks/useTenant.js';
 
 export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
   const campaigns = useAppStore(useShallow(s => s.campaigns.filter(c => c.bizId === biz.id)));
+  const { formatCurrency, currencySymbol } = useTenant();
 
   const pipeline = (biz.hot || 0) * (biz.avgDealValue || 0);
   const stats = [
     { label: 'Campaigns', val: biz.campaigns || campaigns.length },
     { label: 'Total Leads', val: (biz.leads || 0).toLocaleString() },
     { label: 'Hot Leads', val: biz.hot || 0, color: 'amber' },
-    { label: 'Est. Pipeline', val: pipeline ? `RM ${pipeline.toLocaleString()}` : '—', color: 'green' },
+    { label: 'Est. Pipeline', val: pipeline ? formatCurrency(pipeline) : '—', color: 'green' },
   ];
 
   return (
@@ -74,8 +76,8 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
                 {biz.phone && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Phone</span><a href={`tel:${biz.phone}`} style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.phone}</a></div>}
                 {biz.email && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Email</span><a href={`mailto:${biz.email}`} style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.email}</a></div>}
                 {biz.website && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Website</span><a href={biz.website.startsWith('http') ? biz.website : `https://${biz.website}`} target="_blank" rel="noopener noreferrer" style={{ color: `var(--${biz.color || 'blue'})`, textDecoration: 'none' }}>{biz.website}</a></div>}
-                {biz.commissionValue && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Commission</span><span style={{ fontWeight: 500, color: 'var(--green)' }}>{biz.commissionType === 'percent' ? `${biz.commissionValue}% per sale` : biz.commissionType === 'flat_lead' ? `RM ${biz.commissionValue}/lead` : biz.commissionType === 'flat_sale' ? `RM ${biz.commissionValue}/sale` : `RM ${biz.commissionValue}/mo`}</span></div>}
-                {biz.avgDealValue > 0 && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Avg Deal</span><span style={{ fontWeight: 500 }}>RM {(biz.avgDealValue || 0).toLocaleString()}</span></div>}
+                {biz.commissionValue && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Commission</span><span style={{ fontWeight: 500, color: 'var(--green)' }}>{biz.commissionType === 'percent' ? `${biz.commissionValue}% per sale` : biz.commissionType === 'flat_lead' ? `${currencySymbol}${biz.commissionValue}/lead` : biz.commissionType === 'flat_sale' ? `${currencySymbol}${biz.commissionValue}/sale` : `${currencySymbol}${biz.commissionValue}/mo`}</span></div>}
+                {biz.avgDealValue > 0 && <div style={{ display: 'flex', gap: 8, fontSize: 13 }}><span style={{ color: 'var(--muted)', width: 80, flexShrink: 0 }}>Avg Deal</span><span style={{ fontWeight: 500 }}>{formatCurrency(biz.avgDealValue || 0)}</span></div>}
               </div>
             </div>
           )}

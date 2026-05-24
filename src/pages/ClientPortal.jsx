@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api.js';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
+import { useTenant } from '../hooks/useTenant.js';
 
 const STATUS_CONFIG = {
   '':              { label: 'New',           color: 'var(--muted)',  bg: 'var(--s2)' },
@@ -42,6 +43,7 @@ function exportCSV(leads, bizName) {
 }
 
 export function ClientPortal() {
+  const { formatCurrency } = useTenant();
   const { businesses } = useAppStore(useShallow(s => ({ businesses: s.businesses })));
   const user = (() => { try { return JSON.parse(localStorage.getItem('kboos_user') || '{}'); } catch { return {}; } })();
   const isClient = user.role === 'client';
@@ -195,12 +197,12 @@ export function ClientPortal() {
           <div>
             <div style={{fontSize:12,color:'var(--amber)',fontWeight:600,marginBottom:2}}>💰 Estimated Pipeline Value</div>
             <div style={{fontSize:22,fontWeight:700,color:'var(--text)',fontFamily:'var(--font-mono)'}}>
-              RM {pipelineValue.toLocaleString()}
+              {formatCurrency(pipelineValue)}
             </div>
           </div>
           <div style={{fontSize:12,color:'var(--muted)',textAlign:'right'}}>
             <div>{hotLeads.length} hot leads</div>
-            <div>× RM {biz.avgDealValue.toLocaleString()} avg deal</div>
+            <div>× {formatCurrency(biz.avgDealValue)} avg deal</div>
           </div>
         </div>
       )}

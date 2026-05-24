@@ -4,11 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 import { generateCampaignPDF } from '../services/reports.js';
 import { Select } from '../components/ui/Select.jsx';
+import { useTenant } from '../hooks/useTenant.js';
 
-function fmtRM(n) {
-  if (!n || n === 0) return '—';
-  return `RM ${n.toFixed(2)}`;
-}
 function pct(a, b) { return b > 0 ? `${Math.round((a / b) * 100)}%` : '0%'; }
 function convPct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0; }
 
@@ -27,6 +24,7 @@ function engineLabel(c) {
 }
 
 export function Reporting() {
+  const { formatCurrency, currencySymbol } = useTenant();
   const { campaigns, leads, businesses } = useAppStore(useShallow(s => ({
     campaigns: s.campaigns, leads: s.leads, businesses: s.businesses,
   })));
@@ -192,8 +190,8 @@ export function Reporting() {
         <KpiCard label="Meetings Booked" value={meetingsCnt} sub={pct(meetingsCnt, repliedCnt) + ' of replies'} color="var(--green)" />
         <KpiCard
           label="API Spend (MTD)"
-          value={spendData ? `RM ${Math.round(realTotal).toLocaleString()}` : '—'}
-          sub={spendData ? `${Math.round((realTotal / (spendData.budget || 1000)) * 100)}% of RM ${Math.round(spendData.budget || 1000).toLocaleString()} budget` : 'loading…'}
+          value={spendData ? formatCurrency(Math.round(realTotal)) : '—'}
+          sub={spendData ? `${Math.round((realTotal / (spendData.budget || 1000)) * 100)}% of ${formatCurrency(Math.round(spendData.budget || 1000))} budget` : 'loading…'}
           color={realTotal / (spendData?.budget || 1000) > 0.8 ? 'var(--red)' : 'var(--green)'}
         />
       </div>
@@ -320,14 +318,14 @@ export function Reporting() {
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, width:'100%', fontSize:14, fontFamily:'var(--font-mono)' }} />
             </div>
             <div>
-              <label style={{ fontSize:12, color:'var(--text-2)', display:'block', marginBottom:4 }}>Avg Deal Value (RM)</label>
+              <label style={{ fontSize:12, color:'var(--text-2)', display:'block', marginBottom:4 }}>{`Avg Deal Value (${currencySymbol})`}</label>
               <input type="number" min={0} value={dealVal} onChange={e => setDealVal(Number(e.target.value))}
                 style={{ background:'var(--bg-2)', border:'1px solid var(--border)', color:'var(--text-1)', padding:'8px 12px', borderRadius:6, width:'100%', fontSize:14, fontFamily:'var(--font-mono)' }} />
             </div>
             <div style={{ background:'var(--bg-2)', borderRadius:8, padding:16, marginTop:4 }}>
-              <Row label="Pipeline Revenue" val={<span style={{ color:'var(--green)', fontWeight:700 }}>RM {revenue.toLocaleString()}</span>} />
-              <Row label="API Cost (real)" val={`RM ${Math.round(realTotal).toLocaleString()}`} />
-              <Row label="Net Return" val={`RM ${(revenue - Math.round(realTotal)).toLocaleString()}`} />
+              <Row label="Pipeline Revenue" val={<span style={{ color:'var(--green)', fontWeight:700 }}>{formatCurrency(revenue)}</span>} />
+              <Row label="API Cost (real)" val={formatCurrency(Math.round(realTotal))} />
+              <Row label="Net Return" val={formatCurrency(revenue - Math.round(realTotal))} />
               <div style={{ height:1, background:'var(--border)', margin:'8px 0' }} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontWeight:600 }}>ROI</span>
@@ -362,7 +360,7 @@ export function Reporting() {
                       <span style={{ marginRight:6 }}>{row.icon}</span>{row.label}
                     </span>
                     <span style={{ fontFamily:'var(--font-mono)', fontWeight:600, color: row.val ? 'var(--text-1)' : 'var(--muted)' }}>
-                      {row.val ? fmtRM(row.val) : '—'}
+                      {row.val ? formatCurrency(row.val) : '—'}
                     </span>
                   </div>
                 ))}
