@@ -287,7 +287,7 @@ function OpenWAConnectPanel({ showToast }) {
         </div>
         {!configured && (
           <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', lineHeight:1.7 }}>
-            <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>ghcr.io/openwa/openwa</code> → copy URL → paste above
+            <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>devlikeapro/waha</code> → set <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>PORT=3000</code> → copy URL → paste above
           </div>
         )}
         <div style={{ marginTop:8, fontSize:11, color:'var(--muted)' }}>
