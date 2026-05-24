@@ -1,6 +1,50 @@
-export const LATEST_VERSION = '2.6';
+export const LATEST_VERSION = '2.7';
 
 export const CHANGELOG = [
+  {
+    version: '2.7',
+    date: 'May 2026',
+    entries: [
+      {
+        tag: 'Feature',
+        title: 'WA Connect — Full 10-Feature Upgrade',
+        desc: 'WhatsApp Connect now includes all professional outreach safeguards and tools: reply inbox, multi-step sequences, smart rotation, warmup mode, health score, A/B testing, analytics, stop word detection, business hours enforcement, and import from existing leads.',
+        bullets: [
+          'Flexible sequences: choose 1, 2, or 3-message flows — no forced 3-step minimum',
+          'A/B testing: generate a second message variant, split leads 50/50 automatically',
+          'Import leads from Lead Manager with searchable checkbox list, or paste CSV',
+          'Warmup mode: ramps from 20 → 50 → 100 → 150 → 200 msgs/day over 5 weeks to avoid blocks',
+          'Health score (0–100) per number — drops on errors and opt-outs, shown in Settings',
+          'Smart rotation: campaigns with multiple connected numbers spread sends round-robin',
+          'Stop word detection: STOP / berhenti / tak nak and 8 others auto-suppress leads',
+          'Incoming WA replies flow into the unified Reply Inbox with channel: whatsapp_connect',
+          'Sequence auto-scheduler: cron fires every 2h to send follow-ups when due',
+          'Analytics endpoint: total, sent, replied, opted-out, step 2 and step 3 progress',
+        ],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Built-in Calendar in Meetings Page',
+        desc: 'The Meetings page now has a full monthly calendar view — no external app needed. Toggle between list and calendar with one click.',
+        bullets: [
+          'Full month grid (Mon–Sun) with today highlighted in solid blue',
+          'Colour-coded dots per day: blue = booked, green = completed, amber = no-show/cancelled',
+          'Click any date to see that day\'s meetings listed below',
+          'Seamlessly toggles back to the existing list view',
+        ],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Team Member "Last Active" — Real-Time to the Second',
+        desc: 'The Team Member slide-over now shows live last-active time updated every second. Members active in the last 5 minutes show a green pulsing "Online" indicator.',
+        bullets: [
+          'Ticking counter: "2 seconds ago", "1 minute ago", "3 hours ago" — updated every second',
+          'Green animated dot + "Online" badge for any member active within 5 minutes',
+          'Powered by lastActiveAt timestamp updated on every authenticated API request',
+        ],
+      },
+    ],
+  },
   {
     version: '2.6',
     date: 'May 2026',
