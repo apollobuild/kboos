@@ -147,173 +147,242 @@ function fmtDate(iso) {
 function OpenWAConnectPanel({ showToast }) {
   const [url,        setUrl]        = useState('');
   const [apiKey,     setApiKey]     = useState('');
-  const [status,     setStatus]     = useState(null); // null | { configured, connected, status, name, phone }
-  const [qr,         setQr]         = useState(null);
-  const [loading,    setLoading]    = useState(false);
+  const [configured, setConfigured] = useState(false);
+  const [sessions,   setSessions]   = useState([]);
+  const [addLabel,   setAddLabel]   = useState('');
+  const [addLimit,   setAddLimit]   = useState(200);
+  const [adding,     setAdding]     = useState(false);
+  const [connecting, setConnecting] = useState(null); // sessionId being connected
+  const [qrData,     setQrData]     = useState({});  // { [sessionId]: qrString }
   const [testPhone,  setTestPhone]  = useState('');
   const [testMsg,    setTestMsg]    = useState('Hello from KBOOS! 👋');
+  const [testSession,setTestSession]= useState('');
   const [sending,    setSending]    = useState(false);
-  const pollRef = useRef(null);
+  const [saving,     setSaving]     = useState(false);
+  const pollRefs = useRef({});
 
   useEffect(() => {
-    apiFetch('/openwa/status').then(setStatus).catch(() => {});
-    return () => clearInterval(pollRef.current);
+    apiFetch('/openwa/config').then(c => { setConfigured(c.configured); if (c.url) setUrl(c.url); }).catch(() => {});
+    loadSessions();
+    return () => Object.values(pollRefs.current).forEach(clearInterval);
   }, []);
 
-  function startPollingQR() {
-    clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const s = await apiFetch('/openwa/status');
-        setStatus(s);
-        if (s.connected) { setQr(null); clearInterval(pollRef.current); showToast('WhatsApp connected!', 'green'); return; }
-        const q = await apiFetch('/openwa/session/qr');
-        if (q.qr) setQr(q.qr);
-      } catch {}
-    }, 3000);
+  async function loadSessions() {
+    try { const s = await apiFetch('/openwa/sessions'); setSessions(s); } catch {}
   }
 
-  async function saveSettings() {
+  async function saveConfig() {
     if (!url) return;
-    setLoading(true);
+    setSaving(true);
     try {
-      await apiFetch('/openwa/settings', { method:'POST', body:{ url, apiKey } });
-      showToast('Settings saved', 'green');
-      const s = await apiFetch('/openwa/status');
-      setStatus(s);
+      await apiFetch('/openwa/config', { method:'POST', body:{ url, apiKey } });
+      setConfigured(true);
+      showToast('Server config saved', 'green');
     } catch (e) { showToast(e.message || 'Failed to save', 'red'); }
-    finally { setLoading(false); }
+    finally { setSaving(false); }
   }
 
-  async function handleConnect() {
-    setLoading(true);
-    setQr(null);
+  async function addSession() {
+    if (!addLabel) return;
+    setAdding(true);
     try {
-      const r = await apiFetch('/openwa/session/start', { method:'POST' });
-      if (r.qr) setQr(r.qr);
-      startPollingQR();
-    } catch (e) { showToast(e.message || 'Failed to start session', 'red'); }
-    finally { setLoading(false); }
+      const s = await apiFetch('/openwa/sessions', { method:'POST', body:{ label: addLabel, dailyLimit: addLimit } });
+      setSessions(prev => [...prev, s]);
+      setAddLabel(''); setAddLimit(200);
+      showToast(`${addLabel} added`, 'green');
+    } catch (e) { showToast(e.message || 'Failed to add', 'red'); }
+    finally { setAdding(false); }
   }
 
-  async function handleDisconnect() {
-    setLoading(true);
+  async function removeSession(id, label) {
+    if (!window.confirm(`Remove "${label}"?`)) return;
     try {
-      await apiFetch('/openwa/session', { method:'DELETE' });
-      setQr(null); setStatus(null);
+      await apiFetch(`/openwa/sessions/${id}`, { method:'DELETE' });
+      setSessions(prev => prev.filter(s => s.id !== id));
+      showToast('Removed', 'amber');
+    } catch { showToast('Failed to remove', 'red'); }
+  }
+
+  async function connectSession(id) {
+    setConnecting(id);
+    setQrData(prev => ({ ...prev, [id]: null }));
+    try {
+      const r = await apiFetch(`/openwa/sessions/${id}/connect`, { method:'POST' });
+      if (r) setQrData(prev => ({ ...prev, [id]: r }));
+      // Poll every 3s
+      clearInterval(pollRefs.current[id]);
+      pollRefs.current[id] = setInterval(async () => {
+        try {
+          const q = await apiFetch(`/openwa/sessions/${id}/qr`);
+          if (q.connected) {
+            clearInterval(pollRefs.current[id]);
+            setQrData(prev => ({ ...prev, [id]: null }));
+            setConnecting(null);
+            showToast('WhatsApp connected! 🎉', 'green');
+            loadSessions();
+          } else if (q.qr) {
+            setQrData(prev => ({ ...prev, [id]: q.qr }));
+          }
+        } catch {}
+      }, 3000);
+    } catch (e) { showToast(e.message || 'Failed to start', 'red'); }
+    finally { setConnecting(prev => prev === id ? null : prev); }
+  }
+
+  async function disconnectSession(id) {
+    try {
+      await apiFetch(`/openwa/sessions/${id}/disconnect`, { method:'POST' });
       showToast('Disconnected', 'amber');
-    } catch (e) { showToast('Failed to disconnect', 'red'); }
-    finally { setLoading(false); }
+      loadSessions();
+    } catch { showToast('Failed to disconnect', 'red'); }
+  }
+
+  async function updateLimit(id, limit) {
+    try {
+      const updated = await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ dailyLimit: parseInt(limit) } });
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, dailyLimit: updated.dailyLimit } : s));
+    } catch { showToast('Failed to update limit', 'red'); }
   }
 
   async function handleTestSend() {
     if (!testPhone || !testMsg) return;
     setSending(true);
     try {
-      await apiFetch('/openwa/send', { method:'POST', body:{ phone: testPhone, message: testMsg } });
+      await apiFetch('/openwa/send', { method:'POST', body:{ sessionId: testSession || undefined, phone: testPhone, message: testMsg } });
       showToast('Message sent!', 'green');
     } catch (e) { showToast(e.message || 'Failed to send', 'red'); }
     finally { setSending(false); }
   }
 
-  const connected   = status?.connected;
-  const dotColor    = connected ? 'var(--green)' : status?.status === 'unreachable' ? 'var(--red)' : 'var(--amber)';
-  const dotLabel    = connected ? 'Connected' : status?.status === 'unreachable' ? 'Unreachable' : status?.status === 'no_session' ? 'No session' : status?.status === 'not_configured' ? 'Not configured' : 'Disconnected';
+  const connectedSessions = sessions.filter(s => s.liveStatus === 'WORKING' || s.status === 'connected');
 
   return (
     <div className="card" style={{ padding:'20px', marginTop:8 }}>
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
         <div style={{ width:36, height:36, borderRadius:8, background:'oklch(65% 0.2 145 / 0.15)', border:'1px solid oklch(65% 0.2 145 / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>📲</div>
         <div style={{ flex:1 }}>
           <div style={{ fontWeight:700, fontSize:14 }}>WhatsApp Connect <span style={{ fontSize:10, background:'oklch(65% 0.2 145 / 0.15)', color:'var(--green)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:4, padding:'1px 7px', marginLeft:6, fontWeight:600 }}>FREE</span></div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Open-source WA gateway via OpenWA — scan QR to connect your phone</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Connect multiple numbers via OpenWA — free, open-source, no official API needed</div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, fontWeight:600, color: dotColor }}>
-          <span style={{ width:7, height:7, borderRadius:'50%', background: dotColor, display:'inline-block' }} />
-          {dotLabel}
-        </div>
+        <div style={{ fontSize:11, color:'var(--muted)' }}>{connectedSessions.length} number{connectedSessions.length !== 1 ? 's' : ''} connected</div>
       </div>
-
-      {/* If connected — show info */}
-      {connected && (
-        <div style={{ background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.2)', borderRadius:8, padding:'12px 14px', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ fontSize:20 }}>✅</span>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:'var(--green)' }}>{status.name || 'WhatsApp'}</div>
-            <div style={{ fontSize:11, color:'var(--muted)' }}>{status.phone || 'Connected'} · OpenWA session active</div>
-          </div>
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', color:'var(--red)', fontSize:11 }} onClick={handleDisconnect} disabled={loading}>
-            Disconnect
-          </button>
-        </div>
-      )}
 
       {/* Server config */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, marginBottom:14, alignItems:'flex-end' }}>
-        <div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>OpenWA Server URL</div>
-          <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
-            placeholder="http://localhost:2785  or  https://openwa.yourserver.com"
-            value={url} onChange={e => setUrl(e.target.value)} />
+      <div style={{ background:'var(--s2)', borderRadius:8, padding:'14px', marginBottom:18 }}>
+        <div className="card-title" style={{ marginBottom:10 }}>OpenWA Server</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Server URL</div>
+            <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
+              placeholder="https://openwa.yourserver.com  or  http://localhost:2785"
+              value={url} onChange={e => setUrl(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>API Key</div>
+            <input className="input" type="password" style={{ width:140, boxSizing:'border-box' }} placeholder="optional"
+              value={apiKey} onChange={e => setApiKey(e.target.value)} />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={saveConfig} disabled={!url || saving}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
-        <div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>API Key (if set)</div>
-          <input className="input" type="password" style={{ width:160, boxSizing:'border-box' }}
-            placeholder="optional"
-            value={apiKey} onChange={e => setApiKey(e.target.value)} />
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={!url || loading}>Save</button>
+        {!configured && (
+          <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', lineHeight:1.7 }}>
+            <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>ghcr.io/openwa/openwa</code> → copy URL → paste above
+          </div>
+        )}
       </div>
 
-      {/* QR code */}
-      {qr && (
-        <div style={{ textAlign:'center', marginBottom:16 }}>
-          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>Scan with WhatsApp → Linked Devices → Link a Device</div>
-          <img src={qr} alt="QR Code" style={{ width:200, height:200, borderRadius:8, border:'4px solid white' }} />
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:8 }}>QR refreshes automatically — keep this screen open</div>
+      {/* Numbers list */}
+      <div className="card-title" style={{ marginBottom:12 }}>Connected Numbers</div>
+      {sessions.length === 0 ? (
+        <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>No numbers added yet — add one below.</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+          {sessions.map(s => {
+            const isConnected = s.liveStatus === 'WORKING' || s.status === 'connected';
+            const qr = qrData[s.id];
+            const isConnecting = connecting === s.id;
+            const sentPct = Math.min(100, Math.round((s.sentToday / s.dailyLimit) * 100));
+            return (
+              <div key={s.id} style={{ background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)', padding:'12px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: qr ? 12 : 0 }}>
+                  <span style={{ width:8, height:8, borderRadius:'50%', background: isConnected ? 'var(--green)' : 'var(--muted)', flexShrink:0 }} />
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:13 }}>{s.label} {s.phone && <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>· {s.phone}</span>}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
+                      <div style={{ fontSize:10, color:'var(--muted)' }}>Sent today: {s.sentToday} /</div>
+                      <input type="number" min="1" max="500"
+                        style={{ width:54, fontSize:10, padding:'1px 5px', borderRadius:4, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)' }}
+                        value={s.dailyLimit}
+                        onChange={e => setSessions(prev => prev.map(x => x.id === s.id ? { ...x, dailyLimit: parseInt(e.target.value) || 200 } : x))}
+                        onBlur={e => updateLimit(s.id, e.target.value)} />
+                      <div style={{ flex:1, height:4, background:'var(--border)', borderRadius:2, maxWidth:80 }}>
+                        <div style={{ width:`${sentPct}%`, height:'100%', background: sentPct > 80 ? 'var(--amber)' : 'var(--green)', borderRadius:2, transition:'width 0.3s' }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:6 }}>
+                    {isConnected ? (
+                      <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--red)' }} onClick={() => disconnectSession(s.id)}>Disconnect</button>
+                    ) : (
+                      <button className="btn btn-green btn-sm" style={{ fontSize:10 }} onClick={() => connectSession(s.id)} disabled={!configured || isConnecting}>
+                        {isConnecting ? 'Starting…' : '📲 Connect'}
+                      </button>
+                    )}
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--red)' }} onClick={() => removeSession(s.id, s.label)}>✕</button>
+                  </div>
+                </div>
+                {qr && (
+                  <div style={{ textAlign:'center', paddingTop:8 }}>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>Open WhatsApp → Linked Devices → Link a Device → Scan</div>
+                    <img src={qr} alt="QR" style={{ width:180, height:180, borderRadius:8, border:'4px solid #fff' }} />
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:6 }}>Auto-refreshes every 3s — keep this open</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Connect / Refresh buttons */}
-      {!connected && (
-        <button className="btn btn-green btn-sm" style={{ marginBottom:16 }} onClick={handleConnect} disabled={loading || !status?.configured}>
-          {loading ? 'Starting...' : qr ? '🔄 Refresh QR' : '📲 Connect WhatsApp'}
-        </button>
-      )}
+      {/* Add number */}
+      <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px', marginBottom: connectedSessions.length ? 16 : 0 }}>
+        <div className="card-title" style={{ marginBottom:10 }}>Add Number</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Label (e.g. "Sales Team 1")</div>
+            <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="My WhatsApp Number"
+              value={addLabel} onChange={e => setAddLabel(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
+            <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit} onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding || !configured}>{adding ? 'Adding…' : '+ Add'}</button>
+        </div>
+      </div>
 
       {/* Test send */}
-      {connected && (
-        <div>
+      {connectedSessions.length > 0 && (
+        <div style={{ marginTop:16 }}>
           <div className="card-title" style={{ marginBottom:10 }}>Test Send</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr auto', gap:8, alignItems:'flex-end' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'auto 1fr 2fr auto', gap:8, alignItems:'flex-end' }}>
             <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone Number</div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
-                placeholder="e.g. 60123456789"
-                value={testPhone} onChange={e => setTestPhone(e.target.value)} />
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Number</div>
+              <select className="input" style={{ width:160 }} value={testSession} onChange={e => setTestSession(e.target.value)}>
+                {connectedSessions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone</div>
+              <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="60123456789" value={testPhone} onChange={e => setTestPhone(e.target.value)} />
             </div>
             <div>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Message</div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
-                value={testMsg} onChange={e => setTestMsg(e.target.value)} />
+              <input className="input" style={{ width:'100%', boxSizing:'border-box' }} value={testMsg} onChange={e => setTestMsg(e.target.value)} />
             </div>
-            <button className="btn btn-green btn-sm" onClick={handleTestSend} disabled={!testPhone || !testMsg || sending}>
-              {sending ? 'Sending...' : '→ Send'}
-            </button>
+            <button className="btn btn-green btn-sm" onClick={handleTestSend} disabled={!testPhone || !testMsg || sending}>{sending ? 'Sending…' : '→ Send'}</button>
           </div>
-        </div>
-      )}
-
-      {/* Setup instructions */}
-      {!status?.configured && (
-        <div style={{ marginTop:12, background:'var(--s2)', borderRadius:8, padding:'12px 14px', fontSize:11, color:'var(--muted)', lineHeight:1.7 }}>
-          <div style={{ fontWeight:600, color:'var(--text)', marginBottom:6 }}>Quick Setup (Railway):</div>
-          <div>1. Create new Railway service → Deploy from Docker image: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>openwa/openwa</code></div>
-          <div>2. Copy the public URL Railway gives you</div>
-          <div>3. Paste it above and click Save</div>
-          <div>4. Click "Connect WhatsApp" → scan QR with your phone</div>
-          <div style={{ marginTop:6 }}>Or run locally: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>docker run -p 2785:2785 openwa/openwa</code></div>
         </div>
       )}
     </div>
