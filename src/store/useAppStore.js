@@ -140,4 +140,9 @@ export const useAppStore = create((set, get) => ({
     const fresh = await repliesService.getAll().catch(() => null);
     if (fresh) set({ replies: fresh });
   },
+
+  refreshLeads: async () => {
+    const fresh = await leadsService.getAll().catch(() => null);
+    if (fresh) set({ leads: fresh });
+  },
 }));

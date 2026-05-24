@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { leadsService } from '../services/leads.js';
+import { ImportLeadsModal } from '../components/ui/ImportLeadsModal.jsx';
 
 const PAGE_SIZE = 25;
 
@@ -68,6 +69,7 @@ export function LeadIntelligence() {
   const [search, setSearch]                 = useState('');
   const [campaignFilter, setCampaignFilter] = useState('All');
   const [page, setPage]                     = useState(0);
+  const [importOpen, setImportOpen]         = useState(false);
 
   useEffect(() => { setPage(0); }, [tab, search, campaignFilter, selectedBizId]);
 
@@ -133,7 +135,10 @@ export function LeadIntelligence() {
           <h1 className="page-title">Lead Intelligence</h1>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Enriched profiles, tier scores, and channel eligibility</div>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={handleExport}>⬇ Export CSV</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary btn-sm" onClick={() => setImportOpen(true)}>⬆ Import Leads</button>
+          <button className="btn btn-ghost btn-sm" onClick={handleExport}>⬇ Export CSV</button>
+        </div>
       </div>
 
       {/* Score distribution bar */}
@@ -340,6 +345,8 @@ export function LeadIntelligence() {
           </div>
         </div>
       </div>
+
+      {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} />}
     </div>
   );
 }
