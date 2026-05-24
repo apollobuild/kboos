@@ -209,7 +209,7 @@ function OpenWAConnectPanel({ showToast }) {
     setQrData(prev => ({ ...prev, [id]: null }));
     try {
       const r = await apiFetch(`/openwa/sessions/${id}/connect`, { method:'POST' });
-      if (r) setQrData(prev => ({ ...prev, [id]: r }));
+      if (r?.qr) setQrData(prev => ({ ...prev, [id]: r.qr }));
       // Poll every 3s
       clearInterval(pollRefs.current[id]);
       pollRefs.current[id] = setInterval(async () => {
@@ -342,13 +342,15 @@ function OpenWAConnectPanel({ showToast }) {
                   </div>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:6 }}>
-                  {/* Health score */}
-                  <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10 }}>
-                    <span style={{ color:'var(--muted)' }}>Health:</span>
-                    <span style={{ fontWeight:700, color: s.healthScore >= 80 ? 'var(--green)' : s.healthScore >= 50 ? 'var(--amber)' : 'var(--red)' }}>
-                      {s.healthScore ?? 100}%
-                    </span>
-                  </div>
+                  {/* Health score — only meaningful when connected */}
+                  {isConnected && (
+                    <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10 }}>
+                      <span style={{ color:'var(--muted)' }}>Health:</span>
+                      <span style={{ fontWeight:700, color: (s.healthScore ?? 100) >= 80 ? 'var(--green)' : (s.healthScore ?? 100) >= 50 ? 'var(--amber)' : 'var(--red)' }}>
+                        {s.healthScore ?? 100}%
+                      </span>
+                    </div>
+                  )}
                   {/* Warmup toggle */}
                   <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10 }}>
                     <span style={{ color:'var(--muted)' }}>Warmup:</span>
