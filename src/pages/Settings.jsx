@@ -159,6 +159,7 @@ function OpenWAConnectPanel({ showToast }) {
   const [testSession,setTestSession]= useState('');
   const [sending,    setSending]    = useState(false);
   const [saving,     setSaving]     = useState(false);
+  const [showAdd,    setShowAdd]    = useState(false);
   const pollRefs = useRef({});
 
   useEffect(() => {
@@ -188,7 +189,7 @@ function OpenWAConnectPanel({ showToast }) {
     try {
       const s = await apiFetch('/openwa/sessions', { method:'POST', body:{ label: addLabel, dailyLimit: addLimit } });
       setSessions(prev => [...prev, s]);
-      setAddLabel(''); setAddLimit(200);
+      setAddLabel(''); setAddLimit(200); setShowAdd(false);
       showToast(`${addLabel} added`, 'green');
     } catch (e) { showToast(e.message || 'Failed to add', 'red'); }
     finally { setAdding(false); }
@@ -326,13 +327,18 @@ function OpenWAConnectPanel({ showToast }) {
                   </div>
                   <div style={{ display:'flex', gap:6 }}>
                     {isConnected ? (
-                      <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--red)' }} onClick={() => disconnectSession(s.id)}>Disconnect</button>
+                      <button className="btn btn-sm" style={{ fontSize:10, background:'var(--red)', color:'#fff', border:'none', padding:'3px 10px', borderRadius:5, cursor:'pointer' }} onClick={() => disconnectSession(s.id)}>Disconnect</button>
                     ) : (
-                      <button className="btn btn-green btn-sm" style={{ fontSize:10 }} onClick={() => connectSession(s.id)} disabled={!configured || isConnecting}>
-                        {isConnecting ? 'Starting…' : '📲 Connect'}
-                      </button>
+                      <>
+                        <button className="btn btn-green btn-sm" style={{ fontSize:10 }} onClick={() => connectSession(s.id)} disabled={!configured || isConnecting}>
+                          {isConnecting ? 'Starting…' : '📲 Connect'}
+                        </button>
+                        {qr && (
+                          <button className="btn btn-sm" style={{ fontSize:10, background:'var(--red)', color:'#fff', border:'none', padding:'3px 10px', borderRadius:5, cursor:'pointer' }} onClick={() => { clearInterval(pollRefs.current[s.id]); setQrData(prev => ({ ...prev, [s.id]: null })); setConnecting(null); }}>Cancel</button>
+                        )}
+                      </>
                     )}
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--red)' }} onClick={() => removeSession(s.id, s.label)}>✕</button>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--muted)' }} onClick={() => removeSession(s.id, s.label)}>✕ Remove</button>
                   </div>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:6 }}>
@@ -372,20 +378,29 @@ function OpenWAConnectPanel({ showToast }) {
       )}
 
       {/* Add number */}
-      <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px', marginBottom: connectedSessions.length ? 16 : 0 }}>
-        <div className="card-title" style={{ marginBottom:10 }}>Add Number</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Label (e.g. "Sales Team 1")</div>
-            <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="My WhatsApp Number"
-              value={addLabel} onChange={e => setAddLabel(e.target.value)} />
+      <div style={{ marginBottom: connectedSessions.length ? 16 : 0 }}>
+        {!showAdd ? (
+          <button className="btn btn-primary btn-sm" style={{ fontSize:12 }} onClick={() => setShowAdd(true)} disabled={!configured}>+ Add Number</button>
+        ) : (
+          <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+              <div className="card-title" style={{ margin:0 }}>Add Number</div>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize:11, color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddLimit(200); }}>✕ Cancel</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Label (e.g. "Sales Team 1")</div>
+                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="My WhatsApp Number"
+                  value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
+                <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit} onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding}>{adding ? 'Adding…' : '+ Add'}</button>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
-            <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit} onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding || !configured}>{adding ? 'Adding…' : '+ Add'}</button>
-        </div>
+        )}
       </div>
 
       {/* Test send */}
