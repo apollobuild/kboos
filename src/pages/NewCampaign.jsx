@@ -120,10 +120,12 @@ export function NewCampaign() {
   const [waABEnabled,  setWaABEnabled]  = useState(false);
   const [waSequenceB,  setWaSequenceB]  = useState([]);
   const [waGeneratingB,setWaGeneratingB]= useState(false);
-  const [waLeadMode,   setWaLeadMode]   = useState('paste'); // 'paste' | 'pick'
+  const [waLeadMode,   setWaLeadMode]   = useState('paste'); // 'paste' | 'upload' | 'pick'
   const [allLeads,     setAllLeads]     = useState([]);
   const [selectedLeads,setSelectedLeads]= useState([]);
   const [leadSearch,   setLeadSearch]   = useState('');
+  const [uploadedLeads,setUploadedLeads]= useState([]);
+  const [uploadFileName,setUploadFileName]= useState('');
 
   // Shared fields
   const [bizId, setBizId] = useState('');
@@ -652,10 +654,19 @@ export function NewCampaign() {
 
   // ── WA Connect Campaign ───────────────────────────────────────────────────
   if (mode === 'wa') {
-    // Load sessions on first render
     if (waSessions.length === 0 && !waCreating) {
       apiFetch('/openwa/sessions').then(s => { setWaSessions(s); if (s.length) setWaSession(s[0].id); }).catch(() => {});
     }
+
+    // Live-parse pasted CSV
+    const parsedPasteLeads = waLeads.split('\n').filter(l => l.trim()).map(line => {
+      const parts = line.split(',').map(p => p.trim());
+      return { name: parts[0] || '', phone: parts[1] || '', company: parts[2] || '' };
+    }).filter(l => l.phone && l.phone.replace(/\D/g,'').length >= 7);
+
+    const leadCount = waLeadMode === 'paste' ? parsedPasteLeads.length
+      : waLeadMode === 'upload' ? uploadedLeads.length
+      : selectedLeads.length;
 
     async function generateSequence() {
       if (!waGoal) return;
@@ -663,8 +674,50 @@ export function NewCampaign() {
       try {
         const result = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal, steps: waSteps } });
         setWaSequence(Array.isArray(result) ? result : []);
-      } catch (e) { alert('AI generation failed: ' + e.message); }
+      } catch (e) { showToast('AI generation failed: ' + e.message, 'red'); }
       finally { setWaGenerating(false); }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploadFileName(file.name);
+      setUploadedLeads([]);
+      try {
+        if (file.name.match(/\.(xlsx|xls)$/i)) {
+          const { read, utils } = await import('xlsx');
+          const buf = await file.arrayBuffer();
+          const wb = read(buf);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = utils.sheet_to_json(ws, { header: 1 });
+          const header = (rows[0] || []).map(h => String(h).toLowerCase().trim());
+          const hasHeader = header.some(h => ['name','phone','company','mobile','tel'].includes(h));
+          const dataRows = hasHeader ? rows.slice(1) : rows;
+          const ni = Math.max(0, hasHeader ? header.findIndex(h => h.includes('name')) : 0);
+          const pi = hasHeader ? header.findIndex(h => ['phone','mobile','tel','contact','hp'].some(k => h.includes(k))) : 1;
+          const ci = hasHeader ? header.findIndex(h => ['company','biz','org','business'].some(k => h.includes(k))) : 2;
+          const parsed = dataRows.map(row => ({
+            name: String(row[ni] || '').trim(),
+            phone: String(row[pi >= 0 ? pi : 1] || '').trim(),
+            company: String(row[ci >= 0 ? ci : 2] || '').trim(),
+          })).filter(l => l.phone.replace(/\D/g,'').length >= 7);
+          setUploadedLeads(parsed);
+        } else {
+          const text = await file.text();
+          const lines = text.split('\n').filter(l => l.trim());
+          const first = lines[0]?.split(',').map(s => s.trim().toLowerCase()) || [];
+          const hasHeader = first.some(h => ['name','phone','company','mobile'].includes(h));
+          const dataLines = hasHeader ? lines.slice(1) : lines;
+          const ni = hasHeader ? Math.max(0, first.findIndex(h => h.includes('name'))) : 0;
+          const pi = hasHeader ? first.findIndex(h => ['phone','mobile','tel','hp'].some(k => h.includes(k))) : 1;
+          const ci = hasHeader ? first.findIndex(h => ['company','biz','org'].some(k => h.includes(k))) : 2;
+          const parsed = dataLines.map(line => {
+            const p = line.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+            return { name: p[ni] || '', phone: p[pi >= 0 ? pi : 1] || '', company: p[ci >= 0 ? ci : 2] || '' };
+          }).filter(l => l.phone.replace(/\D/g,'').length >= 7);
+          setUploadedLeads(parsed);
+        }
+      } catch { showToast('Could not parse file', 'red'); }
     }
 
     async function createWACampaign() {
@@ -672,139 +725,192 @@ export function NewCampaign() {
       setWaCreating(true);
       try {
         let leads = [];
-        if (waLeadMode === 'paste') {
-          leads = waLeads.split('\n').filter(Boolean).map(line => {
-            const parts = line.split(',').map(p => p.trim());
-            return { name: parts[0] || '', phone: parts[1] || '', company: parts[2] || '' };
-          }).filter(l => l.phone);
-        } else {
-          const dbLeads = allLeads.filter(l => selectedLeads.includes(l.id));
-          leads = dbLeads.map(l => ({ name: l.name || '', phone: l.phone || '', company: l.company || '' }));
-        }
+        if (waLeadMode === 'paste') leads = parsedPasteLeads;
+        else if (waLeadMode === 'upload') leads = uploadedLeads;
+        else leads = allLeads.filter(l => selectedLeads.includes(l.id)).map(l => ({ name: l.name || '', phone: l.phone || '', company: l.company || '' }));
         await apiFetch('/openwa/campaigns', {
           method:'POST',
           body:{ name: waName, sessionId: waSession, goal: waGoal, sequence: waSequence, leads, sendLimit: waSendLimit, sequenceSteps: waSteps, abEnabled: waABEnabled, abVariantB: waSequenceB }
         });
         showToast(`Campaign "${waName}" created`, 'green');
         setPage('campaign-dashboard');
-      } catch (e) { alert('Failed to create: ' + e.message); }
+      } catch (e) { showToast('Failed: ' + e.message, 'red'); }
       finally { setWaCreating(false); }
     }
 
     const connectedSessions = waSessions.filter(s => s.liveStatus === 'WORKING' || s.status === 'connected');
+    const GREEN = 'oklch(65% 0.2 145)';
+    const BLUE  = 'var(--blue)';
 
     return (
       <div className="page">
-        <div className="fade-up" style={{ marginBottom:24 }}>
+        <div className="fade-up" style={{ marginBottom:20 }}>
           <div className="breadcrumb">Campaigns / New Campaign / <span>WA Connect</span></div>
-          <h1 className="page-title" style={{ marginTop:4 }}>WA Connect Campaign</h1>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:4 }}>
+            <h1 className="page-title" style={{ margin:0 }}>WA Connect Campaign</h1>
+            <button className="btn btn-ghost btn-sm" onClick={() => setMode(null)}>← Back</button>
+          </div>
         </div>
-        <button className="btn btn-ghost btn-sm" style={{ marginBottom:20 }} onClick={() => setMode(null)}>← Back</button>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, maxWidth:900 }}>
-          {/* Left col */}
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'380px 1fr', gap:20, maxWidth:1000 }}>
+
+          {/* ── LEFT COLUMN ─────────────────────────────────── */}
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
             {/* Campaign name */}
-            <div className="card" style={{ padding:'18px' }}>
-              <div className="card-title" style={{ marginBottom:10 }}>Campaign Name</div>
+            <div className="card" style={{ padding:18 }}>
+              <div className="card-title" style={{ marginBottom:8 }}>Campaign Name</div>
               <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
                 placeholder="e.g. Web Design Outreach May"
                 value={waName} onChange={e => setWaName(e.target.value)} />
-              <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>No business needed — this campaign runs standalone</div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginTop:5 }}>No business needed — runs standalone</div>
             </div>
 
-            {/* Pick number */}
-            <div className="card" style={{ padding:'18px' }}>
+            {/* Send From */}
+            <div className="card" style={{ padding:18 }}>
               <div className="card-title" style={{ marginBottom:10 }}>Send From</div>
               {connectedSessions.length === 0 ? (
-                <div style={{ fontSize:12, color:'var(--amber)', lineHeight:1.6 }}>
-                  ⚠️ No connected numbers yet. Go to <strong>Settings → Integrations → Communications</strong> and connect a WhatsApp number first.
+                <div style={{ fontSize:12, color:'var(--amber)', lineHeight:1.7, padding:'10px 12px', background:'oklch(80% 0.15 80 / 0.08)', borderRadius:8, border:'1px solid oklch(80% 0.15 80 / 0.2)' }}>
+                  ⚠️ No connected numbers yet.<br/>
+                  Go to <strong>Settings → Integrations → Communications</strong> and connect a WhatsApp number first.
                 </div>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {connectedSessions.map(s => (
-                    <div key={s.id} onClick={() => setWaSession(s.id)}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, border:`1px solid ${waSession === s.id ? 'var(--green)' : 'var(--border)'}`, background: waSession === s.id ? 'oklch(65% 0.2 145 / 0.08)' : 'var(--s2)', cursor:'pointer' }}>
-                      <span style={{ width:8, height:8, borderRadius:'50%', background:'var(--green)', flexShrink:0 }} />
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{s.label}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)' }}>{s.phone || 'Connected'} · {s.sentToday}/{s.dailyLimit} sent today</div>
+                  {connectedSessions.map(s => {
+                    const sel = waSession === s.id;
+                    const pct = Math.round((s.sentToday / (s.dailyLimit || 200)) * 100);
+                    const health = s.healthScore ?? 100;
+                    const hColor = health >= 80 ? 'var(--green)' : health >= 50 ? 'var(--amber)' : 'var(--red)';
+                    return (
+                      <div key={s.id} onClick={() => setWaSession(s.id)}
+                        style={{ padding:'10px 12px', borderRadius:8, border:`1.5px solid ${sel ? GREEN : 'var(--border)'}`, background: sel ? `${GREEN}0f` : 'var(--s2)', cursor:'pointer', transition:'all 0.12s' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                          <span style={{ width:7, height:7, borderRadius:'50%', background:GREEN, flexShrink:0 }} />
+                          <div style={{ flex:1 }}>
+                            <span style={{ fontSize:13, fontWeight:700 }}>{s.label}</span>
+                            {s.phone && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:6 }}>{s.phone}</span>}
+                          </div>
+                          {sel && <span style={{ fontSize:13, color:GREEN }}>✓</span>}
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <div style={{ flex:1, height:4, background:'var(--border)', borderRadius:2, overflow:'hidden' }}>
+                            <div style={{ width:`${pct}%`, height:'100%', background:GREEN, borderRadius:2 }} />
+                          </div>
+                          <span style={{ fontSize:10, color:'var(--muted)', whiteSpace:'nowrap' }}>{s.sentToday}/{s.dailyLimit}</span>
+                          <span style={{ fontSize:10, fontWeight:700, color:hColor }}>♥ {health}</span>
+                          {s.warmupEnabled && <span style={{ fontSize:9, color:GREEN, fontWeight:700, background:`${GREEN}15`, borderRadius:3, padding:'1px 5px' }}>Wk{(s.warmupWeek||0)+1}</span>}
+                        </div>
                       </div>
-                      {waSession === s.id && <span style={{ fontSize:12, color:'var(--green)' }}>✓</span>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Daily send limit */}
-            <div className="card" style={{ padding:'18px' }}>
-              <div className="card-title" style={{ marginBottom:10 }}>Messages to Send</div>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <input type="range" min="1" max="200" value={waSendLimit}
-                  onChange={e => setWaSendLimit(parseInt(e.target.value))}
-                  style={{ flex:1, accentColor:'var(--green)' }} />
-                <div style={{ fontSize:22, fontWeight:700, color:'var(--green)', fontFamily:'var(--font-mono)', minWidth:40, textAlign:'right' }}>{waSendLimit}</div>
+            {/* Send limit */}
+            <div className="card" style={{ padding:18 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <div className="card-title" style={{ margin:0 }}>Messages to Send</div>
+                <div style={{ fontSize:26, fontWeight:800, color:GREEN, fontFamily:'var(--font-mono)' }}>{waSendLimit}</div>
               </div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>Max 200/day per number · Sends spread ~30s apart to stay safe</div>
+              <input type="range" min="1" max="200" value={waSendLimit}
+                onChange={e => setWaSendLimit(parseInt(e.target.value))}
+                style={{ width:'100%', accentColor:GREEN }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--muted)', marginTop:4 }}>
+                <span>1</span><span>~30s gap between sends</span><span>200</span>
+              </div>
             </div>
+
+            {/* Save button */}
+            <button className="btn btn-green" style={{ padding:'14px', fontSize:14, fontWeight:700, width:'100%' }}
+              disabled={!waName || !waSession || waSequence.length === 0 || waCreating || leadCount === 0}
+              onClick={createWACampaign}>
+              {waCreating ? '⏳ Creating…' : `✓ Save Campaign · ${leadCount} lead${leadCount !== 1 ? 's' : ''} · ${waSteps} step${waSteps !== 1 ? 's' : ''}`}
+            </button>
+            <div style={{ fontSize:11, color:'var(--muted)', textAlign:'center', marginTop:-8 }}>Saved as draft — launch from Campaign Dashboard</div>
           </div>
 
-          {/* Right col */}
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {/* ── RIGHT COLUMN ────────────────────────────────── */}
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
             {/* AI Sequence */}
-            <div className="card" style={{ padding:'18px' }}>
-              <div className="card-title" style={{ marginBottom:10 }}>AI Message Sequence</div>
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>How many messages in the sequence?</div>
-                <div style={{ display:'flex', gap:8 }}>
-                  {[1,2,3].map(n => (
-                    <button key={n} onClick={() => setWaSteps(n)}
-                      style={{ flex:1, padding:'8px', borderRadius:8, border:`1px solid ${waSteps === n ? 'oklch(65% 0.2 145)' : 'var(--border)'}`, background: waSteps === n ? 'oklch(65% 0.2 145 / 0.12)' : 'var(--s2)', color: waSteps === n ? 'oklch(65% 0.2 145)' : 'var(--muted)', fontWeight: waSteps === n ? 700 : 400, cursor:'pointer', fontSize:12 }}>
-                      {n === 1 ? '1 message' : `${n} messages`}
-                      <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>{n === 1 ? 'One-shot' : n === 2 ? 'Intro + Follow-up' : 'Full sequence'}</div>
-                    </button>
-                  ))}
-                </div>
+            <div className="card" style={{ padding:18 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <div className="card-title" style={{ margin:0 }}>AI Message Sequence</div>
+                {waSequence.length > 0 && (
+                  <span style={{ fontSize:10, color:GREEN, fontWeight:700, background:`${GREEN}15`, borderRadius:4, padding:'2px 8px' }}>
+                    {waSteps} step{waSteps !== 1 ? 's' : ''} generated ✓
+                  </span>
+                )}
               </div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>Describe your goal — Claude writes the messages</div>
+
+              {/* Step picker */}
+              <div style={{ display:'flex', gap:6, marginBottom:12 }}>
+                {[1,2,3].map(n => (
+                  <button key={n} onClick={() => setWaSteps(n)}
+                    style={{ flex:1, padding:'9px 6px', borderRadius:8, border:`1.5px solid ${waSteps === n ? GREEN : 'var(--border)'}`,
+                      background: waSteps === n ? `${GREEN}12` : 'var(--s2)',
+                      color: waSteps === n ? GREEN : 'var(--muted)',
+                      fontWeight: waSteps === n ? 700 : 400, cursor:'pointer', fontSize:12, lineHeight:1.3 }}>
+                    {n === 1 ? '1 msg' : `${n} msgs`}
+                    <div style={{ fontSize:9, marginTop:2, opacity:0.8 }}>{n === 1 ? 'One-shot' : n === 2 ? 'Intro+Follow-up' : 'Full sequence'}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Goal + generate */}
               <div style={{ display:'flex', gap:8, marginBottom:12 }}>
                 <input className="input" style={{ flex:1, boxSizing:'border-box' }}
-                  placeholder="e.g. Follow up with SME owners about web design services"
-                  value={waGoal} onChange={e => setWaGoal(e.target.value)} />
-                <button className="btn btn-primary btn-sm" onClick={generateSequence} disabled={!waGoal || waGenerating}>
+                  placeholder='e.g. "Follow up with SME owners about web design"'
+                  value={waGoal} onChange={e => setWaGoal(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && generateSequence()} />
+                <button className="btn btn-sm" onClick={generateSequence} disabled={!waGoal || waGenerating}
+                  style={{ background:GREEN, color:'#fff', border:'none', fontWeight:700, whiteSpace:'nowrap', minWidth:90 }}>
                   {waGenerating ? '✨ Writing…' : '✨ Generate'}
                 </button>
               </div>
+
+              {/* Variant A label */}
+              {waSequence.length > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:GREEN, background:`${GREEN}12`, borderRadius:3, padding:'2px 8px' }}>VARIANT A</span>
+                  {waABEnabled && <span style={{ fontSize:10, color:'var(--muted)' }}>Split 50/50 with B</span>}
+                </div>
+              )}
+
+              {/* Sequence cards */}
               {waSequence.length > 0 ? (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {waSequence.map((step, i) => (
                     <div key={i} style={{ background:'var(--s2)', borderRadius:8, padding:'10px 12px', border:'1px solid var(--border)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                        <span style={{ fontSize:10, fontWeight:700, color:'var(--blue)', background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 7px' }}>Day {step.day}</span>
+                        <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 8px' }}>Day {step.day}</span>
                         <span style={{ fontSize:11, color:'var(--muted)' }}>{step.label}</span>
+                        <span style={{ fontSize:10, color:'var(--muted)', marginLeft:'auto' }}>
+                          {(step.message||'').length} chars · {'{name} {company} {first_name}'}
+                        </span>
                       </div>
                       <textarea
-                        style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.5, outline:'none', minHeight:60 }}
+                        style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.6, outline:'none', minHeight:64 }}
                         value={step.message}
-                        onChange={e => setWaSequence(prev => prev.map((s, si) => si === i ? { ...s, message: e.target.value } : s))}
+                        onChange={e => setWaSequence(prev => prev.map((s,si) => si===i ? {...s,message:e.target.value} : s))}
                       />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign:'center', padding:'20px 0', color:'var(--muted)', fontSize:12 }}>
-                  Enter your goal above and click Generate →
+                <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)', fontSize:12, border:'1px dashed var(--border)', borderRadius:8 }}>
+                  Enter your goal above and click ✨ Generate
                 </div>
               )}
+
+              {/* A/B Testing */}
               {waSequence.length > 0 && (
-                <div style={{ marginTop:12, padding:'10px 12px', background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)' }}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div style={{ marginTop:12, borderRadius:8, border:`1px solid ${waABEnabled ? 'oklch(62% 0.19 245 / 0.35)' : 'var(--border)'}`, overflow:'hidden' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', background: waABEnabled ? 'oklch(62% 0.19 245 / 0.07)' : 'var(--s2)' }}>
                     <div>
-                      <div style={{ fontSize:12, fontWeight:600 }}>A/B Test</div>
-                      <div style={{ fontSize:10, color:'var(--muted)' }}>Generate a second message variant — split leads 50/50</div>
+                      <div style={{ fontSize:12, fontWeight:700 }}>🧪 A/B Test</div>
+                      <div style={{ fontSize:10, color:'var(--muted)' }}>Second message angle — leads split 50/50 automatically</div>
                     </div>
                     <button className="btn btn-ghost btn-sm" style={{ fontSize:11 }} onClick={async () => {
                       if (!waABEnabled) {
@@ -812,102 +918,179 @@ export function NewCampaign() {
                         if (!waSequenceB.length) {
                           setWaGeneratingB(true);
                           try {
-                            const r = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal + ' (variant B — try different angle)', steps: waSteps } });
+                            const r = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal + ' (variant B — different angle, different hook)', steps: waSteps } });
                             setWaSequenceB(Array.isArray(r) ? r : []);
-                          } catch {}
+                          } catch { showToast('B generation failed', 'red'); }
                           finally { setWaGeneratingB(false); }
                         }
-                      } else {
-                        setWaABEnabled(false);
-                      }
+                      } else { setWaABEnabled(false); }
                     }}>
-                      {waABEnabled ? '✕ Remove B' : waGeneratingB ? '✨ Generating…' : '+ Add Variant B'}
+                      {waABEnabled ? '✕ Remove B' : waGeneratingB ? '✨ Generating B…' : '+ Add Variant B'}
                     </button>
                   </div>
                   {waABEnabled && waSequenceB.length > 0 && (
-                    <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
-                      <div style={{ fontSize:10, fontWeight:700, color:'var(--blue)', marginBottom:4 }}>VARIANT B</div>
+                    <div style={{ padding:'10px 12px', borderTop:'1px solid oklch(62% 0.19 245 / 0.2)', display:'flex', flexDirection:'column', gap:8 }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:BLUE }}>VARIANT B</div>
                       {waSequenceB.map((step, i) => (
-                        <div key={i} style={{ background:'oklch(62% 0.19 245 / 0.06)', borderRadius:6, padding:'8px 10px', border:'1px solid oklch(62% 0.19 245 / 0.2)' }}>
-                          <div style={{ fontSize:10, color:'var(--blue)', fontWeight:700, marginBottom:4 }}>Day {step.day} · {step.label}</div>
-                          <textarea style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.5, outline:'none', minHeight:50 }}
+                        <div key={i} style={{ background:'oklch(62% 0.19 245 / 0.05)', borderRadius:8, padding:'10px 12px', border:'1px solid oklch(62% 0.19 245 / 0.18)' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 8px' }}>Day {step.day}</span>
+                            <span style={{ fontSize:11, color:'var(--muted)' }}>{step.label}</span>
+                          </div>
+                          <textarea style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.6, outline:'none', minHeight:64 }}
                             value={step.message}
                             onChange={e => setWaSequenceB(prev => prev.map((s,si) => si===i ? {...s,message:e.target.value} : s))} />
                         </div>
                       ))}
                     </div>
                   )}
+                  {waABEnabled && waGeneratingB && (
+                    <div style={{ padding:'16px', textAlign:'center', fontSize:12, color:'var(--muted)' }}>✨ Writing variant B…</div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Leads */}
-            <div className="card" style={{ padding:'18px' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-                <div className="card-title">Leads</div>
+            <div className="card" style={{ padding:18 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div className="card-title" style={{ margin:0 }}>Leads</div>
+                  {leadCount > 0 && (
+                    <span style={{ fontSize:11, fontWeight:700, color:GREEN, background:`${GREEN}12`, borderRadius:4, padding:'2px 8px' }}>{leadCount} ready</span>
+                  )}
+                </div>
                 <div style={{ display:'flex', background:'var(--s2)', borderRadius:6, padding:2, gap:2 }}>
-                  {[['paste','Paste CSV'],['pick','From Lead Manager']].map(([v,l]) => (
+                  {[['paste','Paste CSV'],['upload','Upload File'],['pick','Lead Manager']].map(([v,l]) => (
                     <button key={v} onClick={() => {
                       setWaLeadMode(v);
                       if (v === 'pick' && !allLeads.length) {
-                        apiFetch('/leads').then(r => setAllLeads(Array.isArray(r) ? r.filter(lead => lead.phone) : [])).catch(() => {});
+                        apiFetch('/leads').then(r => setAllLeads(Array.isArray(r) ? r.filter(x => x.phone) : [])).catch(() => {});
                       }
                     }}
-                      style={{ padding:'3px 10px', borderRadius:4, fontSize:10, fontWeight:600, cursor:'pointer', border:'none',
-                        background: waLeadMode === v ? 'var(--blue)' : 'transparent',
-                        color: waLeadMode === v ? '#fff' : 'var(--muted)' }}>
+                      style={{ padding:'3px 9px', borderRadius:4, fontSize:10, fontWeight:600, cursor:'pointer', border:'none',
+                        background: waLeadMode === v ? BLUE : 'transparent',
+                        color: waLeadMode === v ? '#fff' : 'var(--muted)', transition:'all 0.1s' }}>
                       {l}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {waLeadMode === 'paste' ? (
+              {waLeadMode === 'paste' && (
                 <>
-                  <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>One per line: <code style={{ background:'var(--s2)', padding:'1px 4px', borderRadius:3 }}>Name, Phone, Company</code></div>
-                  <textarea className="input" rows={6} style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontSize:12, fontFamily:'var(--font-mono)' }}
-                    placeholder={"Ahmad Zul, 60123456789, Gadong Sdn Bhd\nSarah Lee, 60198765432, Tech Corp"}
-                    value={waLeads} onChange={e => setWaLeads(e.target.value)} />
-                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
-                    {waLeads.split('\n').filter(l => l.includes(',') && l.trim()).length} leads entered
+                  <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>
+                    One per line: <code style={{ background:'var(--s2)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Name, Phone, Company</code>
                   </div>
+                  <textarea className="input" rows={7}
+                    style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontSize:12, fontFamily:'var(--font-mono)', lineHeight:1.6 }}
+                    placeholder={'Ahmad Zul, 60123456789, Gadong Sdn Bhd\nSarah Lee, 60198765432, Tech Corp\nAli Hassan, 60112345678, Maju Enterprise'}
+                    value={waLeads} onChange={e => setWaLeads(e.target.value)} />
+                  <div style={{ fontSize:11, marginTop:6, display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ color: parsedPasteLeads.length > 0 ? GREEN : 'var(--muted)', fontWeight: parsedPasteLeads.length > 0 ? 700 : 400 }}>
+                      {parsedPasteLeads.length > 0 ? `✓ ${parsedPasteLeads.length} leads detected` : 'No valid leads yet — need Name, Phone, Company per line'}
+                    </span>
+                  </div>
+                  {parsedPasteLeads.length > 0 && (
+                    <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3, maxHeight:120, overflowY:'auto' }}>
+                      {parsedPasteLeads.slice(0,3).map((l,i) => (
+                        <div key={i} style={{ fontSize:11, color:'var(--muted)', padding:'4px 8px', background:'var(--s2)', borderRadius:4 }}>
+                          {l.name} · {l.phone} {l.company ? `· ${l.company}` : ''}
+                        </div>
+                      ))}
+                      {parsedPasteLeads.length > 3 && <div style={{ fontSize:11, color:'var(--muted)', padding:'2px 8px' }}>+{parsedPasteLeads.length - 3} more</div>}
+                    </div>
+                  )}
                 </>
-              ) : (
+              )}
+
+              {waLeadMode === 'upload' && (
+                <>
+                  <label style={{ display:'block', border:'2px dashed var(--border)', borderRadius:10, padding:'24px', textAlign:'center', cursor:'pointer', transition:'border-color 0.15s' }}
+                    onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = GREEN; }}
+                    onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                    onDrop={async e => {
+                      e.preventDefault();
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      const file = e.dataTransfer.files[0];
+                      if (file) await handleFileUpload({ target: { files: [file] } });
+                    }}>
+                    <input type="file" accept=".xlsx,.xls,.csv,.txt" style={{ display:'none' }} onChange={handleFileUpload} />
+                    <div style={{ fontSize:28, marginBottom:8 }}>📂</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>
+                      {uploadFileName || 'Drop file here or click to browse'}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>Supports .xlsx · .xls · .csv · .txt</div>
+                  </label>
+                  {uploadedLeads.length > 0 && (
+                    <div style={{ marginTop:10 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:GREEN, marginBottom:6 }}>✓ {uploadedLeads.length} leads imported from {uploadFileName}</div>
+                      <div style={{ border:'1px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
+                        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                          <thead>
+                            <tr style={{ background:'var(--s2)' }}>
+                              {['Name','Phone','Company'].map(h => (
+                                <th key={h} style={{ padding:'6px 10px', textAlign:'left', color:'var(--muted)', fontWeight:600, fontSize:10, letterSpacing:'0.04em' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uploadedLeads.slice(0,5).map((l,i) => (
+                              <tr key={i} style={{ borderTop:'1px solid var(--border)' }}>
+                                <td style={{ padding:'6px 10px', color:'var(--text)' }}>{l.name || '—'}</td>
+                                <td style={{ padding:'6px 10px', color:'var(--text)', fontFamily:'var(--font-mono)' }}>{l.phone}</td>
+                                <td style={{ padding:'6px 10px', color:'var(--muted)' }}>{l.company || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {uploadedLeads.length > 5 && (
+                          <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', background:'var(--s2)', borderTop:'1px solid var(--border)' }}>
+                            +{uploadedLeads.length - 5} more rows
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {uploadFileName && uploadedLeads.length === 0 && (
+                    <div style={{ marginTop:8, fontSize:12, color:'var(--amber)' }}>⚠️ No valid leads found. Check columns: Name, Phone, Company</div>
+                  )}
+                </>
+              )}
+
+              {waLeadMode === 'pick' && (
                 <>
                   <input className="input" style={{ width:'100%', boxSizing:'border-box', marginBottom:8 }}
-                    placeholder="Search by name or company..."
+                    placeholder="Search by name or company…"
                     value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
-                  <div style={{ maxHeight:200, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
-                    {allLeads.filter(l => !leadSearch || l.name?.toLowerCase().includes(leadSearch.toLowerCase()) || l.company?.toLowerCase().includes(leadSearch.toLowerCase())).slice(0,50).map(l => {
+                  <div style={{ maxHeight:220, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
+                    {allLeads.filter(l => !leadSearch || l.name?.toLowerCase().includes(leadSearch.toLowerCase()) || l.company?.toLowerCase().includes(leadSearch.toLowerCase())).slice(0,60).map(l => {
                       const sel = selectedLeads.includes(l.id);
                       return (
                         <div key={l.id} onClick={() => setSelectedLeads(prev => sel ? prev.filter(id => id !== l.id) : [...prev, l.id])}
-                          style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:6, cursor:'pointer',
-                            background: sel ? 'oklch(65% 0.2 145 / 0.1)' : 'var(--s2)', border:`1px solid ${sel ? 'oklch(65% 0.2 145 / 0.4)' : 'var(--border)'}` }}>
-                          <span style={{ width:14, height:14, borderRadius:3, border:`2px solid ${sel ? 'var(--green)' : 'var(--border)'}`, background: sel ? 'var(--green)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:9, color:'#fff' }}>{sel ? '✓' : ''}</span>
+                          style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:6, cursor:'pointer',
+                            background: sel ? `${GREEN}0d` : 'var(--s2)', border:`1px solid ${sel ? `${GREEN}55` : 'var(--border)'}`, transition:'all 0.1s' }}>
+                          <span style={{ width:15, height:15, borderRadius:3, border:`2px solid ${sel ? GREEN : 'var(--border)'}`, background: sel ? GREEN : 'transparent',
+                            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:9, color:'#fff', fontWeight:900 }}>{sel ? '✓' : ''}</span>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{l.name}</div>
+                            <div style={{ fontSize:12, fontWeight:600 }}>{l.name}</div>
                             <div style={{ fontSize:10, color:'var(--muted)' }}>{l.company} · {l.phone}</div>
                           </div>
                         </div>
                       );
                     })}
-                    {allLeads.length === 0 && <div style={{ color:'var(--muted)', fontSize:12, padding:'12px 0', textAlign:'center' }}>Loading leads…</div>}
+                    {allLeads.length === 0 && <div style={{ color:'var(--muted)', fontSize:12, padding:16, textAlign:'center' }}>Loading leads…</div>}
                   </div>
-                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>{selectedLeads.length} leads selected · {allLeads.filter(l=>l.phone).length} total with phone</div>
+                  <div style={{ fontSize:11, marginTop:6, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ color: selectedLeads.length > 0 ? GREEN : 'var(--muted)', fontWeight: selectedLeads.length > 0 ? 700 : 400 }}>
+                      {selectedLeads.length > 0 ? `✓ ${selectedLeads.length} selected` : 'Click leads to select'}
+                    </span>
+                    <span style={{ color:'var(--muted)' }}>{allLeads.filter(l=>l.phone).length} total with phone</span>
+                  </div>
                 </>
               )}
             </div>
           </div>
-        </div>
-
-        <div style={{ marginTop:20, maxWidth:900 }}>
-          <button className="btn btn-green" style={{ padding:'13px 40px', fontSize:15, fontWeight:700 }}
-            disabled={!waName || !waSession || waSequence.length === 0 || waCreating}
-            onClick={createWACampaign}>
-            {waCreating ? 'Creating…' : '✓ Save WA Campaign →'}
-          </button>
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:8 }}>Campaign is saved as draft — launch it from Campaign Dashboard when ready</div>
         </div>
       </div>
     );
