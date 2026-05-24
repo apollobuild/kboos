@@ -66,7 +66,7 @@ const NAV = [
   ]},
 ];
 
-export function Sidebar() {
+export function Sidebar({ onSearch }) {
   const { page, setPage, businesses, campaigns, replies, sidebarOpen, closeSidebar } = useAppStore(useShallow(s => ({
     page: s.page, setPage: s.setPage,
     businesses: s.businesses, campaigns: s.campaigns, replies: s.replies,
@@ -110,6 +110,25 @@ export function Sidebar() {
         <KboosLogo />
       </div>
       <div className="nav-scroll">
+        {/* Search */}
+        <button
+          onClick={onSearch}
+          style={{
+            display:'flex', alignItems:'center', gap:8,
+            width:'calc(100% - 16px)', margin:'0 8px 8px',
+            padding:'7px 10px', borderRadius:7,
+            background:'var(--s2)', border:'1px solid var(--border)',
+            color:'var(--muted)', cursor:'pointer', textAlign:'left',
+            fontSize:11, letterSpacing:'0.02em',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span style={{flex:1}}>Search...</span>
+          <kbd style={{fontSize:9,background:'var(--s1)',border:'1px solid var(--border)',borderRadius:3,padding:'1px 5px',color:'var(--muted)'}}>⌘K</kbd>
+        </button>
+
         {NAV.map(section => (
           <div key={section.section} className="nav-section">
             <div className="nav-label">{section.section}</div>

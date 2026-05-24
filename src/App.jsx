@@ -1,4 +1,4 @@
-import { useEffect, useState, Component } from 'react';
+import { useEffect, useState, Component, useCallback } from 'react';
 
 class ErrorBoundary extends Component {
   state = { error: null };
@@ -21,6 +21,7 @@ import { useWalletStore } from './store/useWalletStore.js';
 import { Sidebar } from './components/layout/Sidebar.jsx';
 import { TweaksPanel } from './components/tweaks/TweaksPanel.jsx';
 import { Toast } from './components/ui/Toast.jsx';
+import { GlobalSearch } from './components/ui/GlobalSearch.jsx';
 
 import { Dashboard } from './pages/Dashboard.jsx';
 import { Businesses } from './pages/Businesses.jsx';
@@ -101,6 +102,20 @@ export default function App() {
 
   const initWallet = useWalletStore(s => s.init);
 
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const handleGlobalKey = useCallback((e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      setSearchOpen(v => !v);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleGlobalKey);
+    return () => document.removeEventListener('keydown', handleGlobalKey);
+  }, [handleGlobalKey]);
+
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('kboos_user');
     try { return stored ? JSON.parse(stored) : null; } catch { return null; }
@@ -180,7 +195,7 @@ export default function App() {
       <div className="app-shell">
         {sidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar}/>}
         <button className="hamburger-btn" onClick={toggleSidebar} aria-label="Menu">☰</button>
-        <Sidebar />
+        <Sidebar onSearch={() => setSearchOpen(true)} />
         <main className="main-content" onClick={() => sidebarOpen && closeSidebar()}>
           <ErrorBoundary key={page}>
             <PageComponent {...(pageParams || {})} />
@@ -188,6 +203,7 @@ export default function App() {
         </main>
         <TweaksPanel />
         <Toast />
+        <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       </div>
     </ErrorBoundary>
   );
