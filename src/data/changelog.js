@@ -1,6 +1,67 @@
-export const LATEST_VERSION = '2.5';
+export const LATEST_VERSION = '2.6';
 
 export const CHANGELOG = [
+  {
+    version: '2.6',
+    date: 'May 2026',
+    entries: [
+      {
+        tag: 'Improvement',
+        title: 'Dashboard — 5 KPI Cards, All in One Row',
+        desc: 'The top of the Dashboard now shows five key metrics side by side: Revenue Generated, Opportunities, Meetings Booked, Active Campaigns, and Platform Spend.',
+        bullets: [
+          'Revenue Generated now shows real closed-deal revenue — not platform spend',
+          'Platform Spend card shows API & messaging costs, links directly to Settings → Usage & Spend',
+          'Active Campaigns card restored after being accidentally dropped in the previous update',
+          'All 5 cards sit in a single row with consistent sizing',
+        ],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Uppercase Section Headers Across the Entire System',
+        desc: 'Every card and section header throughout the app is now uppercase and bold — giving the UI a cleaner, more professional look at a glance.',
+        bullets: [
+          'Applied consistently across Dashboard, Campaigns, Leads, Reporting, Settings, and all detail pages',
+          'Headers keep their original size and colour — only the casing changed',
+          'Single CSS class (.card-title) applied to all 60+ headers system-wide',
+        ],
+      },
+      {
+        tag: 'Fix',
+        title: 'Create Campaign Button — White Button Bug',
+        desc: 'The "Create Campaign" button was rendering with a white background (invisible label on white). Fixed by adding a btn-blue CSS alias that maps to the primary blue style.',
+        bullets: [],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Client Portal — Moved Out of Sidebar',
+        desc: 'The Client Portal link has been removed from the main navigation. Operators can now preview it from Settings → Branding using the "Preview Client Portal" button.',
+        bullets: [
+          'Sidebar is cleaner — only operational pages remain in the nav',
+          'Portal preview is still one click away from Settings → Branding',
+        ],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Multi-Tenancy Foundation (White-Label Ready)',
+        desc: 'Under the hood, the database and backend now support multiple tenants. Each business, campaign, lead, and setting is isolated by tenant ID — the groundwork for running KBOOS as a white-label SaaS for multiple agencies.',
+        bullets: [
+          'Tenant table with country, currency, timezone, and language config',
+          'All major database tables now carry a tenantId for row-level isolation',
+          'Login detects the tenant from the subdomain (e.g. kobis.kboos.digital)',
+          'JWT tokens now include tenantId for every authenticated request',
+          'useTenant() React hook reads currency and locale from the logged-in tenant',
+          'Malaysian hardcodes (RM, +601X, Bahasa Malaysia) replaced with tenant-configurable values',
+        ],
+      },
+      {
+        tag: 'Improvement',
+        title: 'Google Drive Integration — Real API',
+        desc: 'The Google Drive service was connected to mock functions that never called the backend. It now routes through the real API — Drive connection status and service account saving both work end-to-end.',
+        bullets: [],
+      },
+    ],
+  },
   {
     version: '2.5',
     date: 'May 2026',
