@@ -609,6 +609,97 @@ export function Settings() {
     );
   }
 
+  function WeeklyReportConfigPanel() {
+    const [cfg, setCfg] = useState({ enabled: false, includeTeam: true });
+    const [loaded, setLoaded] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [sending, setSending] = useState(false);
+    const { businesses } = useAppStore(useShallow(s => ({ businesses: s.businesses })));
+
+    useEffect(() => {
+      apiFetch('/settings/report-config').then(d => { setCfg(d); setLoaded(true); }).catch(() => setLoaded(true));
+    }, []);
+
+    async function save() {
+      setSaving(true);
+      try {
+        const saved = await apiFetch('/settings/report-config', { method: 'POST', body: cfg });
+        setCfg(saved);
+        showToast('Report settings saved', 'green');
+      } catch { showToast('Save failed', 'red'); }
+      finally { setSaving(false); }
+    }
+
+    async function sendPreview() {
+      if (!businesses.length) return showToast('No businesses to report on', 'amber');
+      setSending(true);
+      try {
+        const { queued } = await apiFetch('/reports/send-all', { method: 'POST' });
+        showToast(`Preview sent for ${queued} business${queued !== 1 ? 'es' : ''}`, 'green');
+      } catch { showToast('Send failed', 'red'); }
+      finally { setSending(false); }
+    }
+
+    if (!loaded) return null;
+
+    return (
+      <div className="card" style={{ border: cfg.enabled ? '1px solid oklch(65% 0.2 145 / 0.35)' : '1px solid var(--border)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <div style={{ width:46, height:46, borderRadius:12, background:'oklch(72% 0.18 65 / 0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>📊</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:600, fontSize:14 }}>Weekly Client Reports</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Branded weekly summary auto-sent to each client every Monday at 8am</div>
+            <div style={{ fontSize:11, marginTop:4, display:'flex', alignItems:'center', gap:5 }}>
+              <span style={{ width:6, height:6, borderRadius:'50%', background: cfg.enabled ? 'var(--green)' : 'var(--border)', display:'inline-block' }} />
+              <span style={{ color: cfg.enabled ? 'var(--green)' : 'var(--muted)', fontWeight:500 }}>{cfg.enabled ? 'Active — sends every Monday 8am KL' : 'Disabled'}</span>
+            </div>
+          </div>
+          <div
+            onClick={() => setCfg(s => ({ ...s, enabled: !s.enabled }))}
+            style={{ width:40, height:22, borderRadius:11, cursor:'pointer', transition:'all 0.2s', flexShrink:0,
+              background: cfg.enabled ? 'var(--green)' : 'var(--s2)',
+              border: `1px solid ${cfg.enabled ? 'var(--green)' : 'var(--border)'}`, position:'relative' }}
+          >
+            <div style={{ position:'absolute', top:2, left: cfg.enabled ? 20 : 2, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)' }}/>
+          </div>
+        </div>
+
+        {cfg.enabled && (
+          <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', background:'var(--s2)', borderRadius:8 }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600 }}>CC KOBIS Team</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>Also send reports to team emails in Notifications settings</div>
+              </div>
+              <div onClick={() => setCfg(s => ({ ...s, includeTeam: !s.includeTeam }))}
+                style={{ width:36, height:20, borderRadius:10, cursor:'pointer', transition:'all 0.2s', flexShrink:0,
+                  background: cfg.includeTeam ? 'var(--blue)' : 'var(--s2)',
+                  border:`1px solid ${cfg.includeTeam ? 'var(--blue)' : 'var(--border)'}`, position:'relative' }}>
+                <div style={{ position:'absolute', top:2, left: cfg.includeTeam ? 18 : 2, width:14, height:14, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)' }}/>
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted)', padding:'8px 12px', background:'var(--s2)', borderRadius:6, lineHeight:1.6 }}>
+              ✓ Business-branded header &nbsp;·&nbsp; ✓ Sent stats + pipeline breakdown &nbsp;·&nbsp; ✓ Revenue summary
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn btn-green btn-sm" onClick={save} disabled={saving} style={{ flex:1 }}>
+                {saving ? 'Saving…' : 'Save Settings'}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={sendPreview} disabled={sending} style={{ flex:1 }}>
+                {sending ? 'Sending…' : '↗ Send Preview Now'}
+              </button>
+            </div>
+          </div>
+        )}
+        {!cfg.enabled && (
+          <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
+            <button className="btn btn-green btn-sm" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
     <div className="page">
@@ -828,6 +919,7 @@ export function Settings() {
                   {notifSaving ? 'Saving…' : 'Save Preferences'}
                 </button>
               </div>
+              <WeeklyReportConfigPanel />
             </div>
           )}
 
