@@ -24,6 +24,9 @@ const OUTCOME_LABELS = {
   cancelled: '— Cancelled',
 };
 
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
 function formatDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString('en-MY', {
@@ -41,6 +44,180 @@ function timeUntil(d) {
   if (h > 24) return `in ${Math.floor(h / 24)}d`;
   if (h > 0) return `in ${h}h ${m}m`;
   return `in ${m}m`;
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function CalendarView({ meetings, onLogMeeting, setOutcomeFor }) {
+  const today = new Date();
+  const [year, setYear]   = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [selected, setSelected] = useState(today);
+
+  function prevMonth() {
+    if (month === 0) { setMonth(11); setYear(y => y - 1); }
+    else setMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (month === 11) { setMonth(0); setYear(y => y + 1); }
+    else setMonth(m => m + 1);
+  }
+
+  // Build grid: Mon-based week
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  // Mon=0 … Sun=6
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) {
+    const d = new Date(firstDay); d.setDate(d.getDate() - (startOffset - i));
+    cells.push({ date: d, thisMonth: false });
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    cells.push({ date: new Date(year, month, d), thisMonth: true });
+  }
+  while (cells.length % 7 !== 0) {
+    const last = cells[cells.length - 1].date;
+    const d = new Date(last); d.setDate(d.getDate() + 1);
+    cells.push({ date: d, thisMonth: false });
+  }
+
+  function meetingsOn(date) {
+    return meetings.filter(m => m.meetingDate && isSameDay(new Date(m.meetingDate), date));
+  }
+
+  const selectedMeetings = meetingsOn(selected);
+
+  return (
+    <div className="card fade-up" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Month header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
+        <div style={{ fontWeight:700, fontSize:16 }}>
+          {MONTH_NAMES[month]} <span style={{ color:'var(--muted)', fontWeight:400 }}>{year}</span>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          <button className="btn btn-ghost btn-sm" style={{ padding:'4px 10px', fontSize:14 }} onClick={prevMonth}>‹</button>
+          <button className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', fontSize:11 }}
+            onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelected(today); }}>
+            Today
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ padding:'4px 10px', fontSize:14 }} onClick={nextMonth}>›</button>
+        </div>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid var(--border)' }}>
+        {DAY_NAMES.map(d => (
+          <div key={d} style={{ textAlign:'center', padding:'8px 0', fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.07em' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Date cells */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+        {cells.map(({ date, thisMonth }, i) => {
+          const dayMeetings = meetingsOn(date);
+          const isToday    = isSameDay(date, today);
+          const isSelected = isSameDay(date, selected);
+          const dots = {
+            booked:    dayMeetings.some(m => m.outcome === 'booked'),
+            completed: dayMeetings.some(m => m.outcome === 'completed'),
+            no_show:   dayMeetings.some(m => m.outcome === 'no_show' || m.outcome === 'cancelled'),
+          };
+
+          return (
+            <div
+              key={i}
+              onClick={() => setSelected(date)}
+              style={{
+                minHeight: 56, padding:'6px', cursor:'pointer',
+                borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid var(--border)',
+                borderBottom: i < cells.length - 7 ? '1px solid var(--border)' : 'none',
+                background: isSelected ? 'oklch(62% 0.19 245 / 0.12)' : 'transparent',
+                transition: 'background 0.1s',
+              }}
+            >
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:4 }}>
+                <span style={{
+                  width:26, height:26, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:12, fontWeight: isToday || isSelected ? 700 : 400,
+                  background: isToday ? 'var(--blue)' : isSelected ? 'oklch(62% 0.19 245 / 0.2)' : 'transparent',
+                  color: isToday ? '#fff' : thisMonth ? 'var(--text)' : 'var(--muted)',
+                  border: isSelected && !isToday ? '1px solid var(--blue)' : 'none',
+                }}>
+                  {date.getDate()}
+                </span>
+              </div>
+              {/* Dots */}
+              {dayMeetings.length > 0 && (
+                <div style={{ display:'flex', gap:2, justifyContent:'center', flexWrap:'wrap' }}>
+                  {dots.booked    && <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--blue)',  display:'block' }} />}
+                  {dots.completed && <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--green)', display:'block' }} />}
+                  {dots.no_show   && <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--amber)', display:'block' }} />}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Selected day meetings */}
+      <div style={{ borderTop:'1px solid var(--border)', padding:'16px 20px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div className="card-title">
+            {selected.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+          </div>
+          <button className="btn btn-green btn-sm" style={{ fontSize:11 }} onClick={onLogMeeting}>＋ Log Meeting</button>
+        </div>
+
+        {selectedMeetings.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'20px 0', color:'var(--muted)', fontSize:13 }}>
+            No meetings on this day —{' '}
+            <span style={{ color:'var(--blue)', cursor:'pointer' }} onClick={onLogMeeting}>log one →</span>
+          </div>
+        ) : (
+          selectedMeetings.map(m => {
+            const isUpcoming = m.meetingDate && new Date(m.meetingDate) >= new Date() && !['completed','no_show','cancelled'].includes(m.outcome);
+            return (
+              <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)', marginBottom:8 }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:13 }}>{m.leadName} <span style={{ color:'var(--muted)', fontWeight:400, fontSize:12 }}>· {m.bizName}</span></div>
+                  <div style={{ fontSize:11, color: TYPE_COLORS[m.meetingType] || 'var(--muted)', marginTop:2, textTransform:'capitalize' }}>
+                    {m.meetingType} · {m.meetingDate ? new Date(m.meetingDate).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : 'No time set'}
+                    {isUpcoming && <span style={{ marginLeft:8, color:'var(--green)', fontWeight:600 }}>{timeUntil(m.meetingDate)}</span>}
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:10, fontWeight:600, color: OUTCOME_COLORS[m.outcome] || 'var(--muted)' }}>
+                    {OUTCOME_LABELS[m.outcome] || m.outcome}
+                  </span>
+                  {m.revenue > 0 && (
+                    <span style={{ fontSize:11, color:'var(--green)', fontWeight:700, fontFamily:'var(--font-mono)' }}>RM {m.revenue.toLocaleString()}</span>
+                  )}
+                  <button className="btn btn-ghost btn-sm" style={{ fontSize:10, padding:'3px 8px' }} onClick={() => setOutcomeFor(m)}>
+                    {m.outcome === 'booked' ? 'Log Outcome' : 'Edit'}
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Legend */}
+      <div style={{ borderTop:'1px solid var(--border)', padding:'10px 20px', display:'flex', gap:16 }}>
+        {[['var(--blue)','Booked'], ['var(--green)','Completed'], ['var(--amber)','No-show / Cancelled']].map(([color, label]) => (
+          <div key={label} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--muted)' }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:color, display:'block', flexShrink:0 }} />
+            {label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function LogMeetingModal({ leads, campaigns, onSave, onClose }) {
@@ -249,6 +426,7 @@ export function Meetings() {
   const [showLog, setShowLog] = useState(false);
   const [outcomeFor, setOutcomeFor] = useState(null);
   const [showPast, setShowPast] = useState(false);
+  const [view, setView] = useState('list');
 
   useEffect(() => {
     apiFetch('/meetings').then(setMeetings).catch(() => {}).finally(() => setLoading(false));
@@ -362,10 +540,25 @@ export function Meetings() {
         <div>
           <h1 className="page-title">Meetings</h1>
           <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
-            {new Date().toLocaleDateString('en-MY', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+            {new Date().toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
           </div>
         </div>
-        <button className="btn btn-green btn-sm" onClick={() => setShowLog(true)}>＋ Log Meeting</button>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {/* View toggle */}
+          <div style={{ display:'flex', background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)', padding:3, gap:2 }}>
+            {[['list','≡ List'],['calendar','📅 Calendar']].map(([v, label]) => (
+              <button key={v} onClick={() => setView(v)}
+                style={{ padding:'4px 12px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
+                  background: view === v ? 'var(--blue)' : 'transparent',
+                  color: view === v ? '#fff' : 'var(--muted)',
+                  transition:'all 0.15s',
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-green btn-sm" onClick={() => setShowLog(true)}>＋ Log Meeting</button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -394,43 +587,47 @@ export function Meetings() {
         </div>
       )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
-        {/* Upcoming */}
-        <div className="fade-up-1">
-          <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ color:'var(--green)', fontSize:8 }}>●</span> Upcoming ({upcoming.length})
-          </div>
-          {loading ? (
-            <div className="shimmer" style={{ height:80, borderRadius:10 }} />
-          ) : upcoming.length === 0 ? (
-            <div className="card" style={{ padding:'24px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-              No upcoming meetings —{' '}
-              <span style={{ color:'var(--blue)', cursor:'pointer' }} onClick={() => setShowLog(true)}>log one →</span>
+      {view === 'calendar' ? (
+        <CalendarView meetings={meetings} onLogMeeting={() => setShowLog(true)} setOutcomeFor={setOutcomeFor} />
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
+          {/* Upcoming */}
+          <div className="fade-up-1">
+            <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'var(--green)', fontSize:8 }}>●</span> Upcoming ({upcoming.length})
             </div>
-          ) : (
-            upcoming.map(m => <MeetingCard key={m.id} m={m} isUpcoming />)
-          )}
-        </div>
-
-        {/* Past / History */}
-        <div className="fade-up-1">
-          <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span>Past Meetings ({past.length})</span>
-            {past.length > 5 && (
-              <button className="btn btn-ghost btn-sm" style={{ fontSize:10 }} onClick={() => setShowPast(v => !v)}>
-                {showPast ? 'Show less' : 'Show all'}
-              </button>
+            {loading ? (
+              <div className="shimmer" style={{ height:80, borderRadius:10 }} />
+            ) : upcoming.length === 0 ? (
+              <div className="card" style={{ padding:'24px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+                No upcoming meetings —{' '}
+                <span style={{ color:'var(--blue)', cursor:'pointer' }} onClick={() => setShowLog(true)}>log one →</span>
+              </div>
+            ) : (
+              upcoming.map(m => <MeetingCard key={m.id} m={m} isUpcoming />)
             )}
           </div>
-          {loading ? (
-            <div className="shimmer" style={{ height:80, borderRadius:10 }} />
-          ) : past.length === 0 ? (
-            <div className="card" style={{ padding:'24px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>No past meetings yet</div>
-          ) : (
-            (showPast ? past : past.slice(0, 5)).map(m => <MeetingCard key={m.id} m={m} isUpcoming={false} />)
-          )}
+
+          {/* Past / History */}
+          <div className="fade-up-1">
+            <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span>Past Meetings ({past.length})</span>
+              {past.length > 5 && (
+                <button className="btn btn-ghost btn-sm" style={{ fontSize:10 }} onClick={() => setShowPast(v => !v)}>
+                  {showPast ? 'Show less' : 'Show all'}
+                </button>
+              )}
+            </div>
+            {loading ? (
+              <div className="shimmer" style={{ height:80, borderRadius:10 }} />
+            ) : past.length === 0 ? (
+              <div className="card" style={{ padding:'24px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>No past meetings yet</div>
+            ) : (
+              (showPast ? past : past.slice(0, 5)).map(m => <MeetingCard key={m.id} m={m} isUpcoming={false} />)
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {showLog && (
         <LogMeetingModal leads={leads} campaigns={campaigns} onSave={handleSaved} onClose={() => setShowLog(false)} />
