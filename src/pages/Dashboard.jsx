@@ -211,7 +211,7 @@ export function Dashboard() {
     { label: 'Opportunities',     val: opportunities,   icon: '🔥', color: 'amber',  page: 'leads',               sub: 'Hot leads ready' },
     { label: 'Meetings Booked',   val: meetingsBooked,  icon: '📅', color: 'blue',   page: 'meetings',            sub: 'Confirmed meetings' },
     { label: 'Active Campaigns',  val: activeCampaigns, icon: '◉',  color: activeCampaigns > 0 ? 'green' : 'muted', page: 'campaign-dashboard', sub: 'Currently running' },
-    { label: 'Platform Spend',    val: platformSpend,   icon: '💳', color: 'text',   page: 'settings',            sub: 'API & messaging costs' },
+    { label: 'Platform Spend',    val: platformSpend,   icon: '💳', color: 'text',   page: 'settings', settingsTab: 'billing-usage', sub: 'API & messaging costs' },
   ];
 
   const perfMetrics = [
@@ -272,7 +272,7 @@ export function Dashboard() {
           <div
             key={k.label}
             className="card"
-            onClick={() => setPage(k.page)}
+            onClick={() => { if (k.settingsTab) sessionStorage.setItem('settingsTab', k.settingsTab); setPage(k.page); }}
             style={{ cursor: 'pointer', padding: '16px', transition: 'transform 0.12s, box-shadow 0.12s' }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
