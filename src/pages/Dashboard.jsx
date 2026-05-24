@@ -266,54 +266,29 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Revenue Overview — 5 KPIs: 3 top + 2 bottom */}
-      <div className="fade-up-1 mt-4" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {kpis.slice(0, 3).map(k => (
-            <div
-              key={k.label}
-              className="card"
-              onClick={() => setPage(k.page)}
-              style={{ cursor: 'pointer', padding: '18px 20px', transition: 'transform 0.12s, box-shadow 0.12s' }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{k.label}</div>
-                <div style={{ fontSize: 16 }}>{k.icon}</div>
-              </div>
-              <div className="mono" style={{
-                fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
-                color: k.color === 'muted' ? 'var(--muted)' : `var(--${k.color})`,
-                marginBottom: 6,
-              }}>{k.val}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{k.sub}</div>
+      {/* Revenue Overview — 5 KPIs in one row */}
+      <div className="fade-up-1 mt-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+        {kpis.map(k => (
+          <div
+            key={k.label}
+            className="card"
+            onClick={() => setPage(k.page)}
+            style={{ cursor: 'pointer', padding: '16px', transition: 'transform 0.12s, box-shadow 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{k.label}</div>
+              <div style={{ fontSize: 14 }}>{k.icon}</div>
             </div>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          {kpis.slice(3).map(k => (
-            <div
-              key={k.label}
-              className="card"
-              onClick={() => setPage(k.page)}
-              style={{ cursor: 'pointer', padding: '16px 20px', transition: 'transform 0.12s, box-shadow 0.12s' }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.07),0 12px 36px rgba(0,0,10,0.65)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{k.label}</div>
-                <div style={{ fontSize: 16 }}>{k.icon}</div>
-              </div>
-              <div className="mono" style={{
-                fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
-                color: k.color === 'muted' ? 'var(--muted)' : `var(--${k.color})`,
-                marginBottom: 5,
-              }}>{k.val}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{k.sub}</div>
-            </div>
-          ))}
-        </div>
+            <div className="mono" style={{
+              fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
+              color: k.color === 'muted' ? 'var(--muted)' : `var(--${k.color})`,
+              marginBottom: 5,
+            }}>{k.val}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{k.sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* Campaign Performance + Lead Pipeline */}
