@@ -535,7 +535,7 @@ export function NewCampaign() {
   );
 
   // Quick Setup page
-  return (
+  if (mode === 'quick') return (
     <div className="page">
       <div className="flex items-center justify-between mb-4 fade-up">
         <div>
