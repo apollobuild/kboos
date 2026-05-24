@@ -738,21 +738,21 @@ export function Settings() {
                       onClick={() => setTab(item.id)}
                       title={navCollapsed ? item.label : undefined}
                       style={{
-                        padding: navCollapsed ? '8px 0' : '8px 16px',
-                        cursor:'pointer', fontSize:12,
-                        fontWeight: tab === item.id ? 600 : 400,
+                        padding: navCollapsed ? '10px 0' : '9px 16px',
+                        cursor:'pointer', fontSize:13,
+                        fontWeight: tab === item.id ? 700 : 500,
                         color: tab === item.id ? 'var(--text)' : 'var(--muted)',
                         background: tab === item.id ? 'var(--s2)' : 'transparent',
                         borderLeft: tab === item.id ? '2px solid var(--blue)' : '2px solid transparent',
                         display:'flex', alignItems:'center',
-                        gap: navCollapsed ? 0 : 8,
+                        gap: navCollapsed ? 0 : 10,
                         justifyContent: navCollapsed ? 'center' : 'flex-start',
                         transition:'all 0.12s',
                         position:'relative',
                       }}
                     >
-                      <span style={{ fontSize: navCollapsed ? 16 : 13, flexShrink:0 }}>{item.icon}</span>
-                      {!navCollapsed && <span style={{ textTransform:'uppercase', letterSpacing:'0.06em' }}>{item.label}</span>}
+                      <span style={{ fontSize: navCollapsed ? 18 : 15, flexShrink:0 }}>{item.icon}</span>
+                      {!navCollapsed && <span style={{ textTransform:'uppercase', letterSpacing:'0.07em', fontWeight: tab === item.id ? 700 : 500 }}>{item.label}</span>}
                     </div>
                   ))}
                 </div>
