@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useWalletStore } from '../store/useWalletStore.js';
@@ -142,6 +142,182 @@ function Toggle({ on, onChange }) {
 function fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-MY', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function OpenWAConnectPanel({ showToast }) {
+  const [url,        setUrl]        = useState('');
+  const [apiKey,     setApiKey]     = useState('');
+  const [status,     setStatus]     = useState(null); // null | { configured, connected, status, name, phone }
+  const [qr,         setQr]         = useState(null);
+  const [loading,    setLoading]    = useState(false);
+  const [testPhone,  setTestPhone]  = useState('');
+  const [testMsg,    setTestMsg]    = useState('Hello from KBOOS! 👋');
+  const [sending,    setSending]    = useState(false);
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    apiFetch('/openwa/status').then(setStatus).catch(() => {});
+    return () => clearInterval(pollRef.current);
+  }, []);
+
+  function startPollingQR() {
+    clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const s = await apiFetch('/openwa/status');
+        setStatus(s);
+        if (s.connected) { setQr(null); clearInterval(pollRef.current); showToast('WhatsApp connected!', 'green'); return; }
+        const q = await apiFetch('/openwa/session/qr');
+        if (q.qr) setQr(q.qr);
+      } catch {}
+    }, 3000);
+  }
+
+  async function saveSettings() {
+    if (!url) return;
+    setLoading(true);
+    try {
+      await apiFetch('/openwa/settings', { method:'POST', body:{ url, apiKey } });
+      showToast('Settings saved', 'green');
+      const s = await apiFetch('/openwa/status');
+      setStatus(s);
+    } catch (e) { showToast(e.message || 'Failed to save', 'red'); }
+    finally { setLoading(false); }
+  }
+
+  async function handleConnect() {
+    setLoading(true);
+    setQr(null);
+    try {
+      const r = await apiFetch('/openwa/session/start', { method:'POST' });
+      if (r.qr) setQr(r.qr);
+      startPollingQR();
+    } catch (e) { showToast(e.message || 'Failed to start session', 'red'); }
+    finally { setLoading(false); }
+  }
+
+  async function handleDisconnect() {
+    setLoading(true);
+    try {
+      await apiFetch('/openwa/session', { method:'DELETE' });
+      setQr(null); setStatus(null);
+      showToast('Disconnected', 'amber');
+    } catch (e) { showToast('Failed to disconnect', 'red'); }
+    finally { setLoading(false); }
+  }
+
+  async function handleTestSend() {
+    if (!testPhone || !testMsg) return;
+    setSending(true);
+    try {
+      await apiFetch('/openwa/send', { method:'POST', body:{ phone: testPhone, message: testMsg } });
+      showToast('Message sent!', 'green');
+    } catch (e) { showToast(e.message || 'Failed to send', 'red'); }
+    finally { setSending(false); }
+  }
+
+  const connected   = status?.connected;
+  const dotColor    = connected ? 'var(--green)' : status?.status === 'unreachable' ? 'var(--red)' : 'var(--amber)';
+  const dotLabel    = connected ? 'Connected' : status?.status === 'unreachable' ? 'Unreachable' : status?.status === 'no_session' ? 'No session' : status?.status === 'not_configured' ? 'Not configured' : 'Disconnected';
+
+  return (
+    <div className="card" style={{ padding:'20px', marginTop:8 }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+        <div style={{ width:36, height:36, borderRadius:8, background:'oklch(65% 0.2 145 / 0.15)', border:'1px solid oklch(65% 0.2 145 / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>📲</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:700, fontSize:14 }}>WhatsApp Connect <span style={{ fontSize:10, background:'oklch(65% 0.2 145 / 0.15)', color:'var(--green)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:4, padding:'1px 7px', marginLeft:6, fontWeight:600 }}>FREE</span></div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Open-source WA gateway via OpenWA — scan QR to connect your phone</div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, fontWeight:600, color: dotColor }}>
+          <span style={{ width:7, height:7, borderRadius:'50%', background: dotColor, display:'inline-block' }} />
+          {dotLabel}
+        </div>
+      </div>
+
+      {/* If connected — show info */}
+      {connected && (
+        <div style={{ background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.2)', borderRadius:8, padding:'12px 14px', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:20 }}>✅</span>
+          <div>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--green)' }}>{status.name || 'WhatsApp'}</div>
+            <div style={{ fontSize:11, color:'var(--muted)' }}>{status.phone || 'Connected'} · OpenWA session active</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', color:'var(--red)', fontSize:11 }} onClick={handleDisconnect} disabled={loading}>
+            Disconnect
+          </button>
+        </div>
+      )}
+
+      {/* Server config */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, marginBottom:14, alignItems:'flex-end' }}>
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>OpenWA Server URL</div>
+          <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
+            placeholder="http://localhost:2785  or  https://openwa.yourserver.com"
+            value={url} onChange={e => setUrl(e.target.value)} />
+        </div>
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>API Key (if set)</div>
+          <input className="input" type="password" style={{ width:160, boxSizing:'border-box' }}
+            placeholder="optional"
+            value={apiKey} onChange={e => setApiKey(e.target.value)} />
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={!url || loading}>Save</button>
+      </div>
+
+      {/* QR code */}
+      {qr && (
+        <div style={{ textAlign:'center', marginBottom:16 }}>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>Scan with WhatsApp → Linked Devices → Link a Device</div>
+          <img src={qr} alt="QR Code" style={{ width:200, height:200, borderRadius:8, border:'4px solid white' }} />
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:8 }}>QR refreshes automatically — keep this screen open</div>
+        </div>
+      )}
+
+      {/* Connect / Refresh buttons */}
+      {!connected && (
+        <button className="btn btn-green btn-sm" style={{ marginBottom:16 }} onClick={handleConnect} disabled={loading || !status?.configured}>
+          {loading ? 'Starting...' : qr ? '🔄 Refresh QR' : '📲 Connect WhatsApp'}
+        </button>
+      )}
+
+      {/* Test send */}
+      {connected && (
+        <div>
+          <div className="card-title" style={{ marginBottom:10 }}>Test Send</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr auto', gap:8, alignItems:'flex-end' }}>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone Number</div>
+              <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
+                placeholder="e.g. 60123456789"
+                value={testPhone} onChange={e => setTestPhone(e.target.value)} />
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Message</div>
+              <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
+                value={testMsg} onChange={e => setTestMsg(e.target.value)} />
+            </div>
+            <button className="btn btn-green btn-sm" onClick={handleTestSend} disabled={!testPhone || !testMsg || sending}>
+              {sending ? 'Sending...' : '→ Send'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Setup instructions */}
+      {!status?.configured && (
+        <div style={{ marginTop:12, background:'var(--s2)', borderRadius:8, padding:'12px 14px', fontSize:11, color:'var(--muted)', lineHeight:1.7 }}>
+          <div style={{ fontWeight:600, color:'var(--text)', marginBottom:6 }}>Quick Setup (Railway):</div>
+          <div>1. Create new Railway service → Deploy from Docker image: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>openwa/openwa</code></div>
+          <div>2. Copy the public URL Railway gives you</div>
+          <div>3. Paste it above and click Save</div>
+          <div>4. Click "Connect WhatsApp" → scan QR with your phone</div>
+          <div style={{ marginTop:6 }}>Or run locally: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>docker run -p 2785:2785 openwa/openwa</code></div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Settings() {
@@ -987,6 +1163,7 @@ export function Settings() {
                 </div>
                 {group.providers.map(p => <IntegrationProviderCard key={p.key} provider={p} />)}
                 {groupId === 'ai' && <AutoReplyConfigPanel />}
+                {groupId === 'comms' && <OpenWAConnectPanel showToast={showToast} />}
               </div>
             );
           })()}
