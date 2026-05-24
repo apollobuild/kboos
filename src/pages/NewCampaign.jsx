@@ -248,7 +248,7 @@ export function NewCampaign() {
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>
             You need at least one approved business before creating a campaign.
           </div>
-          <button className="btn btn-blue" onClick={() => setPage('businesses')}>
+          <button className="btn btn-primary" onClick={() => setPage('businesses')}>
             Create a Business →
           </button>
         </div>
@@ -588,7 +588,7 @@ export function NewCampaign() {
         </div>
 
         <button
-          className="btn btn-blue"
+          className="btn btn-primary"
           style={{ padding: '13px 0', fontSize: 15, fontWeight: 700, borderRadius: 10, width: '100%' }}
           disabled={creating}
           onClick={doQuickCreate}
