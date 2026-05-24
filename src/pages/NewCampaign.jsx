@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore.js';
 import { useShallow } from 'zustand/react/shallow';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 import { apiFetch } from '../services/api.js';
+import { ImportLeadsModal } from '../components/ui/ImportLeadsModal.jsx';
 
 const GEN_STEPS = [
   'Analyzing your business brief…',
@@ -56,10 +57,14 @@ const PERSONALIZATION_LEVELS = [
 ];
 
 const LEAD_SOURCES = [
-  { id: 'google_maps', label: 'Google Maps' },
-  { id: 'csv', label: 'CSV Upload' },
-  { id: 'manual', label: 'Manual' },
+  { id: 'smart',       icon: '⚡', label: 'Smart Import',  desc: 'Apollo + Google Maps merged — best data quality' },
+  { id: 'apollo',      icon: '👤', label: 'Apollo',        desc: 'Decision makers by title & seniority' },
+  { id: 'google_maps', icon: '🗺', label: 'Google Maps',   desc: 'Local businesses by keyword & city' },
+  { id: 'csv',         icon: '📁', label: 'CSV Upload',    desc: 'Upload your own lead list' },
+  { id: 'manual',      icon: '✏️', label: 'Manual',        desc: 'Add leads one by one later' },
 ];
+
+const IMPORT_SOURCES = new Set(['smart', 'apollo', 'google_maps']);
 
 function Spinner() {
   return (
@@ -122,6 +127,15 @@ export function NewCampaign() {
   // Submission
   const [creating, setCreating] = useState(false);
 
+  // Post-creation import flow
+  const [importCampaignId, setImportCampaignId] = useState(null);
+
+  function handleImportClose() {
+    const id = importCampaignId;
+    setImportCampaignId(null);
+    if (id) openCampaignPipeline(id);
+  }
+
   const selBiz = businesses.find(b => b.id === bizId);
 
   // Load first business by default
@@ -166,7 +180,13 @@ export function NewCampaign() {
         color: biz?.color || 'blue',
         status: 'active',
       });
-      if (newC?.id) openCampaignPipeline(newC.id);
+      if (newC?.id) {
+        if (IMPORT_SOURCES.has(leadSource)) {
+          setImportCampaignId(newC.id);
+        } else {
+          openCampaignPipeline(newC.id);
+        }
+      }
     } catch (e) {
       clearInterval(genTimer.current);
       setGenerating(false);
@@ -202,7 +222,13 @@ export function NewCampaign() {
         status: 'active',
         total: parseInt(maxLeads) || 200,
       });
-      if (newC?.id) openCampaignPipeline(newC.id);
+      if (newC?.id) {
+        if (IMPORT_SOURCES.has(leadSource)) {
+          setImportCampaignId(newC.id);
+        } else {
+          openCampaignPipeline(newC.id);
+        }
+      }
     } catch (e) {
       showToast(e.message || 'Failed to create campaign', 'red');
     } finally {
@@ -296,7 +322,7 @@ export function NewCampaign() {
       </div>
 
       <div style={{ marginTop: 20, fontSize: 12, color: 'var(--muted)' }}>
-        Both paths lead to the Campaign Pipeline — import, enrich, personalise, and launch from there.
+        Choose Smart Import, Apollo, or Google Maps as your lead source and the import screen opens automatically after creation.
       </div>
     </div>
   );
@@ -375,21 +401,33 @@ export function NewCampaign() {
       {/* Lead Source */}
       <div>
         <label style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, display: 'block', marginBottom: 8 }}>LEAD SOURCE</label>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {LEAD_SOURCES.map(ls => (
-            <label key={ls.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-              <input
-                type="radio"
-                name="leadSource"
-                value={ls.id}
-                checked={leadSource === ls.id}
-                onChange={() => setLeadSource(ls.id)}
-                style={{ accentColor: 'var(--blue)' }}
-              />
-              {ls.label}
-            </label>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+          {LEAD_SOURCES.map(ls => {
+            const active = leadSource === ls.id;
+            const isImport = IMPORT_SOURCES.has(ls.id);
+            return (
+              <div
+                key={ls.id}
+                onClick={() => setLeadSource(ls.id)}
+                style={{
+                  padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                  border: `2px solid ${active ? (isImport ? 'var(--green)' : 'var(--blue)') : 'var(--border)'}`,
+                  background: active ? `color-mix(in srgb, ${isImport ? 'var(--green)' : 'var(--blue)'} 8%, var(--s2))` : 'var(--s2)',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                <div style={{ fontSize: 16, marginBottom: 4 }}>{ls.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: active ? (isImport ? 'var(--green)' : 'var(--blue)') : 'var(--text)', marginBottom: 2 }}>{ls.label}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>{ls.desc}</div>
+              </div>
+            );
+          })}
         </div>
+        {IMPORT_SOURCES.has(leadSource) && (
+          <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 8 }}>
+            ✓ After creation, the Import Leads screen will open automatically
+          </div>
+        )}
       </div>
     </div>
   );
@@ -441,6 +479,10 @@ export function NewCampaign() {
             Claude will configure channels, strategy, and sequence automatically
           </div>
         </div>
+      )}
+
+      {importCampaignId && (
+        <ImportLeadsModal defaultCampaignId={importCampaignId} onClose={handleImportClose} />
       )}
     </div>
   );
@@ -551,9 +593,13 @@ export function NewCampaign() {
           disabled={creating}
           onClick={doQuickCreate}
         >
-          {creating ? <><Spinner /> Creating…</> : 'Create Campaign →'}
+          {creating ? <><Spinner /> Creating…</> : IMPORT_SOURCES.has(leadSource) ? 'Create Campaign & Import Leads →' : 'Create Campaign →'}
         </button>
       </div>
+
+      {importCampaignId && (
+        <ImportLeadsModal defaultCampaignId={importCampaignId} onClose={handleImportClose} />
+      )}
     </div>
   );
 }
