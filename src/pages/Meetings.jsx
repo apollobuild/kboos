@@ -175,8 +175,7 @@ function CalendarView({ meetings, onLogMeeting, setOutcomeFor }) {
 
         {selectedMeetings.length === 0 ? (
           <div style={{ textAlign:'center', padding:'20px 0', color:'var(--muted)', fontSize:13 }}>
-            No meetings on this day —{' '}
-            <span style={{ color:'var(--blue)', cursor:'pointer' }} onClick={onLogMeeting}>log one →</span>
+            No meetings on this day
           </div>
         ) : (
           selectedMeetings.map(m => {
