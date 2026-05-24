@@ -199,7 +199,7 @@ export function Reporting() {
       {/* Conversion Funnel */}
       <div className="card fade-up-2 mb-4">
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontWeight:600 }}>Conversion Funnel</div>
+          <div className="card-title">Conversion Funnel</div>
           {enriched > 0 && (
             <span style={{ fontSize:11, color:'#a855f7', background:'#a855f722', padding:'2px 8px', borderRadius:10 }}>
               {enriched} enriched via Apollo
@@ -264,7 +264,7 @@ export function Reporting() {
 
       {/* Campaign Table */}
       <div className="card fade-up-3 mb-4">
-        <div style={{ fontWeight:600, marginBottom:12 }}>Campaign Performance</div>
+        <div className="card-title" style={{ marginBottom:12 }}>Campaign Performance</div>
         <table className="table" style={{ width:'100%' }}>
           <thead>
             <tr>
@@ -310,7 +310,7 @@ export function Reporting() {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         {/* ROI Calculator */}
         <div className="card fade-up-4">
-          <div style={{ fontWeight:600, marginBottom:16 }}>ROI Calculator</div>
+          <div className="card-title" style={{ marginBottom:16 }}>ROI Calculator</div>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div>
               <label style={{ fontSize:12, color:'var(--text-2)', display:'block', marginBottom:4 }}>Meetings Booked</label>
@@ -340,7 +340,7 @@ export function Reporting() {
         {/* Cost Efficiency — replaces Cost Breakdown (which lives in Settings → Wallet) */}
         <div className="card fade-up-4">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
-            <div style={{ fontWeight:600 }}>Cost Efficiency</div>
+            <div className="card-title">Cost Efficiency</div>
             <span style={{ fontSize:10, color:'var(--muted)' }}>total spend ÷ result</span>
           </div>
           <div style={{ fontSize:11, color:'var(--muted)', marginBottom:14 }}>

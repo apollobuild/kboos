@@ -687,7 +687,7 @@ export function CampaignPipeline() {
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>1. Import Leads</div>
+                    <div className="card-title">1. Import Leads</div>
                     <div style={{ fontSize: 11, color: 'var(--muted)' }}>Source leads via Google Maps, Apollo B2B, or CSV upload</div>
                   </div>
                   <StageStatus stageKey="scraped" currentStage={stage}/>
@@ -738,7 +738,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('qualifying') && curIdx <= stageIndex('ready_for_enrichment') + 1 && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>2. Qualify & Score</div>
+                  <div className="card-title">2. Qualify & Score</div>
                   <StageStatus stageKey="ready_for_enrichment" currentStage={stage}/>
                 </div>
 
@@ -818,7 +818,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('enriching') && curIdx <= stageIndex('enrichment_complete') + 1 && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>3. Enrich Leads</div>
+                  <div className="card-title">3. Enrich Leads</div>
                   <StageStatus stageKey="enrichment_complete" currentStage={stage}/>
                 </div>
 
@@ -849,7 +849,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('ai_scoring') && curIdx <= stageIndex('ai_content_ready') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>4. AI Scoring</div>
+                  <div className="card-title">4. AI Scoring</div>
                   <StageStatus stageKey="ai_scoring" currentStage={stage}/>
                 </div>
 
@@ -880,7 +880,7 @@ export function CampaignPipeline() {
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>5. AI Assets</div>
+                    <div className="card-title">5. AI Assets</div>
                     <div style={{ fontSize: 11, color: 'var(--muted)' }}>Written by Claude — review and approve before launch</div>
                   </div>
                   <StageStatus stageKey="ai_content_ready" currentStage={stage}/>
@@ -1166,7 +1166,7 @@ export function CampaignPipeline() {
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>6. Personalize</div>
+                    <div className="card-title">6. Personalize</div>
                     <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                       {plvlLabel} — Level {plvl}
                     </div>
@@ -1202,7 +1202,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('channels_configured') && curIdx <= stageIndex('deliverability_check') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>7. Channel Strategy</div>
+                  <div className="card-title">7. Channel Strategy</div>
                   <StageStatus stageKey="channels_configured" currentStage={stage}/>
                 </div>
 
@@ -1351,7 +1351,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('deliverability_check') && curIdx <= stageIndex('active') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>8. Deliverability Check</div>
+                  <div className="card-title">8. Deliverability Check</div>
                   <StageStatus stageKey="ready_to_launch" currentStage={stage}/>
                 </div>
 
@@ -1423,7 +1423,7 @@ export function CampaignPipeline() {
             {curIdx >= stageIndex('ready_to_launch') && (
               <div className="card fade-up-1" style={{ border: (stage === 'ready_to_launch' || stage === 'active') ? '1px solid var(--green)' : '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>9. Launch</div>
+                  <div className="card-title">9. Launch</div>
                   <StageStatus stageKey="active" currentStage={stage}/>
                 </div>
 
@@ -1450,7 +1450,7 @@ export function CampaignPipeline() {
 
                     {/* Sending config */}
                     <div style={{ marginBottom: 20, padding: 16, background: 'var(--s2)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: 'var(--text)' }}>Sending Settings</div>
+                      <div className="card-title" style={{ marginBottom: 12 }}>Sending Settings</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                         <div>
                           <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>FROM NAME</div>

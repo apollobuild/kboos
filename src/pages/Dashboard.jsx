@@ -29,7 +29,7 @@ function HotLeadsPanel({ leads }) {
     <>
       <div className="card" style={{ height: '100%' }}>
         <div className="flex items-center justify-between mb-3">
-          <div style={{ fontWeight: 600, fontSize: 13 }}>🔥 Hot Leads</div>
+          <div className="card-title">🔥 Hot Leads</div>
           <span className="badge amber">{hot.length} ready</span>
         </div>
         <div className="flex-col gap-2">
@@ -105,7 +105,7 @@ function ActivityFeed({ activity }) {
   return (
     <div className="card flex-col" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-3">
-        <div style={{ fontWeight: 600, fontSize: 13 }}>Activity Feed</div>
+        <div className="card-title">Activity Feed</div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <Select
             value={period}
@@ -295,7 +295,7 @@ export function Dashboard() {
       <div className="fade-up-2 mt-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* Campaign Performance */}
         <div className="card">
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 16 }}>Campaign Performance</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Campaign Performance</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {perfMetrics.map(m => (
               <div key={m.label} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
@@ -311,7 +311,7 @@ export function Dashboard() {
 
         {/* Lead Pipeline */}
         <div className="card">
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 16 }}>Lead Pipeline</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Lead Pipeline</div>
           <div className="flex-col gap-3">
             {pipelineStages.map(s => {
               const pct = leads.length > 0 ? Math.round((s.val / leads.length) * 100) : 0;

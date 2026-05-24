@@ -72,7 +72,7 @@ export function Revenue() {
       {/* Log form */}
       {showForm && (
         <div className="card fade-up" style={{marginBottom:16,padding:20}}>
-          <div style={{fontWeight:600,fontSize:14,marginBottom:14}}>Log a Meeting</div>
+          <div className="card-title" style={{marginBottom:14}}>Log a Meeting</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
             <div>
               <div style={{fontSize:10,color:'var(--muted)',marginBottom:3,fontWeight:600}}>CAMPAIGN</div>

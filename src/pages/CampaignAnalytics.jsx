@@ -301,7 +301,7 @@ export function CampaignAnalytics() {
 
           {/* AI Performance */}
           <div className="card fade-up-2">
-            <div style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="card-title" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 16 }}>🤖</span>
               AI Performance
             </div>

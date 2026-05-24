@@ -791,7 +791,7 @@ export function Settings() {
           {tab === 'workspace-company' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14, maxWidth:600 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Company Profile</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Company Profile</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Basic information about your organisation</div>
               </div>
               {[
@@ -829,7 +829,7 @@ export function Settings() {
           {tab === 'workspace-branding' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14, maxWidth:600 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Client Portal Branding</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Client Portal Branding</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Customise how your brand appears to clients when they log in</div>
               </div>
               <div>
@@ -886,11 +886,11 @@ export function Settings() {
           {tab === 'workspace-team' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Team Members</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Team Members</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Invite colleagues to access KBOOS. They will receive a link to set their password.</div>
               </div>
               <div className="card" style={{ padding:'16px' }}>
-                <div style={{ fontWeight:600, marginBottom:12, fontSize:13 }}>Invite Team Member</div>
+                <div className="card-title" style={{ marginBottom:12 }}>Invite Team Member</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto auto', gap:8 }}>
                   <input placeholder="Full name" value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name:e.target.value }))} className="input" />
                   <input placeholder="Email address" value={newMember.email} onChange={e => setNewMember(p => ({ ...p, email:e.target.value }))} className="input" />
@@ -900,7 +900,7 @@ export function Settings() {
                 </div>
               </div>
               <div className="card" style={{ padding:'16px' }}>
-                <div style={{ fontWeight:600, marginBottom:12, fontSize:13 }}>Current Team</div>
+                <div className="card-title" style={{ marginBottom:12 }}>Current Team</div>
                 {users.filter(u => u.role !== 'client').length === 0 ? (
                   <div style={{ color:'var(--muted)', fontSize:13 }}>No team members yet.</div>
                 ) : (
@@ -935,7 +935,7 @@ export function Settings() {
           {tab === 'workspace-notifications' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14, maxWidth:600 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Notifications</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Notifications</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Choose when KBOOS should alert you or your team</div>
               </div>
               <div className="card">
@@ -958,7 +958,7 @@ export function Settings() {
               </div>
               {notif.weeklyDigest && (
                 <div className="card">
-                  <div style={{ fontWeight:500, marginBottom:10, fontSize:13 }}>Weekly Digest — Send To</div>
+                  <div className="card-title" style={{ marginBottom:10 }}>Weekly Digest — Send To</div>
                   <input type="email" placeholder="Email address for digest reports" value={notif.digestEmail}
                     onChange={e => setNotif(p => ({ ...p, digestEmail: e.target.value }))} className="input" />
                 </div>
@@ -980,7 +980,7 @@ export function Settings() {
             return (
               <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{group.label}</div>
+                  <div className="card-title" style={{ marginBottom:4 }}>{group.label}</div>
                   <div style={{ fontSize:12, color:'var(--muted)' }}>
                     {groupId === 'storage' ? 'Connect storage providers for automatic lead sheet creation' : `Configure your ${group.label.toLowerCase()} connections`}
                   </div>
@@ -995,7 +995,7 @@ export function Settings() {
           {tab === 'billing-usage' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Usage & Spend</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Usage & Spend</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>API usage costs for {monthLabel}</div>
               </div>
 
@@ -1038,7 +1038,7 @@ export function Settings() {
               <div className="card">
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14 }}>Monthly Budget</div>
+                    <div className="card-title">Monthly Budget</div>
                     <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>Campaigns auto-pause when budget is exceeded</div>
                   </div>
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -1129,7 +1129,7 @@ export function Settings() {
           {tab === 'billing-client' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Client Billing</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Client Billing</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Payments collected from clients via Billplz FPX online banking</div>
               </div>
 
@@ -1196,13 +1196,13 @@ export function Settings() {
           {tab === 'admin-users' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>User Management</div>
+                <div className="card-title" style={{ marginBottom:4 }}>User Management</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Manage team members and client portal access</div>
               </div>
 
               {/* Add client */}
               <div className="card">
-                <div style={{ fontWeight:600, marginBottom:4, fontSize:13 }}>Add Client Portal Access</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Add Client Portal Access</div>
                 <div style={{ color:'var(--muted)', fontSize:12, marginBottom:14 }}>Client receives an invite link to set their password. They see only their business data.</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:8 }}>
                   <input placeholder="Contact name" value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name:e.target.value }))} className="input" />
@@ -1215,7 +1215,7 @@ export function Settings() {
 
               {/* Client users */}
               <div className="card">
-                <div style={{ fontWeight:600, marginBottom:12, fontSize:13 }}>Client Portal Users</div>
+                <div className="card-title" style={{ marginBottom:12 }}>Client Portal Users</div>
                 {users.filter(u => u.role === 'client').length === 0 ? (
                   <div style={{ color:'var(--muted)', fontSize:13 }}>No client users yet.</div>
                 ) : (
@@ -1254,7 +1254,7 @@ export function Settings() {
           {tab === 'admin-audit' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Audit Logs</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Audit Logs</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>System activity and user actions</div>
               </div>
               <div className="card">
@@ -1287,7 +1287,7 @@ export function Settings() {
           {tab === 'admin-security' && (
             <div style={{ display:'flex', flexDirection:'column', gap:14, maxWidth:600 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>Security</div>
+                <div className="card-title" style={{ marginBottom:4 }}>Security</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>Advanced security settings</div>
               </div>
               {[

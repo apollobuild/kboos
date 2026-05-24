@@ -155,7 +155,7 @@ function OverviewTab({ biz, bizCampaigns, bizLeads, bizReplies }) {
 
       {/* Edit Business */}
       <div className="card fade-up-1 mb-4">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 14 }}>Edit Business</div>
+        <div className="card-title" style={{ marginBottom: 14 }}>Edit Business</div>
         <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Business Name</div>
@@ -190,7 +190,7 @@ function OverviewTab({ biz, bizCampaigns, bizLeads, bizReplies }) {
 
       {/* Brief */}
       <div className="card fade-up-1 mb-4">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 14 }}>Outreach Brief</div>
+        <div className="card-title" style={{ marginBottom: 14 }}>Outreach Brief</div>
         {briefLoading ? (
           <div style={{ color: 'var(--muted)', fontSize: 13 }}>Loading brief…</div>
         ) : (
@@ -233,7 +233,7 @@ function OverviewTab({ biz, bizCampaigns, bizLeads, bizReplies }) {
 
       {/* Onboard Link */}
       <div className="card fade-up-2">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Client Onboard Link</div>
+        <div className="card-title" style={{ marginBottom: 10 }}>Client Onboard Link</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
           Generate a secure link to send to the client for self-onboarding.
         </div>
@@ -576,7 +576,7 @@ function AssetsTab({ bizId }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Brand Voice */}
       <div className="card">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Brand Voice</div>
+        <div className="card-title" style={{ marginBottom: 10 }}>Brand Voice</div>
         <textarea className="input" rows={4} style={{ width: '100%', resize: 'vertical' }}
           placeholder="How should AI write for this client? Describe tone, style, vocabulary…"
           value={assets.brandVoice}
@@ -586,7 +586,7 @@ function AssetsTab({ bizId }) {
 
       {/* Offers */}
       <div className="card">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Offers</div>
+        <div className="card-title" style={{ marginBottom: 10 }}>Offers</div>
         <textarea className="input" rows={4} style={{ width: '100%', resize: 'vertical' }}
           placeholder="List current offers, pricing, packages…"
           value={assets.offers}
@@ -597,7 +597,7 @@ function AssetsTab({ bizId }) {
       {/* Objection Handlers */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
-          <div style={{ fontWeight: 600, fontSize: 14 }}>Objection Handlers</div>
+          <div className="card-title">Objection Handlers</div>
           <button className="btn btn-ghost btn-sm" onClick={addObjection}>＋ Add</button>
         </div>
         {(!assets.objections || assets.objections.length === 0) ? (
@@ -626,7 +626,7 @@ function AssetsTab({ bizId }) {
 
       {/* Sales Scripts */}
       <div className="card">
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Sales Scripts</div>
+        <div className="card-title" style={{ marginBottom: 10 }}>Sales Scripts</div>
         <textarea className="input" rows={5} style={{ width: '100%', resize: 'vertical' }}
           placeholder="Call scripts, follow-up scripts…"
           value={assets.scripts}

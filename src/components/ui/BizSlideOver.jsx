@@ -61,7 +61,7 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
           {biz.clientCount > 0 && (
             <div style={{ background: 'oklch(65% 0.2 245 / 0.08)', border: '1px solid oklch(65% 0.2 245 / 0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Portal Access</div>
+                <div className="card-title">Portal Access</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{biz.clientCount} client{biz.clientCount !== 1 ? 's' : ''} can view this business</div>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--blue)' }}>{biz.clientCount}</div>
@@ -82,7 +82,7 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
             </div>
           )}
 
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Campaigns</div>
+          <div className="card-title" style={{ marginBottom: 10 }}>Campaigns</div>
           {campaigns.length === 0 ? (
             <div style={{ color: 'var(--muted)', fontSize: 13 }}>No campaigns yet.</div>
           ) : (
@@ -101,7 +101,7 @@ export function BizSlideOver({ biz, onClose, onManage, onPortal, onRemove }) {
 
           {biz.brief && biz.brief !== 'none' && (
             <div style={{ marginTop: 20 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Brief</div>
+              <div className="card-title" style={{ marginBottom: 8 }}>Brief</div>
               <div style={{ background: 'var(--s2)', borderRadius: 8, padding: 12, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
                 {typeof biz.brief === 'string' && biz.brief !== 'approved' && biz.brief !== 'pending' ? biz.brief : 'Brief on file.'}
               </div>

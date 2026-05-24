@@ -50,7 +50,7 @@ function heatColor(v) {
 function SendingHeatmap() {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>Best sending times — Email replies by day and hour</div>
+      <div className="card-title" style={{ marginBottom: 4 }}>Best sending times — Email replies by day and hour</div>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }}>
         Darker cells = more replies. Weekdays 9am–5pm are typically strongest.
       </div>
@@ -374,7 +374,7 @@ export function ChannelAnalytics() {
 
       {/* ── Performance Over Time ─────────────────────── */}
       <div className="card fade-up-1" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Performance Over Time</div>
+        <div className="card-title" style={{ marginBottom: 4 }}>Performance Over Time</div>
         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }}>Daily outreach volume — last 30 days</div>
         {loading ? (
           <div style={{ height: 160, background: 'var(--s1)', borderRadius: 8, animation: 'shimmer 1.5s infinite' }} />
@@ -401,7 +401,7 @@ export function ChannelAnalytics() {
 
       {/* ── Campaign Comparison Table ─────────────────── */}
       <div className="card fade-up-1" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 14 }}>Campaign Comparison</div>
+        <div className="card-title" style={{ marginBottom: 14 }}>Campaign Comparison</div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
@@ -463,7 +463,7 @@ export function ChannelAnalytics() {
 
       {/* ── Channel ROI ───────────────────────────────── */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>Channel ROI — meetings per 100 sent</div>
+        <div className="card-title" style={{ marginBottom: 12 }}>Channel ROI — meetings per 100 sent</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {[
             { label: 'Email ROI',     icon: '📧', roi: emailRoi, color: 'var(--blue)',  desc: 'per 100 emails sent' },
@@ -507,7 +507,7 @@ export function ChannelAnalytics() {
       {/* ── Bounce & Health ───────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="fade-up-2">
         <div className="card">
-          <div style={{ fontWeight: 600, marginBottom: 16 }}>Bounce & Health Metrics</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Bounce & Health Metrics</div>
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[1, 2, 3].map(i => (
@@ -539,7 +539,7 @@ export function ChannelAnalytics() {
         </div>
 
         <div className="card">
-          <div style={{ fontWeight: 600, marginBottom: 16 }}>Overall List Health</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Overall List Health</div>
           {loading ? (
             <div style={{ height: 80, background: 'var(--s1)', borderRadius: 8 }} className="shimmer" />
           ) : (

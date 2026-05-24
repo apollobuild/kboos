@@ -89,7 +89,7 @@ export function CampaignDashboard() {
           {/* Active campaigns */}
           <div className="card fade-up-1">
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-              <div style={{fontWeight:600,fontSize:14}}>Active Campaigns</div>
+              <div className="card-title">Active Campaigns</div>
               <button className="btn btn-ghost btn-sm" onClick={() => setPage('campaigns')} style={{fontSize:11}}>View all →</button>
             </div>
             {active.length === 0 ? (
@@ -145,7 +145,7 @@ export function CampaignDashboard() {
 
           {/* Pipeline funnel */}
           <div className="card fade-up-1">
-            <div style={{fontWeight:600,fontSize:14,marginBottom:16}}>Pipeline Funnel</div>
+            <div className="card-title" style={{marginBottom:16}}>Pipeline Funnel</div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {Object.entries(stageCounts).map(([label, count]) => (
                 <div key={label} style={{display:'flex',alignItems:'center',gap:10}}>
@@ -174,7 +174,7 @@ export function CampaignDashboard() {
 
           {/* Channel performance */}
           <div className="card fade-up-1">
-            <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Channel Performance</div>
+            <div className="card-title" style={{marginBottom:12}}>Channel Performance</div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {[
                 { icon:'◈', label:'Email', value: overview?.emailActions ?? 0, color:'var(--blue)' },
@@ -193,7 +193,7 @@ export function CampaignDashboard() {
 
           {/* Recent activity */}
           <div className="card fade-up-1">
-            <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Recent Activity</div>
+            <div className="card-title" style={{marginBottom:12}}>Recent Activity</div>
             {activity.length === 0 ? (
               <div style={{fontSize:12,color:'var(--muted)',textAlign:'center',padding:'12px 0'}}>No recent activity</div>
             ) : (
@@ -213,7 +213,7 @@ export function CampaignDashboard() {
 
           {/* Quick actions */}
           <div className="card fade-up-1" style={{display:'flex',flexDirection:'column',gap:8}}>
-            <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>Quick Actions</div>
+            <div className="card-title" style={{marginBottom:4}}>Quick Actions</div>
             {[
               { label:'＋ New Campaign', page:'new-campaign', color:'var(--blue)' },
               { label:'Lead Intelligence →', page:'lead-intelligence', color:'var(--muted)' },

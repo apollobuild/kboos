@@ -127,7 +127,7 @@ function GeneratedAssetsTab({ businesses, campaigns, showToast, injectedAssets, 
     <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16, alignItems: 'start' }}>
       {/* Left: form */}
       <div className="card" style={{ padding: 20 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Build New Asset</div>
+        <div className="card-title" style={{ marginBottom: 16 }}>Build New Asset</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontWeight: 600 }}>ASSET TYPE</div>
@@ -340,7 +340,7 @@ function SequencesTab({ showToast }) {
       {/* Left: saved list */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Saved Sequences</div>
+          <div className="card-title">Saved Sequences</div>
           <button className="btn btn-sm btn-blue" style={{ fontSize: 11 }} onClick={openNew}>+ New</button>
         </div>
         {sequences.length === 0 ? (
@@ -382,7 +382,7 @@ function SequencesTab({ showToast }) {
       ) : (
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Sequence Builder</div>
+            <div className="card-title">Sequence Builder</div>
             {selectedId && (
               <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--red)' }} onClick={() => deleteSequence(selectedId)}>Delete</button>
             )}
@@ -1371,7 +1371,7 @@ function OfferLibraryTab({ businesses, showToast }) {
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Offer Library</div>
+            <div className="card-title">Offer Library</div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{offers.length} saved offer{offers.length !== 1 ? 's' : ''}</div>
           </div>
           <button className="btn btn-green" style={{ fontSize: 12 }} onClick={openNew}>+ New Offer</button>
@@ -1428,7 +1428,7 @@ function OfferLibraryTab({ businesses, showToast }) {
       {showForm && (
         <div className="card" style={{ padding: 20, position: 'sticky', top: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{editId ? 'Edit Offer' : 'New Offer'}</div>
+            <div className="card-title">{editId ? 'Edit Offer' : 'New Offer'}</div>
             <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 16 }} onClick={() => setShowForm(false)}>✕</button>
           </div>
 

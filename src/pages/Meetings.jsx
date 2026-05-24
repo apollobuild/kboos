@@ -397,7 +397,7 @@ export function Meetings() {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
         {/* Upcoming */}
         <div className="fade-up-1">
-          <div style={{ fontWeight:700, fontSize:13, color:'var(--text)', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+          <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ color:'var(--green)', fontSize:8 }}>●</span> Upcoming ({upcoming.length})
           </div>
           {loading ? (
@@ -414,7 +414,7 @@ export function Meetings() {
 
         {/* Past / History */}
         <div className="fade-up-1">
-          <div style={{ fontWeight:700, fontSize:13, color:'var(--text)', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div className="card-title" style={{ marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <span>Past Meetings ({past.length})</span>
             {past.length > 5 && (
               <button className="btn btn-ghost btn-sm" style={{ fontSize:10 }} onClick={() => setShowPast(v => !v)}>
