@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiFetch } from '../../services/api.js';
 
 const ROLE_DESCRIPTIONS = {
@@ -35,16 +35,25 @@ function Avatar({ name, size = 48 }) {
   );
 }
 
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+function isOnline(date) {
+  if (!date) return false;
+  return Date.now() - new Date(date).getTime() < ONLINE_THRESHOLD_MS;
+}
+
 function timeAgo(date) {
   if (!date) return 'Never';
   const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString('en-MY');
+  return new Date(date).toLocaleDateString();
 }
 
 export function TeamMemberSlideOver({ member, onClose, onUpdated, onRemoved, showToast }) {
@@ -52,6 +61,12 @@ export function TeamMemberSlideOver({ member, onClose, onUpdated, onRemoved, sho
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
+  const [, tick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => tick(n => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const roleInfo = ROLE_DESCRIPTIONS[role] || ROLE_DESCRIPTIONS.operator;
 
@@ -147,13 +162,26 @@ export function TeamMemberSlideOver({ member, onClose, onUpdated, onRemoved, sho
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {[
               { label: 'Joined', val: timeAgo(member.createdAt) },
-              { label: 'Last Active', val: member.lastLoginAt ? timeAgo(member.lastLoginAt) : 'Never logged in' },
-            ].map(s => (
-              <div key={s.label} style={{ background: 'var(--s2)', padding: '10px 12px', borderRadius: 8 }}>
-                <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{s.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{s.val}</div>
-              </div>
-            ))}
+              { label: 'Last Active', val: member.lastActiveAt || member.lastLoginAt, isActive: true },
+            ].map(s => {
+              const online = s.isActive && isOnline(s.val);
+              const display = s.isActive
+                ? (online ? null : (s.val ? timeAgo(s.val) : 'Never logged in'))
+                : s.val;
+              return (
+                <div key={s.label} style={{ background: 'var(--s2)', padding: '10px 12px', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{s.label}</div>
+                  {online ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', boxShadow: '0 0 6px var(--green)' }} />
+                      Online
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{display}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Access list */}
