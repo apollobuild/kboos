@@ -1,7 +1,7 @@
 const ROLE_ACCESS = {
   admin:    ['dashboard','businesses','add-business','campaigns','new-campaign','campaign-dashboard','lead-intelligence','ai-studio','ai-campaign-studio','revenue','revenue-analytics','campaign-analytics','channel-analytics','leads','replies','approvals','reporting','prompt-studio','live-demo','settings','client-portal','pipeline','business-detail','unified-inbox','email-inbox','whatsapp-inbox','voice-outcomes','meetings','changelog'],
   operator: ['dashboard','businesses','add-business','campaigns','new-campaign','campaign-dashboard','lead-intelligence','ai-studio','ai-campaign-studio','revenue','revenue-analytics','campaign-analytics','channel-analytics','leads','replies','approvals','reporting','prompt-studio','live-demo','settings','client-portal','pipeline','business-detail','unified-inbox','email-inbox','whatsapp-inbox','voice-outcomes','meetings','changelog'],
-  viewer:   ['dashboard','businesses','campaigns','campaign-dashboard','lead-intelligence','leads','replies','reporting','campaign-analytics','revenue-analytics','channel-analytics','client-portal','business-detail','unified-inbox','meetings','changelog'],
+  viewer:   ['dashboard','businesses','campaigns','campaign-dashboard','lead-intelligence','leads','replies','reporting','campaign-analytics','revenue-analytics','channel-analytics','business-detail','unified-inbox','meetings','changelog'],
 };
 
 const SETTINGS_TABS = {

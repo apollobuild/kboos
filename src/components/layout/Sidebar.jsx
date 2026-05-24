@@ -52,7 +52,6 @@ const NAV = [
   ]},
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },
-    { id:'client-portal', icon:'🌐', label:'Client Portal' },
     { id:'changelog', icon:'✦', label:"What's New" },
   ]},
 ];

@@ -144,8 +144,8 @@ function fmtDate(iso) {
 }
 
 export function Settings() {
-  const { showToast, businesses, activity } = useAppStore(useShallow(s => ({
-    showToast: s.showToast, businesses: s.businesses, activity: s.activity,
+  const { showToast, businesses, activity, setPage } = useAppStore(useShallow(s => ({
+    showToast: s.showToast, businesses: s.businesses, activity: s.activity, setPage: s.setPage,
   })));
   const { isAdmin } = useRole();
   const { wallet, init: initWallet } = useWalletStore();
@@ -816,7 +816,7 @@ export function Settings() {
                 </div>
               </div>
               <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                <button className="btn btn-blue" onClick={saveCompany} disabled={companySaving}>
+                <button className="btn btn-primary" onClick={saveCompany} disabled={companySaving}>
                   {companySaving ? 'Saving…' : 'Save Profile'}
                 </button>
               </div>
@@ -869,8 +869,11 @@ export function Settings() {
                   <div style={{ display:'inline-block', padding:'8px 18px', borderRadius:8, background:branding.accentColor, color:'#fff', fontSize:12, fontWeight:600 }}>View Campaign →</div>
                 </div>
               </div>
-              <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                <button className="btn btn-blue" onClick={saveBranding} disabled={brandingSaving}>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:8 }}>
+                <button className="btn btn-ghost" onClick={() => setPage('client-portal')}>
+                  🌐 Preview Client Portal
+                </button>
+                <button className="btn btn-primary" onClick={saveBranding} disabled={brandingSaving}>
                   {brandingSaving ? 'Saving…' : 'Save Branding'}
                 </button>
               </div>
@@ -891,7 +894,7 @@ export function Settings() {
                   <input placeholder="Email address" value={newMember.email} onChange={e => setNewMember(p => ({ ...p, email:e.target.value }))} className="input" />
                   <Select value={newMember.role} onChange={v => setNewMember(p => ({ ...p, role:v }))}
                     options={['Admin','Operator','Viewer']} />
-                  <button className="btn btn-blue" onClick={addTeamMember}>Invite</button>
+                  <button className="btn btn-primary" onClick={addTeamMember}>Invite</button>
                 </div>
               </div>
               <div className="card" style={{ padding:'16px' }}>
@@ -959,7 +962,7 @@ export function Settings() {
                 </div>
               )}
               <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                <button className="btn btn-blue" onClick={saveNotifications} disabled={notifSaving}>
+                <button className="btn btn-primary" onClick={saveNotifications} disabled={notifSaving}>
                   {notifSaving ? 'Saving…' : 'Save Preferences'}
                 </button>
               </div>
