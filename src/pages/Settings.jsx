@@ -305,8 +305,18 @@ function OpenWAConnectPanel({ showToast }) {
             <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>devlikeapro/waha</code> → set <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>PORT=3000</code> → copy URL → paste above
           </div>
         )}
-        <div style={{ marginTop:8, fontSize:11, color:'var(--muted)' }}>
-          Webhook URL for incoming replies: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital', 'kboos-server.railway.app')}/webhooks/openwa</code>
+        <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ flex:1, fontSize:11, color:'var(--muted)' }}>
+            Webhook: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital', 'kboos-server.railway.app')}/webhooks/openwa</code>
+          </div>
+          {configured && (
+            <button className="btn btn-ghost btn-sm" style={{ fontSize:10 }} onClick={async () => {
+              try {
+                const d = await apiFetch('/openwa/diagnose');
+                alert(`WAHA Diagnose\n\nURL: ${d.normalizedUrl}\nHTTP: ${d.httpStatus}\n\nSessions:\n${JSON.stringify(d.sessions, null, 2)}`);
+              } catch (e) { alert(`Error: ${e.message}`); }
+            }}>🔍 Diagnose</button>
+          )}
         </div>
       </div>
 
