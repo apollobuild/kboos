@@ -151,6 +151,7 @@ export function Settings() {
   const { wallet, init: initWallet } = useWalletStore();
 
   const [tab,            setTab]           = useState('workspace-team');
+  const [navCollapsed,   setNavCollapsed]  = useState(() => localStorage.getItem('kboos_settings_nav') === 'collapsed');
   const [apiKeys,        setApiKeys]       = useState({});
   const [showKey,        setShowKey]       = useState({});
   const [expandedApi,    setExpandedApi]   = useState({});
@@ -712,30 +713,73 @@ export function Settings() {
       <div className="card fade-up-1" style={{ display:'flex', padding:0, overflow:'hidden', minHeight:600 }}>
 
         {/* Left nav */}
-        <div style={{ width:200, flexShrink:0, borderRight:'1px solid var(--border)', padding:'16px 0', background:'var(--s1)' }}>
-          {NAV_SECTIONS.map(section => {
-            if (section.adminOnly && !isAdmin) return null;
-            return (
-              <div key={section.label} style={{ marginBottom:20 }}>
-                <div style={{ fontSize:9, color:'var(--muted)', letterSpacing:'0.12em', textTransform:'uppercase', padding:'0 16px', marginBottom:6, fontWeight:700 }}>
-                  {section.label}
+        <div style={{
+          width: navCollapsed ? 52 : 200, flexShrink:0,
+          borderRight:'1px solid var(--border)', padding:'16px 0',
+          background:'var(--s1)', display:'flex', flexDirection:'column',
+          transition:'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+          overflow:'hidden',
+        }}>
+          <div style={{ flex:1, overflowY:'auto', overflowX:'hidden' }}>
+            {NAV_SECTIONS.map(section => {
+              if (section.adminOnly && !isAdmin) return null;
+              return (
+                <div key={section.label} style={{ marginBottom: navCollapsed ? 8 : 20 }}>
+                  {!navCollapsed && (
+                    <div style={{ fontSize:9, color:'var(--muted)', letterSpacing:'0.12em', textTransform:'uppercase', padding:'0 16px', marginBottom:6, fontWeight:700 }}>
+                      {section.label}
+                    </div>
+                  )}
+                  {section.items.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => setTab(item.id)}
+                      title={navCollapsed ? item.label : undefined}
+                      style={{
+                        padding: navCollapsed ? '8px 0' : '8px 16px',
+                        cursor:'pointer', fontSize:12,
+                        fontWeight: tab === item.id ? 600 : 400,
+                        color: tab === item.id ? 'var(--text)' : 'var(--muted)',
+                        background: tab === item.id ? 'var(--s2)' : 'transparent',
+                        borderLeft: tab === item.id ? '2px solid var(--blue)' : '2px solid transparent',
+                        display:'flex', alignItems:'center',
+                        gap: navCollapsed ? 0 : 8,
+                        justifyContent: navCollapsed ? 'center' : 'flex-start',
+                        transition:'all 0.12s',
+                        position:'relative',
+                      }}
+                    >
+                      <span style={{ fontSize: navCollapsed ? 16 : 13, flexShrink:0 }}>{item.icon}</span>
+                      {!navCollapsed && item.label}
+                    </div>
+                  ))}
                 </div>
-                {section.items.map(item => (
-                  <div key={item.id} onClick={() => setTab(item.id)} style={{
-                    padding:'8px 16px', cursor:'pointer', fontSize:12,
-                    fontWeight: tab === item.id ? 600 : 400,
-                    color: tab === item.id ? 'var(--text)' : 'var(--muted)',
-                    background: tab === item.id ? 'var(--s2)' : 'transparent',
-                    borderLeft: tab === item.id ? '2px solid var(--blue)' : '2px solid transparent',
-                    display:'flex', alignItems:'center', gap:8, transition:'all 0.12s',
-                  }}>
-                    <span style={{ fontSize:13 }}>{item.icon}</span>
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/* Collapse toggle */}
+          <button
+            onClick={() => {
+              const next = !navCollapsed;
+              setNavCollapsed(next);
+              localStorage.setItem('kboos_settings_nav', next ? 'collapsed' : 'expanded');
+            }}
+            style={{
+              display:'flex', alignItems:'center', justifyContent: navCollapsed ? 'center' : 'flex-start',
+              gap:8, padding: navCollapsed ? '10px 0' : '10px 16px',
+              background:'none', border:'none', borderTop:'1px solid var(--border)',
+              color:'var(--muted)', cursor:'pointer', width:'100%', fontSize:10,
+              fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase',
+              transition:'color 0.15s', flexShrink:0,
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+            title={navCollapsed ? 'Expand menu' : 'Collapse menu'}
+          >
+            <span style={{ fontSize:10 }}>{navCollapsed ? '▶' : '◀'}</span>
+            {!navCollapsed && 'Collapse'}
+          </button>
         </div>
 
         {/* Content area */}
