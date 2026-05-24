@@ -752,7 +752,7 @@ export function Settings() {
                       }}
                     >
                       <span style={{ fontSize: navCollapsed ? 16 : 13, flexShrink:0 }}>{item.icon}</span>
-                      {!navCollapsed && item.label}
+                      {!navCollapsed && <span style={{ textTransform:'uppercase', letterSpacing:'0.06em' }}>{item.label}</span>}
                     </div>
                   ))}
                 </div>
