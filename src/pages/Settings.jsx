@@ -150,6 +150,7 @@ function OpenWAConnectPanel({ showToast }) {
   const [configured, setConfigured] = useState(false);
   const [sessions,   setSessions]   = useState([]);
   const [addLabel,   setAddLabel]   = useState('');
+  const [addPhone,   setAddPhone]   = useState('');
   const [addLimit,   setAddLimit]   = useState(200);
   const [adding,     setAdding]     = useState(false);
   const [connecting, setConnecting] = useState(null); // sessionId being connected
@@ -187,9 +188,9 @@ function OpenWAConnectPanel({ showToast }) {
     if (!addLabel) return;
     setAdding(true);
     try {
-      const s = await apiFetch('/openwa/sessions', { method:'POST', body:{ label: addLabel, dailyLimit: addLimit } });
+      const s = await apiFetch('/openwa/sessions', { method:'POST', body:{ label: addLabel, phone: addPhone, dailyLimit: addLimit } });
       setSessions(prev => [...prev, s]);
-      setAddLabel(''); setAddLimit(200); setShowAdd(false);
+      setAddLabel(''); setAddPhone(''); setAddLimit(200); setShowAdd(false);
       showToast(`${addLabel} added`, 'green');
     } catch (e) { showToast(e.message || 'Failed to add', 'red'); }
     finally { setAdding(false); }
@@ -427,15 +428,25 @@ function OpenWAConnectPanel({ showToast }) {
         {!showAdd ? (
           <button className="btn btn-primary btn-sm" style={{ fontSize:12 }} onClick={() => setShowAdd(true)} disabled={!configured}>+ Add Number</button>
         ) : (
-          <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-              <input className="input" style={{ flex:1, minWidth:160 }} placeholder='Name this number, e.g. "Sales Team 1"'
-                value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus
-                onKeyDown={e => { if (e.key === 'Enter' && addLabel) addSession(); }} />
-              <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit}
-                onChange={e => setAddLimit(parseInt(e.target.value) || 200)} title="Daily message limit" />
+          <div style={{ background:'var(--s2)', borderRadius:8, padding:'14px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto auto auto', gap:8, alignItems:'flex-end' }}>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Name / Label</div>
+                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder='e.g. Sales Team 1'
+                  value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone Number</div>
+                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder='e.g. 601125148606'
+                  value={addPhone} onChange={e => setAddPhone(e.target.value)} />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
+                <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit}
+                  onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
+              </div>
               <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding}>{adding ? 'Adding…' : '+ Add'}</button>
-              <button className="btn btn-ghost btn-sm" style={{ color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddLimit(200); }}>Cancel</button>
+              <button className="btn btn-ghost btn-sm" style={{ color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddPhone(''); setAddLimit(200); }}>Cancel</button>
             </div>
           </div>
         )}
