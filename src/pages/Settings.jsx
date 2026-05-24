@@ -160,7 +160,6 @@ function OpenWAConnectPanel({ showToast }) {
   const [sending,    setSending]    = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [showAdd,    setShowAdd]    = useState(false);
-  const [editingLabel, setEditingLabel] = useState(null); // { id, value }
   const pollRefs = useRef({});
 
   useEffect(() => {
@@ -327,25 +326,21 @@ function OpenWAConnectPanel({ showToast }) {
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: qr ? 12 : 0 }}>
                   <span style={{ width:8, height:8, borderRadius:'50%', background: isConnected ? 'var(--green)' : 'var(--muted)', flexShrink:0 }} />
                   <div style={{ flex:1 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      {editingLabel?.id === s.id ? (
-                        <input className="input" autoFocus
-                          style={{ fontWeight:600, fontSize:13, padding:'2px 8px', height:'auto', minWidth:140, maxWidth:220 }}
-                          value={editingLabel.value}
-                          onChange={e => setEditingLabel(prev => ({ ...prev, value: e.target.value }))}
-                          onBlur={async () => {
-                            const v = editingLabel.value.trim();
-                            if (v && v !== s.label) await updateLabel(s.id, v);
-                            setEditingLabel(null);
-                          }}
-                          onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingLabel(null); }}
-                        />
-                      ) : (
-                        <div style={{ display:'flex', alignItems:'center', gap:5, cursor:'text' }} onClick={() => setEditingLabel({ id: s.id, value: s.label })} title="Click to edit label">
-                          <span style={{ fontWeight:600, fontSize:13 }}>{s.label}</span>
-                          <span style={{ fontSize:10, color:'var(--muted)' }}>✎</span>
-                        </div>
-                      )}
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <input
+                        className="input"
+                        style={{ fontWeight:600, fontSize:13, padding:'3px 8px', height:'auto', minWidth:120, maxWidth:200,
+                          background:'transparent', border:'1px solid transparent', borderRadius:4,
+                          transition:'border-color 0.15s' }}
+                        value={s.label}
+                        onChange={e => setSessions(prev => prev.map(x => x.id === s.id ? { ...x, label: e.target.value } : x))}
+                        onBlur={e => { if (e.target.value.trim()) updateLabel(s.id, e.target.value.trim()); }}
+                        onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                        onFocus={e => e.target.style.borderColor = 'var(--border)'}
+                        onBlurCapture={e => e.target.style.borderColor = 'transparent'}
+                        placeholder="Label this number"
+                        title="Click to rename"
+                      />
                       {s.phone && <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>· {s.phone}</span>}
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
