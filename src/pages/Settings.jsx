@@ -428,21 +428,14 @@ function OpenWAConnectPanel({ showToast }) {
           <button className="btn btn-primary btn-sm" style={{ fontSize:12 }} onClick={() => setShowAdd(true)} disabled={!configured}>+ Add Number</button>
         ) : (
           <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-              <div className="card-title" style={{ margin:0 }}>Add Number</div>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize:11, color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddLimit(200); }}>✕ Cancel</button>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Label (e.g. "Sales Team 1")</div>
-                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="My WhatsApp Number"
-                  value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
-                <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit} onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
-              </div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <input className="input" style={{ flex:1, minWidth:160 }} placeholder='Name this number, e.g. "Sales Team 1"'
+                value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && addLabel) addSession(); }} />
+              <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit}
+                onChange={e => setAddLimit(parseInt(e.target.value) || 200)} title="Daily message limit" />
               <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding}>{adding ? 'Adding…' : '+ Add'}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddLimit(200); }}>Cancel</button>
             </div>
           </div>
         )}
