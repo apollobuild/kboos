@@ -4,8 +4,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
 
-const CH_ICON  = { WA:'💬', WhatsApp:'💬', wa:'💬', whatsapp:'💬', Email:'📧', email:'📧', Call:'📞', call:'📞', voice:'📞', LinkedIn:'🔗' };
-const CH_COLOR = { WA:'var(--green)', WhatsApp:'var(--green)', wa:'var(--green)', whatsapp:'var(--green)', Email:'var(--blue)', email:'var(--blue)', Call:'var(--amber)', call:'var(--amber)', voice:'var(--amber)' };
+const CH_ICON  = { WA:'💬', WhatsApp:'💬', wa:'💬', whatsapp:'💬', whatsapp_connect:'📲', Email:'📧', email:'📧', Call:'📞', call:'📞', voice:'📞', LinkedIn:'🔗' };
+const CH_COLOR = { WA:'var(--green)', WhatsApp:'var(--green)', wa:'var(--green)', whatsapp:'var(--green)', whatsapp_connect:'oklch(55% 0.18 145)', Email:'var(--blue)', email:'var(--blue)', Call:'var(--amber)', call:'var(--amber)', voice:'var(--amber)' };
+const CH_LABEL = { whatsapp_connect: 'WA Connect' };
 
 const STAGES = ['cold', 'engaged', 'qualifying', 'committed', 'closed'];
 const STAGE_META = {
@@ -295,7 +296,7 @@ export function ReplyInbox() {
                       </a>
                     )}
                     <span style={{ fontSize:11, padding:'4px 10px', borderRadius:8, background:(CH_COLOR[current.channel]||'#888')+'22', color:CH_COLOR[current.channel]||'#888', fontWeight:700 }}>
-                      {CH_ICON[current.channel]} {current.channel}
+                      {CH_ICON[current.channel]} {CH_LABEL[current.channel] || current.channel}
                     </span>
                   </div>
                 </div>
@@ -475,7 +476,7 @@ export function ReplyInbox() {
                         onClick={() => sendDraft(current)}
                         disabled={sending || sent[current.id] || !getDraft(current).trim() || generating}
                         style={{ minWidth:130 }}>
-                        {sent[current.id] ? '✓ Sent' : sending ? 'Sending…' : `${CH_ICON[current.channel]||'↗'} Send via ${current.channel}`}
+                        {sent[current.id] ? '✓ Sent' : sending ? 'Sending…' : `${CH_ICON[current.channel]||'↗'} Send via ${CH_LABEL[current.channel] || current.channel}`}
                       </button>
                       <button className="btn btn-ghost btn-sm"
                         onClick={() => { setDraft(current.id, ''); generateDraft(current); }}
