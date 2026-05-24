@@ -37,6 +37,7 @@ export const useAppStore = create((set, get) => ({
   tweaks: { accent:'violet', density:'default', mood:'realistic' },
   toast: null,
   sidebarOpen: false,
+  sidebarCollapsed: localStorage.getItem('kboos_sidebar') === 'collapsed',
 
   init: async () => {
     try {
@@ -59,6 +60,11 @@ export const useAppStore = create((set, get) => ({
   openCampaignPipeline: (id) => set({ selectedCampaignId: id, page: 'pipeline' }),
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
   closeSidebar: () => set({ sidebarOpen: false }),
+  toggleSidebarCollapsed: () => set(s => {
+    const next = !s.sidebarCollapsed;
+    localStorage.setItem('kboos_sidebar', next ? 'collapsed' : 'expanded');
+    return { sidebarCollapsed: next };
+  }),
   loadCampaigns: async () => {
     const campaigns = await campaignsService.getAll().catch(() => null);
     if (campaigns) set({ campaigns });
