@@ -5,6 +5,7 @@ import { TickerBar } from '../components/layout/TickerBar.jsx';
 import { LeadSlideOver } from '../components/leads/LeadSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
+import { useTenant } from '../hooks/useTenant.js';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -148,21 +149,28 @@ export function Dashboard() {
     replies: s.replies, activity: s.activity, setPage: s.setPage,
   })));
 
+  const { formatCurrency } = useTenant();
   const [walletSpend, setWalletSpend] = useState(null);
+  const [revenueData, setRevenueData] = useState(null);
 
   useEffect(() => {
     apiFetch('/wallet/spend-summary').then(setWalletSpend).catch(() => {});
+    apiFetch('/meetings/revenue').then(setRevenueData).catch(() => {});
   }, []);
 
-  // Revenue Overview
-  const revGenerated = (() => {
-    if (walletSpend?.total != null) {
-      const t = walletSpend.total;
-      return `RM ${t < 10 ? t.toFixed(2) : Math.round(t).toLocaleString()}`;
-    }
+  // Platform spend (API costs)
+  const platformSpend = (() => {
+    if (walletSpend?.total != null) return formatCurrency(walletSpend.total);
     const total = campaigns.reduce((s, c) => s + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0), 0);
-    return `RM ${total.toLocaleString()}`;
+    return formatCurrency(total);
   })();
+
+  // Actual revenue from closed deals
+  const revGenerated = revenueData?.totalRevenue
+    ? formatCurrency(revenueData.totalRevenue)
+    : revenueData?.totalDealValue
+      ? formatCurrency(revenueData.totalDealValue)
+      : '—';
 
   const opportunities    = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
   const meetingsBooked   = leads.filter(l => l.status === 'meeting_booked').length;
@@ -199,10 +207,10 @@ export function Dashboard() {
   const bestChannel = Object.entries(channelReply).sort((a, b) => b[1] - a[1])[0];
 
   const kpis = [
-    { label: 'Revenue Generated', val: revGenerated, icon: '◎', color: 'green',  page: 'revenue-analytics', sub: 'Total campaign spend' },
-    { label: 'Opportunities',     val: opportunities, icon: '🔥', color: 'amber', page: 'leads',             sub: 'Hot leads ready' },
-    { label: 'Meetings Booked',   val: meetingsBooked, icon: '📅', color: 'blue',  page: 'leads',             sub: 'Confirmed meetings' },
-    { label: 'Active Campaigns',  val: activeCampaigns, icon: '◉', color: activeCampaigns > 0 ? 'green' : 'muted', page: 'campaign-dashboard', sub: 'Currently running' },
+    { label: 'Revenue Generated', val: revGenerated,    icon: '◎', color: 'green',  page: 'revenue-analytics', sub: revenueData?.closedDeals ? `${revenueData.closedDeals} closed deal${revenueData.closedDeals !== 1 ? 's' : ''}` : 'From closed deals' },
+    { label: 'Opportunities',     val: opportunities,   icon: '🔥', color: 'amber', page: 'leads',             sub: 'Hot leads ready' },
+    { label: 'Meetings Booked',   val: meetingsBooked,  icon: '📅', color: 'blue',  page: 'leads',             sub: 'Confirmed meetings' },
+    { label: 'Platform Spend',    val: platformSpend,   icon: '💳', color: 'text',  page: 'settings',          sub: 'API & messaging costs' },
   ];
 
   const perfMetrics = [
