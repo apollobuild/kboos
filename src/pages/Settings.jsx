@@ -160,6 +160,7 @@ function OpenWAConnectPanel({ showToast }) {
   const [sending,    setSending]    = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [showAdd,    setShowAdd]    = useState(false);
+  const [editingLabel, setEditingLabel] = useState(null); // { id, value }
   const pollRefs = useRef({});
 
   useEffect(() => {
@@ -245,6 +246,20 @@ function OpenWAConnectPanel({ showToast }) {
     } catch { showToast('Failed to update limit', 'red'); }
   }
 
+  async function updateLabel(id, label) {
+    try {
+      const updated = await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ label } });
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, label: updated.label } : s));
+    } catch { showToast('Failed to update label', 'red'); }
+  }
+
+  async function resetHealth(id) {
+    try {
+      await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ healthScore: 100 } });
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, healthScore: 100 } : s));
+    } catch {}
+  }
+
   async function handleTestSend() {
     if (!testPhone || !testMsg) return;
     setSending(true);
@@ -312,7 +327,27 @@ function OpenWAConnectPanel({ showToast }) {
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: qr ? 12 : 0 }}>
                   <span style={{ width:8, height:8, borderRadius:'50%', background: isConnected ? 'var(--green)' : 'var(--muted)', flexShrink:0 }} />
                   <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:13 }}>{s.label} {s.phone && <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>· {s.phone}</span>}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      {editingLabel?.id === s.id ? (
+                        <input className="input" autoFocus
+                          style={{ fontWeight:600, fontSize:13, padding:'2px 8px', height:'auto', minWidth:140, maxWidth:220 }}
+                          value={editingLabel.value}
+                          onChange={e => setEditingLabel(prev => ({ ...prev, value: e.target.value }))}
+                          onBlur={async () => {
+                            const v = editingLabel.value.trim();
+                            if (v && v !== s.label) await updateLabel(s.id, v);
+                            setEditingLabel(null);
+                          }}
+                          onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingLabel(null); }}
+                        />
+                      ) : (
+                        <div style={{ display:'flex', alignItems:'center', gap:5, cursor:'text' }} onClick={() => setEditingLabel({ id: s.id, value: s.label })} title="Click to edit label">
+                          <span style={{ fontWeight:600, fontSize:13 }}>{s.label}</span>
+                          <span style={{ fontSize:10, color:'var(--muted)' }}>✎</span>
+                        </div>
+                      )}
+                      {s.phone && <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>· {s.phone}</span>}
+                    </div>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
                       <div style={{ fontSize:10, color:'var(--muted)' }}>Sent today: {s.sentToday} /</div>
                       <input type="number" min="1" max="500"
@@ -345,10 +380,13 @@ function OpenWAConnectPanel({ showToast }) {
                   {/* Health score — only meaningful when connected */}
                   {isConnected && (
                     <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10 }}>
-                      <span style={{ color:'var(--muted)' }}>Health:</span>
+                      <span style={{ color:'var(--muted)', cursor:'help' }} title="Starts at 100%. Drops 2% per failed send. Green ≥80%, Amber ≥50%, Red <50%.">Health:</span>
                       <span style={{ fontWeight:700, color: (s.healthScore ?? 100) >= 80 ? 'var(--green)' : (s.healthScore ?? 100) >= 50 ? 'var(--amber)' : 'var(--red)' }}>
                         {s.healthScore ?? 100}%
                       </span>
+                      {(s.healthScore ?? 100) < 100 && (
+                        <span style={{ color:'var(--muted)', cursor:'pointer', textDecoration:'underline', textDecorationStyle:'dotted' }} onClick={() => resetHealth(s.id)} title="Reset to 100%">Reset</span>
+                      )}
                     </div>
                   )}
                   {/* Warmup toggle */}
