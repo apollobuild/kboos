@@ -21,6 +21,9 @@ export const leadsService = {
   update: (id, patch) => apiFetch(`/leads/${id}`, { method: 'PATCH', body: patch }),
   remove: (id) => apiFetch(`/leads/${id}`, { method: 'DELETE' }),
   bulkUpdateStatus: (ids, status) => apiFetch('/leads/bulk', { method: 'PATCH', body: { ids, patch: { status } } }),
+  bulkAssign: (ids, campaignId) => apiFetch('/leads/bulk-assign', { method: 'PATCH', body: { ids, campaignId } }),
+  bulkEnrich: (ids) => apiFetch('/leads/bulk-enrich', { method: 'POST', body: { ids } }),
+  bulkDelete: (ids) => apiFetch('/leads/bulk', { method: 'DELETE', body: { ids } }),
   exportCSV: (leads) => {
     const csv = Papa.unparse(leads.map(l => ({
       Name: l.name, Company: l.company, Title: l.title,
