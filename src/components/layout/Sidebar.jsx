@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useWalletStore } from '../../store/useWalletStore.js';
 import { CreditWalletWidget } from '../ui/CreditWalletWidget.jsx';
 import { useRole } from '../../hooks/useRole.js';
+import { LATEST_VERSION } from '../../data/changelog.js';
 
 const SIDEBAR_STYLE = `
   @keyframes livePulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.6)} }
@@ -52,6 +53,7 @@ const NAV = [
   { section:'SYSTEM', items:[
     { id:'settings', icon:'◎', label:'Settings' },
     { id:'client-portal', icon:'🌐', label:'Client Portal' },
+    { id:'changelog', icon:'✦', label:"What's New" },
   ]},
 ];
 
@@ -82,6 +84,7 @@ export function Sidebar({ onSearch }) {
   })));
 
   const { canAccess, role, user } = useRole();
+  const hasUnreadChangelog = localStorage.getItem('kboos_changelog_seen') !== LATEST_VERSION;
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : 'KO';
 
   function logout() {
@@ -120,6 +123,7 @@ export function Sidebar({ onSearch }) {
     if (id === 'campaigns') return totalCampaigns || null;
     if (id === 'lead-intelligence') return totalLeads || null;
     if (id === 'meetings') return upcomingMeetings || null;
+    if (id === 'changelog') return hasUnreadChangelog ? '•' : null;
     return null;
   }
 

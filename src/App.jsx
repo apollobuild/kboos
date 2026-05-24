@@ -52,6 +52,7 @@ import { Meetings } from './pages/Meetings.jsx';
 import { EmailInbox } from './pages/EmailInbox.jsx';
 import { WhatsAppInbox } from './pages/WhatsAppInbox.jsx';
 import { VoiceOutcomes } from './pages/VoiceOutcomes.jsx';
+import { Changelog } from './pages/Changelog.jsx';
 
 const PAGE_MAP = {
   dashboard: Dashboard,
@@ -85,6 +86,7 @@ const PAGE_MAP = {
   'email-inbox': EmailInbox,
   'whatsapp-inbox': WhatsAppInbox,
   'voice-outcomes': VoiceOutcomes,
+  changelog: Changelog,
 };
 
 const MAX_RETRIES = 3;
@@ -95,6 +97,9 @@ export default function App() {
   }
   if (window.location.pathname === '/try' || window.location.pathname === '/demo') {
     return <SelfServeDemo />;
+  }
+  if (window.location.pathname === '/changelog') {
+    return <Changelog isPublic />;
   }
 
   const { page, pageParams, init, sidebarOpen, toggleSidebar, closeSidebar } = useAppStore(useShallow(s => ({
