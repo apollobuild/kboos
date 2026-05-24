@@ -116,6 +116,14 @@ export function NewCampaign() {
   const [waLeads,      setWaLeads]      = useState('');
   const [waGenerating, setWaGenerating] = useState(false);
   const [waCreating,   setWaCreating]   = useState(false);
+  const [waSteps,      setWaSteps]      = useState(2);
+  const [waABEnabled,  setWaABEnabled]  = useState(false);
+  const [waSequenceB,  setWaSequenceB]  = useState([]);
+  const [waGeneratingB,setWaGeneratingB]= useState(false);
+  const [waLeadMode,   setWaLeadMode]   = useState('paste'); // 'paste' | 'pick'
+  const [allLeads,     setAllLeads]     = useState([]);
+  const [selectedLeads,setSelectedLeads]= useState([]);
+  const [leadSearch,   setLeadSearch]   = useState('');
 
   // Shared fields
   const [bizId, setBizId] = useState('');
@@ -653,7 +661,7 @@ export function NewCampaign() {
       if (!waGoal) return;
       setWaGenerating(true);
       try {
-        const result = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal, steps: 3 } });
+        const result = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal, steps: waSteps } });
         setWaSequence(Array.isArray(result) ? result : []);
       } catch (e) { alert('AI generation failed: ' + e.message); }
       finally { setWaGenerating(false); }
@@ -663,11 +671,20 @@ export function NewCampaign() {
       if (!waName || !waSession) return;
       setWaCreating(true);
       try {
-        const leads = waLeads.split('\n').filter(Boolean).map(line => {
-          const parts = line.split(',').map(p => p.trim());
-          return { name: parts[0] || '', phone: parts[1] || '', company: parts[2] || '' };
-        }).filter(l => l.phone);
-        await apiFetch('/openwa/campaigns', { method:'POST', body:{ name: waName, sessionId: waSession, goal: waGoal, sequence: waSequence, leads, sendLimit: waSendLimit } });
+        let leads = [];
+        if (waLeadMode === 'paste') {
+          leads = waLeads.split('\n').filter(Boolean).map(line => {
+            const parts = line.split(',').map(p => p.trim());
+            return { name: parts[0] || '', phone: parts[1] || '', company: parts[2] || '' };
+          }).filter(l => l.phone);
+        } else {
+          const dbLeads = allLeads.filter(l => selectedLeads.includes(l.id));
+          leads = dbLeads.map(l => ({ name: l.name || '', phone: l.phone || '', company: l.company || '' }));
+        }
+        await apiFetch('/openwa/campaigns', {
+          method:'POST',
+          body:{ name: waName, sessionId: waSession, goal: waGoal, sequence: waSequence, leads, sendLimit: waSendLimit, sequenceSteps: waSteps, abEnabled: waABEnabled, abVariantB: waSequenceB }
+        });
         showToast(`Campaign "${waName}" created`, 'green');
         setPage('campaign-dashboard');
       } catch (e) { alert('Failed to create: ' + e.message); }
@@ -740,6 +757,18 @@ export function NewCampaign() {
             {/* AI Sequence */}
             <div className="card" style={{ padding:'18px' }}>
               <div className="card-title" style={{ marginBottom:10 }}>AI Message Sequence</div>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>How many messages in the sequence?</div>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[1,2,3].map(n => (
+                    <button key={n} onClick={() => setWaSteps(n)}
+                      style={{ flex:1, padding:'8px', borderRadius:8, border:`1px solid ${waSteps === n ? 'oklch(65% 0.2 145)' : 'var(--border)'}`, background: waSteps === n ? 'oklch(65% 0.2 145 / 0.12)' : 'var(--s2)', color: waSteps === n ? 'oklch(65% 0.2 145)' : 'var(--muted)', fontWeight: waSteps === n ? 700 : 400, cursor:'pointer', fontSize:12 }}>
+                      {n === 1 ? '1 message' : `${n} messages`}
+                      <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>{n === 1 ? 'One-shot' : n === 2 ? 'Intro + Follow-up' : 'Full sequence'}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>Describe your goal — Claude writes the messages</div>
               <div style={{ display:'flex', gap:8, marginBottom:12 }}>
                 <input className="input" style={{ flex:1, boxSizing:'border-box' }}
@@ -770,18 +799,104 @@ export function NewCampaign() {
                   Enter your goal above and click Generate →
                 </div>
               )}
+              {waSequence.length > 0 && (
+                <div style={{ marginTop:12, padding:'10px 12px', background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:600 }}>A/B Test</div>
+                      <div style={{ fontSize:10, color:'var(--muted)' }}>Generate a second message variant — split leads 50/50</div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize:11 }} onClick={async () => {
+                      if (!waABEnabled) {
+                        setWaABEnabled(true);
+                        if (!waSequenceB.length) {
+                          setWaGeneratingB(true);
+                          try {
+                            const r = await apiFetch('/ai/wa-sequence', { method:'POST', body:{ goal: waGoal + ' (variant B — try different angle)', steps: waSteps } });
+                            setWaSequenceB(Array.isArray(r) ? r : []);
+                          } catch {}
+                          finally { setWaGeneratingB(false); }
+                        }
+                      } else {
+                        setWaABEnabled(false);
+                      }
+                    }}>
+                      {waABEnabled ? '✕ Remove B' : waGeneratingB ? '✨ Generating…' : '+ Add Variant B'}
+                    </button>
+                  </div>
+                  {waABEnabled && waSequenceB.length > 0 && (
+                    <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--blue)', marginBottom:4 }}>VARIANT B</div>
+                      {waSequenceB.map((step, i) => (
+                        <div key={i} style={{ background:'oklch(62% 0.19 245 / 0.06)', borderRadius:6, padding:'8px 10px', border:'1px solid oklch(62% 0.19 245 / 0.2)' }}>
+                          <div style={{ fontSize:10, color:'var(--blue)', fontWeight:700, marginBottom:4 }}>Day {step.day} · {step.label}</div>
+                          <textarea style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.5, outline:'none', minHeight:50 }}
+                            value={step.message}
+                            onChange={e => setWaSequenceB(prev => prev.map((s,si) => si===i ? {...s,message:e.target.value} : s))} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Leads */}
             <div className="card" style={{ padding:'18px' }}>
-              <div className="card-title" style={{ marginBottom:6 }}>Leads (CSV paste)</div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>One per line: <code style={{ background:'var(--s2)', padding:'1px 4px', borderRadius:3 }}>Name, Phone, Company</code></div>
-              <textarea className="input" rows={6} style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontSize:12, fontFamily:'var(--font-mono)' }}
-                placeholder={"Ahmad Zul, 60123456789, Gadong Sdn Bhd\nSarah Lee, 60198765432, Tech Corp"}
-                value={waLeads} onChange={e => setWaLeads(e.target.value)} />
-              <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
-                {waLeads.split('\n').filter(l => l.includes(',') && l.trim()).length} leads entered
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <div className="card-title">Leads</div>
+                <div style={{ display:'flex', background:'var(--s2)', borderRadius:6, padding:2, gap:2 }}>
+                  {[['paste','Paste CSV'],['pick','From Lead Manager']].map(([v,l]) => (
+                    <button key={v} onClick={() => {
+                      setWaLeadMode(v);
+                      if (v === 'pick' && !allLeads.length) {
+                        apiFetch('/leads').then(r => setAllLeads(Array.isArray(r) ? r.filter(lead => lead.phone) : [])).catch(() => {});
+                      }
+                    }}
+                      style={{ padding:'3px 10px', borderRadius:4, fontSize:10, fontWeight:600, cursor:'pointer', border:'none',
+                        background: waLeadMode === v ? 'var(--blue)' : 'transparent',
+                        color: waLeadMode === v ? '#fff' : 'var(--muted)' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {waLeadMode === 'paste' ? (
+                <>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>One per line: <code style={{ background:'var(--s2)', padding:'1px 4px', borderRadius:3 }}>Name, Phone, Company</code></div>
+                  <textarea className="input" rows={6} style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontSize:12, fontFamily:'var(--font-mono)' }}
+                    placeholder={"Ahmad Zul, 60123456789, Gadong Sdn Bhd\nSarah Lee, 60198765432, Tech Corp"}
+                    value={waLeads} onChange={e => setWaLeads(e.target.value)} />
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
+                    {waLeads.split('\n').filter(l => l.includes(',') && l.trim()).length} leads entered
+                  </div>
+                </>
+              ) : (
+                <>
+                  <input className="input" style={{ width:'100%', boxSizing:'border-box', marginBottom:8 }}
+                    placeholder="Search by name or company..."
+                    value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
+                  <div style={{ maxHeight:200, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
+                    {allLeads.filter(l => !leadSearch || l.name?.toLowerCase().includes(leadSearch.toLowerCase()) || l.company?.toLowerCase().includes(leadSearch.toLowerCase())).slice(0,50).map(l => {
+                      const sel = selectedLeads.includes(l.id);
+                      return (
+                        <div key={l.id} onClick={() => setSelectedLeads(prev => sel ? prev.filter(id => id !== l.id) : [...prev, l.id])}
+                          style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:6, cursor:'pointer',
+                            background: sel ? 'oklch(65% 0.2 145 / 0.1)' : 'var(--s2)', border:`1px solid ${sel ? 'oklch(65% 0.2 145 / 0.4)' : 'var(--border)'}` }}>
+                          <span style={{ width:14, height:14, borderRadius:3, border:`2px solid ${sel ? 'var(--green)' : 'var(--border)'}`, background: sel ? 'var(--green)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:9, color:'#fff' }}>{sel ? '✓' : ''}</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{l.name}</div>
+                            <div style={{ fontSize:10, color:'var(--muted)' }}>{l.company} · {l.phone}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {allLeads.length === 0 && <div style={{ color:'var(--muted)', fontSize:12, padding:'12px 0', textAlign:'center' }}>Loading leads…</div>}
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>{selectedLeads.length} leads selected · {allLeads.filter(l=>l.phone).length} total with phone</div>
+                </>
+              )}
             </div>
           </div>
         </div>

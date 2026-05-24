@@ -290,6 +290,9 @@ function OpenWAConnectPanel({ showToast }) {
             <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>ghcr.io/openwa/openwa</code> → copy URL → paste above
           </div>
         )}
+        <div style={{ marginTop:8, fontSize:11, color:'var(--muted)' }}>
+          Webhook URL for incoming replies: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital', 'kboos-server.railway.app')}/webhooks/openwa</code>
+        </div>
       </div>
 
       {/* Numbers list */}
@@ -330,6 +333,29 @@ function OpenWAConnectPanel({ showToast }) {
                       </button>
                     )}
                     <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--red)' }} onClick={() => removeSession(s.id, s.label)}>✕</button>
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:6 }}>
+                  {/* Health score */}
+                  <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10 }}>
+                    <span style={{ color:'var(--muted)' }}>Health:</span>
+                    <span style={{ fontWeight:700, color: s.healthScore >= 80 ? 'var(--green)' : s.healthScore >= 50 ? 'var(--amber)' : 'var(--red)' }}>
+                      {s.healthScore ?? 100}%
+                    </span>
+                  </div>
+                  {/* Warmup toggle */}
+                  <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10 }}>
+                    <span style={{ color:'var(--muted)' }}>Warmup:</span>
+                    <div onClick={async () => {
+                      try {
+                        const updated = await apiFetch(`/openwa/sessions/${s.id}/warmup`, { method:'PATCH', body:{ warmupEnabled: !s.warmupEnabled } });
+                        setSessions(prev => prev.map(x => x.id === s.id ? { ...x, warmupEnabled: updated.warmupEnabled, warmupWeek: updated.warmupWeek } : x));
+                      } catch {}
+                    }}
+                      style={{ width:28, height:16, borderRadius:8, background: s.warmupEnabled ? 'var(--green)' : 'var(--border)', cursor:'pointer', position:'relative', transition:'background 0.2s' }}>
+                      <div style={{ position:'absolute', top:2, left: s.warmupEnabled ? 14 : 2, width:12, height:12, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }} />
+                    </div>
+                    {s.warmupEnabled && <span style={{ color:'var(--muted)' }}>Wk {s.warmupWeek + 1} · {[20,50,100,150,200][Math.min(s.warmupWeek,4)]}/day</span>}
                   </div>
                 </div>
                 {qr && (
