@@ -5,8 +5,8 @@ import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
 import { BizAvatar } from '../components/ui/BizAvatar.jsx';
 
-const CH_ICON  = { wa:'💬', whatsapp:'💬', email:'✉', voice:'📞' };
-const CH_COLOR = { wa:'var(--green)', whatsapp:'var(--green)', email:'var(--blue)', voice:'var(--amber)' };
+const CH_ICON  = { wa:'💬', whatsapp:'💬', whatsapp_connect:'📲', email:'✉', voice:'📞' };
+const CH_COLOR = { wa:'var(--green)', whatsapp:'var(--green)', whatsapp_connect:'oklch(55% 0.18 145)', email:'var(--blue)', voice:'var(--amber)' };
 
 function relTime(iso) {
   if (!iso) return '';
@@ -26,10 +26,11 @@ function getBizForReply(r, leads, campaigns, businesses) {
 }
 
 const TITLE_MAP = {
-  All:   'Unified Inbox',
-  email: 'Email Inbox',
-  wa:    'WhatsApp Inbox',
-  voice: 'Voice Outcomes',
+  All:                'Unified Inbox',
+  email:              'Email Inbox',
+  wa:                 'WhatsApp Inbox',
+  voice:              'Voice Outcomes',
+  whatsapp_connect:   'WA Connect Inbox',
 };
 
 const CHANNEL_TABS = [
@@ -82,10 +83,11 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
   const filtered = replies.filter(r => {
     const ch = normaliseChannel(r.channel);
     const matchCh =
-      channelTab === 'All'   ? true :
-      channelTab === 'email' ? (ch === 'email') :
-      channelTab === 'wa'    ? (ch === 'wa' || ch === 'whatsapp') :
-      channelTab === 'voice' ? (ch === 'voice') : true;
+      channelTab === 'All'              ? true :
+      channelTab === 'email'            ? (ch === 'email') :
+      channelTab === 'wa'               ? (ch === 'wa' || ch === 'whatsapp') :
+      channelTab === 'voice'            ? (ch === 'voice') :
+      channelTab === 'whatsapp_connect' ? (ch === 'whatsapp_connect') : true;
 
     const matchStatus =
       statusTab === 'All'     ? true :
@@ -195,23 +197,25 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
 
           {/* Filter row */}
           <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {/* Channel tabs */}
-            <div style={{ display: 'flex', gap: 4 }}>
-              {CHANNEL_TABS.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => { setChannelTab(t.key); setSelected(null); }}
-                  style={{
-                    flex: 1, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border)',
-                    background: channelTab === t.key ? 'var(--blue)' : 'var(--s1)',
-                    color: channelTab === t.key ? '#fff' : 'var(--muted)',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.12s',
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            {/* Channel tabs — only show on Unified Inbox, not dedicated channel pages */}
+            {defaultChannel === 'All' && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {CHANNEL_TABS.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => { setChannelTab(t.key); setSelected(null); }}
+                    style={{
+                      flex: 1, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border)',
+                      background: channelTab === t.key ? 'var(--blue)' : 'var(--s1)',
+                      color: channelTab === t.key ? '#fff' : 'var(--muted)',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.12s',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Status tabs */}
             <div style={{ display: 'flex', gap: 4 }}>
               {STATUS_TABS.map(t => (
