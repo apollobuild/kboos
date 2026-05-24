@@ -514,6 +514,101 @@ export function Settings() {
     );
   }
 
+  function AutoReplyConfigPanel() {
+    const [cfg, setCfg]     = useState({ enabled: false, mode: 'autopilot', maxReplies: 5 });
+    const [loaded, setLoaded] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      apiFetch('/settings/auto-reply').then(d => { setCfg(d); setLoaded(true); }).catch(() => setLoaded(true));
+    }, []);
+
+    async function save() {
+      setSaving(true);
+      try {
+        const saved = await apiFetch('/settings/auto-reply', { method: 'POST', body: cfg });
+        setCfg(saved);
+        showToast('Auto-reply settings saved', 'green');
+      } catch { showToast('Save failed', 'red'); }
+      finally { setSaving(false); }
+    }
+
+    if (!loaded) return null;
+
+    return (
+      <div className="card" style={{ border: cfg.enabled ? '1px solid oklch(65% 0.2 145 / 0.35)' : '1px solid var(--border)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <div style={{ width:46, height:46, borderRadius:12, background:'oklch(62% 0.19 245 / 0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🤖</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:600, fontSize:14 }}>AI Auto-Reply Engine</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Claude Haiku handles replies autonomously, escalates HOT leads to humans</div>
+            <div style={{ fontSize:11, marginTop:4, display:'flex', alignItems:'center', gap:5 }}>
+              <span style={{ width:6, height:6, borderRadius:'50%', background: cfg.enabled ? 'var(--green)' : 'var(--border)', display:'inline-block' }} />
+              <span style={{ color: cfg.enabled ? 'var(--green)' : 'var(--muted)', fontWeight:500 }}>{cfg.enabled ? 'Active' : 'Disabled'}</span>
+            </div>
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', flexShrink:0 }}>
+            <span style={{ fontSize:12, color:'var(--muted)' }}>{cfg.enabled ? 'On' : 'Off'}</span>
+            <div
+              onClick={() => setCfg(s => ({ ...s, enabled: !s.enabled }))}
+              style={{
+                width:40, height:22, borderRadius:11, cursor:'pointer', transition:'all 0.2s',
+                background: cfg.enabled ? 'var(--green)' : 'var(--s2)',
+                border: `1px solid ${cfg.enabled ? 'var(--green)' : 'var(--border)'}`,
+                position:'relative', flexShrink:0,
+              }}
+            >
+              <div style={{
+                position:'absolute', top:2, left: cfg.enabled ? 20 : 2,
+                width:16, height:16, borderRadius:'50%', background:'#fff',
+                transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)',
+              }}/>
+            </div>
+          </label>
+        </div>
+
+        {cfg.enabled && (
+          <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8, fontWeight:600 }}>MODE</div>
+                {[
+                  { val:'autopilot', label:'🚀 Autopilot', desc:'AI sends automatically' },
+                  { val:'assist',    label:'✍ Assist',     desc:'AI drafts, human approves' },
+                ].map(m => (
+                  <div key={m.val} onClick={() => setCfg(s => ({ ...s, mode: m.val }))}
+                    style={{ padding:'10px 12px', borderRadius:8, cursor:'pointer', marginBottom:6,
+                      border:`1px solid ${cfg.mode === m.val ? 'var(--blue)' : 'var(--border)'}`,
+                      background: cfg.mode === m.val ? 'var(--blue-dim)' : 'var(--s2)',
+                    }}>
+                    <div style={{ fontSize:12, fontWeight:600, color: cfg.mode === m.val ? 'var(--blue)' : 'var(--text)' }}>{m.label}</div>
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>{m.desc}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8, fontWeight:600 }}>MAX AI REPLIES PER THREAD</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8, lineHeight:1.5 }}>
+                  After this many AI replies, automatically escalate to human. Prevents infinite loops.
+                </div>
+                <input type="number" className="input" min={1} max={10} value={cfg.maxReplies}
+                  onChange={e => setCfg(s => ({ ...s, maxReplies: parseInt(e.target.value) || 5 }))}
+                  style={{ width:80, fontSize:13 }} />
+                <div style={{ fontSize:10, color:'var(--muted)', marginTop:4 }}>Recommended: 3–5</div>
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted)', padding:'10px 12px', background:'var(--s2)', borderRadius:6, lineHeight:1.6 }}>
+              ✓ Respects 9am–6pm KL send window &nbsp;·&nbsp; ✓ Auto-detects HOT leads &amp; escalates &nbsp;·&nbsp; ✓ Stops on unsubscribe
+            </div>
+            <button className="btn btn-green btn-sm" onClick={save} disabled={saving} style={{ alignSelf:'flex-start' }}>
+              {saving ? 'Saving…' : 'Save Settings'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
     <div className="page">
@@ -750,6 +845,7 @@ export function Settings() {
                   </div>
                 </div>
                 {group.providers.map(p => <IntegrationProviderCard key={p.key} provider={p} />)}
+                {groupId === 'ai' && <AutoReplyConfigPanel />}
               </div>
             );
           })()}

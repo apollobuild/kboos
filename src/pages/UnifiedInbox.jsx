@@ -292,6 +292,18 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
                   <div style={{ fontSize: 11, color: 'var(--muted)', paddingLeft: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {preview || <em>No message</em>}
                   </div>
+                  {/* AI stage badge */}
+                  {r.aiStage && r.aiStage !== 'cold' && (
+                    <div style={{ paddingLeft: 13, marginTop: 4 }}>
+                      {r.aiEscalate ? (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--red)', background: 'rgba(255,50,50,0.1)', padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔥 Needs Human</span>
+                      ) : r.aiStage === 'human' ? (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', background: 'var(--s2)', padding: '1px 6px', borderRadius: 4 }}>👤 Human</span>
+                      ) : (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', background: 'var(--blue-dim)', padding: '1px 6px', borderRadius: 4 }}>🤖 AI {r.aiStage}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -317,6 +329,10 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
               onSuggest={handleSuggestReply}
               onSend={handleSendReply}
               onAction={handleAction}
+              onTakeOver={async (id) => {
+                await apiFetch(`/replies/${id}`, { method: 'PATCH', body: { aiStage: 'human' } }).catch(() => {});
+                updateReply(id, { aiStage: 'human' });
+              }}
             />
           )}
         </div>
@@ -325,12 +341,15 @@ export function UnifiedInbox({ defaultChannel = 'All' }) {
   );
 }
 
-function ConversationDetail({ reply: r, leads, campaigns, businesses, draft, setDraft, suggesting, onSuggest, onSend, onAction }) {
+function ConversationDetail({ reply: r, leads, campaigns, businesses, draft, setDraft, suggesting, onSuggest, onSend, onAction, onTakeOver }) {
   const ch      = (r.channel || '').toLowerCase();
   const chColor = CH_COLOR[ch] || 'var(--blue)';
   const chIcon  = CH_ICON[ch]  || '💬';
   const biz     = getBizForReply(r, leads, campaigns, businesses);
   const lead    = leads.find(l => l.id === r.leadId);
+  const thread  = Array.isArray(r.thread) ? r.thread : [];
+  const aiCount = thread.filter(t => t.sentBy === 'ai').length;
+  const isAiHandling = r.aiStage && r.aiStage !== 'human' && !r.aiEscalate && aiCount > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -353,12 +372,18 @@ function ConversationDetail({ reply: r, leads, campaigns, businesses, draft, set
               </div>
             </div>
           </div>
-          <span style={{
-            fontSize: 11, padding: '4px 10px', borderRadius: 8,
-            background: chColor + '22', color: chColor, fontWeight: 700,
-          }}>
-            {chIcon} {r.channel || '—'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: chColor + '22', color: chColor, fontWeight: 700 }}>
+              {chIcon} {r.channel || '—'}
+            </span>
+            {r.aiEscalate && <span style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, background: 'rgba(255,50,50,0.12)', color: 'var(--red)', fontWeight: 700 }}>🔥 Needs Human</span>}
+            {isAiHandling && <span style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, background: 'var(--blue-dim)', color: 'var(--blue)', fontWeight: 700 }}>🤖 AI · {aiCount} sent</span>}
+            {isAiHandling && (
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: 10 }} onClick={() => onTakeOver && onTakeOver(r.id)}>
+                Take Over
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Lead status badges */}
@@ -382,18 +407,47 @@ function ConversationDetail({ reply: r, leads, campaigns, businesses, draft, set
         )}
       </div>
 
-      {/* Message body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Message body + thread */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Inbound message */}
-        <div className="card" style={{ borderLeft: `3px solid ${chColor}` }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-            {chIcon} Inbound · {relTime(r.createdAt)}
+        {/* Thread history */}
+        {thread.length > 0 ? thread.map((t, i) => {
+          const isAi = t.sentBy === 'ai' || t.role === 'ai';
+          const isLead = t.role === 'lead';
+          return (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: isAi ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '85%', padding: '10px 14px', borderRadius: 10,
+                background: isAi ? 'var(--blue-dim)' : 'var(--s2)',
+                border: `1px solid ${isAi ? 'oklch(62% 0.19 245 / 0.25)' : 'var(--border)'}`,
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4, fontWeight: 600 }}>
+                  {isAi ? '🤖 AI' : isLead ? (r.name || 'Lead') : 'System'}
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{t.msg}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, textAlign: isAi ? 'right' : 'left' }}>{relTime(t.ts)}</div>
+              </div>
+            </div>
+          );
+        }) : (
+          /* Fallback: just show the single message */
+          <div className="card" style={{ borderLeft: `3px solid ${chColor}` }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>{chIcon} Inbound · {relTime(r.createdAt)}</div>
+            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+              {r.msg || <em style={{ color: 'var(--muted)' }}>No message body</em>}
+            </div>
           </div>
-          <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
-            {r.msg || <em style={{ color: 'var(--muted)' }}>No message body</em>}
+        )}
+
+        {/* AI draft banner (assist mode) */}
+        {r.aiDraft && r.aiStage !== 'human' && (
+          <div style={{ padding: '12px 14px', background: 'var(--blue-dim)', border: '1px solid oklch(62% 0.19 245 / 0.3)', borderRadius: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--blue)', marginBottom: 6 }}>🤖 AI Draft (Assist Mode)</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginBottom: 8 }}>{r.aiDraft}</div>
+            <button className="btn btn-sm" style={{ fontSize: 11, background: 'var(--blue)', color: '#fff' }}
+              onClick={() => setDraft(r.aiDraft)}>Use Draft →</button>
           </div>
-        </div>
+        )}
 
         {/* Draft area */}
         <div className="card">
