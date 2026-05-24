@@ -48,6 +48,7 @@ const NAV = [
   ]},
   { section:'COMMUNICATIONS', items:[
     { id:'unified-inbox', icon:'◎', label:'Unified Inbox', badgeColor:'red' },
+    { id:'meetings', icon:'📅', label:'Meetings', badgeColor:'green' },
     { id:'email-inbox', icon:'✉', label:'Email Inbox' },
     { id:'whatsapp-inbox', icon:'💬', label:'WhatsApp Inbox' },
     { id:'voice-outcomes', icon:'📞', label:'Voice Outcomes' },
@@ -93,6 +94,10 @@ export function Sidebar({ onSearch }) {
 
   const totalLeads = useAppStore(s => s.leads?.length || 0);
 
+  const upcomingMeetings = useAppStore(s =>
+    (s.meetings || []).filter(m => m.meetingDate && new Date(m.meetingDate) >= new Date() && m.outcome === 'booked').length
+  );
+
   function getBadge(id) {
     if (id === 'businesses') return totalBusinesses || null;
     if (id === 'unified-inbox') return unreadReplies || null;
@@ -100,6 +105,7 @@ export function Sidebar({ onSearch }) {
     if (id === 'approval') return pendingApprovals || null;
     if (id === 'campaigns') return totalCampaigns || null;
     if (id === 'lead-intelligence') return totalLeads || null;
+    if (id === 'meetings') return upcomingMeetings || null;
     return null;
   }
 

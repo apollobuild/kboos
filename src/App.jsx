@@ -48,6 +48,7 @@ import { CampaignAnalytics } from './pages/CampaignAnalytics.jsx';
 import { ChannelAnalytics } from './pages/ChannelAnalytics.jsx';
 import { BusinessDetail } from './pages/BusinessDetail.jsx';
 import { UnifiedInbox } from './pages/UnifiedInbox.jsx';
+import { Meetings } from './pages/Meetings.jsx';
 import { EmailInbox } from './pages/EmailInbox.jsx';
 import { WhatsAppInbox } from './pages/WhatsAppInbox.jsx';
 import { VoiceOutcomes } from './pages/VoiceOutcomes.jsx';
@@ -80,6 +81,7 @@ const PAGE_MAP = {
   pipeline: CampaignPipeline,
   'business-detail': BusinessDetail,
   'unified-inbox': UnifiedInbox,
+  meetings: Meetings,
   'email-inbox': EmailInbox,
   'whatsapp-inbox': WhatsAppInbox,
   'voice-outcomes': VoiceOutcomes,
