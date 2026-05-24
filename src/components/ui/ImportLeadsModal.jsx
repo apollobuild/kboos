@@ -279,7 +279,7 @@ export function ImportLeadsModal({ onClose, defaultCampaignId }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={LABEL_STYLE}>City {tab !== 'apollo' && <span style={{ color: 'var(--red)' }}>*</span>}</label>
-              <input className="input" placeholder="Kuala Lumpur" value={city} onChange={e => setCity(e.target.value)} />
+              <input className="input" placeholder="e.g. London, Singapore, Dubai" value={city} onChange={e => setCity(e.target.value)} />
             </div>
             {tab !== 'apollo' && (
               <div>

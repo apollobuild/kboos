@@ -1,27 +1,19 @@
-import { patchObj, getObj } from './storage.js';
+import { apiFetch } from './api.js';
 
 export const googleDriveService = {
-  isConnected: () => getObj('settings')?.driveConnected === true,
-
-  connect: () => {
-    alert('Google Drive OAuth:\n\n1. Go to console.cloud.google.com\n2. Enable Google Drive API\n3. Create OAuth credentials\n4. Add your domain to authorized origins\n\nFor now, simulating connected state.');
-    patchObj('settings', { driveConnected: true });
-    return true;
+  isConnected: async () => {
+    try {
+      const r = await apiFetch('/settings/drive-status');
+      return r.connected === true;
+    } catch { return false; }
   },
 
-  disconnect: () => {
-    patchObj('settings', { driveConnected: false });
+  saveServiceAccount: async (serviceAccountKey) => {
+    return apiFetch('/settings/drive-service-account', { method: 'POST', body: { serviceAccountKey } });
   },
 
-  uploadLeadsCSV: async (campaignName, csvBlob) => {
-    if (!googleDriveService.isConnected()) return null;
-    console.log(`[Drive] Would upload ${campaignName} leads CSV (${csvBlob?.size || 0} bytes)`);
-    return { id: 'mock_file_id', name: `${campaignName}-leads.csv`, folder: campaignName };
-  },
-
-  uploadReport: async (campaignName, pdfFilename) => {
-    if (!googleDriveService.isConnected()) return null;
-    console.log(`[Drive] Would upload report to KBOOS Reports/${campaignName}/`);
-    return { id: 'mock_report_id', name: pdfFilename };
-  },
+  // Sheet creation and lead sync are handled automatically server-side
+  // on import and enrichment — no client-side upload needed.
+  uploadLeadsCSV: async () => null,
+  uploadReport: async () => null,
 };
