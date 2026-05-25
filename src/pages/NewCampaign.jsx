@@ -872,11 +872,22 @@ export function NewCampaign() {
                   ✓ Campaign saved — ready to launch
                 </div>
                 {waLaunchResult && !waLaunchResult.error && (
-                  <div style={{ padding:'10px 14px', borderRadius:8, background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.2)', fontSize:12 }}>
-                    <div style={{ fontWeight:700, color:GREEN, marginBottom:4 }}>🚀 Launched!</div>
-                    <div style={{ color:'var(--text)' }}>Sent: <strong>{waLaunchResult.sent}</strong> messages</div>
-                    {waLaunchResult.errors?.length > 0 && <div style={{ color:'var(--amber)', marginTop:2 }}>{waLaunchResult.errors.length} failed</div>}
-                    {waLaunchResult.remaining !== undefined && <div style={{ color:'var(--muted)', marginTop:2 }}>{waLaunchResult.remaining} remaining in limit</div>}
+                  <div style={{ padding:'10px 14px', borderRadius:8, fontSize:12,
+                    background: waLaunchResult.sent > 0 ? 'oklch(65% 0.2 145 / 0.08)' : 'oklch(55% 0.22 25 / 0.06)',
+                    border: `1px solid ${waLaunchResult.sent > 0 ? 'oklch(65% 0.2 145 / 0.2)' : 'oklch(55% 0.22 25 / 0.2)'}` }}>
+                    <div style={{ fontWeight:700, color: waLaunchResult.sent > 0 ? GREEN : 'var(--red)', marginBottom:6 }}>
+                      {waLaunchResult.sent > 0 ? '🚀 Launched!' : '✕ All messages failed'}
+                    </div>
+                    <div style={{ color:'var(--text)', marginBottom:2 }}>Sent: <strong>{waLaunchResult.sent}</strong> · Failed: <strong style={{ color: waLaunchResult.errors?.length > 0 ? 'var(--amber)' : 'inherit' }}>{waLaunchResult.errors?.length || 0}</strong></div>
+                    {waLaunchResult.remaining !== undefined && <div style={{ color:'var(--muted)', marginBottom:2 }}>Remaining limit: {waLaunchResult.remaining}</div>}
+                    {waLaunchResult.errors?.length > 0 && (
+                      <div style={{ marginTop:8, padding:'8px 10px', background:'oklch(55% 0.22 25 / 0.08)', borderRadius:6, border:'1px solid oklch(55% 0.22 25 / 0.15)' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:'var(--red)', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.05em' }}>Error reason</div>
+                        <div style={{ fontSize:11, color:'var(--text)', fontFamily:'var(--font-mono)', wordBreak:'break-all', lineHeight:1.5 }}>
+                          {waLaunchResult.errors[0]?.error || 'Unknown error'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {waLaunchResult?.error && (
