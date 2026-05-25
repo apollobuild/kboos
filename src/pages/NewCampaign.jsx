@@ -891,8 +891,15 @@ export function NewCampaign() {
                   </div>
                 )}
                 {waLaunchResult?.error && (
-                  <div style={{ padding:'10px 14px', borderRadius:8, background:'oklch(55% 0.22 25 / 0.08)', border:'1px solid oklch(55% 0.22 25 / 0.2)', fontSize:12, color:'var(--red)' }}>
-                    ✕ {waLaunchResult.error}
+                  <div style={{ padding:'12px 14px', borderRadius:8, background:'oklch(55% 0.22 25 / 0.08)', border:'1px solid oklch(55% 0.22 25 / 0.2)', fontSize:12 }}>
+                    <div style={{ color:'var(--red)', fontWeight:700, marginBottom:6 }}>✕ Cannot launch</div>
+                    <div style={{ color:'var(--text)', lineHeight:1.6, marginBottom: waLaunchResult.sessionStatus ? 10 : 0 }}>{waLaunchResult.error}</div>
+                    {waLaunchResult.sessionStatus && (
+                      <button className="btn btn-sm" style={{ fontSize:11, marginTop:2 }}
+                        onClick={() => setPage('settings')}>
+                        → Go to Settings to reconnect
+                      </button>
+                    )}
                   </div>
                 )}
                 <button className="btn btn-green" style={{ padding:'14px', fontSize:15, fontWeight:800, width:'100%' }}
