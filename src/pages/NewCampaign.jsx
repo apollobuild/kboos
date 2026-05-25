@@ -120,6 +120,11 @@ export function NewCampaign() {
   const [waABEnabled,  setWaABEnabled]  = useState(false);
   const [waSequenceB,  setWaSequenceB]  = useState([]);
   const [waGeneratingB,setWaGeneratingB]= useState(false);
+  const [waMsgMode,    setWaMsgMode]    = useState('write'); // 'write' | 'ai'
+  const [waManualMsgs, setWaManualMsgs] = useState(['']); // manual message texts per step
+  const [waSavedId,    setWaSavedId]    = useState(null);  // id after save — shows launch button
+  const [waLaunching,  setWaLaunching]  = useState(false);
+  const [waLaunchResult,setWaLaunchResult]= useState(null);
   const [waLeadMode,   setWaLeadMode]   = useState('paste'); // 'paste' | 'upload' | 'pick'
   const [allLeads,     setAllLeads]     = useState([]);
   const [selectedLeads,setSelectedLeads]= useState([]);
@@ -720,6 +725,19 @@ export function NewCampaign() {
       } catch { showToast('Could not parse file', 'red'); }
     }
 
+    // Build sequence from manual messages (used in 'write' mode)
+    const manualSequence = waManualMsgs.slice(0, waSteps).map((msg, i) => ({
+      day: [1, 3, 7][i],
+      label: ['Intro', 'Follow-up', 'Final'][i],
+      message: msg,
+    }));
+
+    // The sequence to actually save — either AI-generated or manually written
+    const activeSequence = waMsgMode === 'ai' ? waSequence : manualSequence;
+
+    // Whether the sequence is ready (has at least one non-empty message)
+    const sequenceReady = activeSequence.length > 0 && activeSequence.some(s => s.message?.trim());
+
     async function createWACampaign() {
       if (!waName || !waSession) return;
       setWaCreating(true);
@@ -728,14 +746,27 @@ export function NewCampaign() {
         if (waLeadMode === 'paste') leads = parsedPasteLeads;
         else if (waLeadMode === 'upload') leads = uploadedLeads;
         else leads = allLeads.filter(l => selectedLeads.includes(l.id)).map(l => ({ name: l.name || '', phone: l.phone || '', company: l.company || '' }));
-        await apiFetch('/openwa/campaigns', {
+        const created = await apiFetch('/openwa/campaigns', {
           method:'POST',
-          body:{ name: waName, sessionId: waSession, goal: waGoal, sequence: waSequence, leads, sendLimit: waSendLimit, sequenceSteps: waSteps, abEnabled: waABEnabled, abVariantB: waSequenceB }
+          body:{ name: waName, sessionId: waSession, goal: waGoal, sequence: activeSequence, leads, sendLimit: waSendLimit, sequenceSteps: waSteps, abEnabled: waABEnabled, abVariantB: waSequenceB }
         });
-        showToast(`Campaign "${waName}" created`, 'green');
-        setPage('campaign-dashboard');
+        showToast(`Campaign "${waName}" saved — ready to launch`, 'green');
+        setWaSavedId(created.id);
+        setWaLaunchResult(null);
       } catch (e) { showToast('Failed: ' + e.message, 'red'); }
       finally { setWaCreating(false); }
+    }
+
+    async function launchWACampaign() {
+      if (!waSavedId) return;
+      setWaLaunching(true);
+      setWaLaunchResult(null);
+      try {
+        const result = await apiFetch(`/openwa/campaigns/${waSavedId}/launch`, { method: 'POST' });
+        setWaLaunchResult(result);
+        showToast(`Launched — ${result.sent} message${result.sent !== 1 ? 's' : ''} sent`, 'green');
+      } catch (e) { showToast('Launch failed: ' + e.message, 'red'); setWaLaunchResult({ error: e.message }); }
+      finally { setWaLaunching(false); }
     }
 
     const connectedSessions = waSessions.filter(s => s.liveStatus === 'WORKING' || s.status === 'connected');
@@ -822,32 +853,81 @@ export function NewCampaign() {
             </div>
 
             {/* Save button */}
-            <button className="btn btn-green" style={{ padding:'14px', fontSize:14, fontWeight:700, width:'100%' }}
-              disabled={!waName || !waSession || waSequence.length === 0 || waCreating || leadCount === 0}
-              onClick={createWACampaign}>
-              {waCreating ? '⏳ Creating…' : `✓ Save Campaign · ${leadCount} lead${leadCount !== 1 ? 's' : ''} · ${waSteps} step${waSteps !== 1 ? 's' : ''}`}
-            </button>
-            <div style={{ fontSize:11, color:'var(--muted)', textAlign:'center', marginTop:-8 }}>Saved as draft — launch from Campaign Dashboard</div>
+            {!waSavedId ? (
+              <>
+                <button className="btn btn-green" style={{ padding:'14px', fontSize:14, fontWeight:700, width:'100%' }}
+                  disabled={!waName || !waSession || !sequenceReady || waCreating || leadCount === 0}
+                  onClick={createWACampaign}>
+                  {waCreating ? '⏳ Saving…' : `✓ Save Campaign · ${leadCount} lead${leadCount !== 1 ? 's' : ''} · ${waSteps} step${waSteps !== 1 ? 's' : ''}`}
+                </button>
+                {(!sequenceReady || leadCount === 0) && (
+                  <div style={{ fontSize:11, color:'var(--muted)', textAlign:'center', marginTop:-8 }}>
+                    {!sequenceReady ? 'Add a message first' : 'Add leads to continue'}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ padding:'12px 16px', borderRadius:10, background:'oklch(65% 0.2 145 / 0.1)', border:'1px solid oklch(65% 0.2 145 / 0.3)', fontSize:12, color:GREEN, fontWeight:600, textAlign:'center' }}>
+                  ✓ Campaign saved — ready to launch
+                </div>
+                {waLaunchResult && !waLaunchResult.error && (
+                  <div style={{ padding:'10px 14px', borderRadius:8, background:'oklch(65% 0.2 145 / 0.08)', border:'1px solid oklch(65% 0.2 145 / 0.2)', fontSize:12 }}>
+                    <div style={{ fontWeight:700, color:GREEN, marginBottom:4 }}>🚀 Launched!</div>
+                    <div style={{ color:'var(--text)' }}>Sent: <strong>{waLaunchResult.sent}</strong> messages</div>
+                    {waLaunchResult.errors?.length > 0 && <div style={{ color:'var(--amber)', marginTop:2 }}>{waLaunchResult.errors.length} failed</div>}
+                    {waLaunchResult.remaining !== undefined && <div style={{ color:'var(--muted)', marginTop:2 }}>{waLaunchResult.remaining} remaining in limit</div>}
+                  </div>
+                )}
+                {waLaunchResult?.error && (
+                  <div style={{ padding:'10px 14px', borderRadius:8, background:'oklch(55% 0.22 25 / 0.08)', border:'1px solid oklch(55% 0.22 25 / 0.2)', fontSize:12, color:'var(--red)' }}>
+                    ✕ {waLaunchResult.error}
+                  </div>
+                )}
+                <button className="btn btn-green" style={{ padding:'14px', fontSize:15, fontWeight:800, width:'100%' }}
+                  disabled={waLaunching}
+                  onClick={launchWACampaign}>
+                  {waLaunching ? '🚀 Launching…' : '🚀 Launch Campaign'}
+                </button>
+                <button className="btn btn-ghost btn-sm" style={{ width:'100%', fontSize:11 }}
+                  onClick={() => { setWaSavedId(null); setWaLaunchResult(null); }}>
+                  ← Make changes
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ── RIGHT COLUMN ────────────────────────────────── */}
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
-            {/* AI Sequence */}
+            {/* Message section */}
             <div className="card" style={{ padding:18 }}>
+              {/* Header row: title + Write/AI toggle */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <div className="card-title" style={{ margin:0 }}>AI Message Sequence</div>
-                {waSequence.length > 0 && (
-                  <span style={{ fontSize:10, color:GREEN, fontWeight:700, background:`${GREEN}15`, borderRadius:4, padding:'2px 8px' }}>
-                    {waSteps} step{waSteps !== 1 ? 's' : ''} generated ✓
-                  </span>
-                )}
+                <div className="card-title" style={{ margin:0 }}>Message{waSteps > 1 ? 's' : ''}</div>
+                <div style={{ display:'flex', background:'var(--s2)', borderRadius:6, padding:2, gap:2 }}>
+                  {[['write','✍️ Write'],['ai','✨ AI']].map(([v,l]) => (
+                    <button key={v} onClick={() => setWaMsgMode(v)}
+                      style={{ padding:'4px 12px', borderRadius:4, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
+                        background: waMsgMode === v ? GREEN : 'transparent',
+                        color: waMsgMode === v ? '#fff' : 'var(--muted)', transition:'all 0.1s' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Step picker */}
-              <div style={{ display:'flex', gap:6, marginBottom:12 }}>
+              {/* Step count picker */}
+              <div style={{ display:'flex', gap:6, marginBottom:14 }}>
                 {[1,2,3].map(n => (
-                  <button key={n} onClick={() => setWaSteps(n)}
+                  <button key={n} onClick={() => {
+                    setWaSteps(n);
+                    setWaManualMsgs(prev => {
+                      const arr = [...prev];
+                      while (arr.length < n) arr.push('');
+                      return arr;
+                    });
+                  }}
                     style={{ flex:1, padding:'9px 6px', borderRadius:8, border:`1.5px solid ${waSteps === n ? GREEN : 'var(--border)'}`,
                       background: waSteps === n ? `${GREEN}12` : 'var(--s2)',
                       color: waSteps === n ? GREEN : 'var(--muted)',
@@ -858,50 +938,86 @@ export function NewCampaign() {
                 ))}
               </div>
 
-              {/* Goal + generate */}
-              <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-                <input className="input" style={{ flex:1, boxSizing:'border-box' }}
-                  placeholder='e.g. "Follow up with SME owners about web design"'
-                  value={waGoal} onChange={e => setWaGoal(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && generateSequence()} />
-                <button className="btn btn-sm" onClick={generateSequence} disabled={!waGoal || waGenerating}
-                  style={{ background:GREEN, color:'#fff', border:'none', fontWeight:700, whiteSpace:'nowrap', minWidth:90 }}>
-                  {waGenerating ? '✨ Writing…' : '✨ Generate'}
-                </button>
-              </div>
-
-              {/* Variant A label */}
-              {waSequence.length > 0 && (
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                  <span style={{ fontSize:10, fontWeight:700, color:GREEN, background:`${GREEN}12`, borderRadius:3, padding:'2px 8px' }}>VARIANT A</span>
-                  {waABEnabled && <span style={{ fontSize:10, color:'var(--muted)' }}>Split 50/50 with B</span>}
-                </div>
-              )}
-
-              {/* Sequence cards */}
-              {waSequence.length > 0 ? (
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {waSequence.map((step, i) => (
+              {/* WRITE MODE */}
+              {waMsgMode === 'write' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {Array.from({ length: waSteps }, (_, i) => (
                     <div key={i} style={{ background:'var(--s2)', borderRadius:8, padding:'10px 12px', border:'1px solid var(--border)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                        <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 8px' }}>Day {step.day}</span>
-                        <span style={{ fontSize:11, color:'var(--muted)' }}>{step.label}</span>
+                        <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 8px' }}>
+                          Day {[1,3,7][i]}
+                        </span>
+                        <span style={{ fontSize:11, color:'var(--muted)' }}>{['Intro','Follow-up','Final'][i]}</span>
                         <span style={{ fontSize:10, color:'var(--muted)', marginLeft:'auto' }}>
-                          {(step.message||'').length} chars · {'{name} {company} {first_name}'}
+                          {(waManualMsgs[i]||'').length} chars
                         </span>
                       </div>
                       <textarea
-                        style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.6, outline:'none', minHeight:64 }}
-                        value={step.message}
-                        onChange={e => setWaSequence(prev => prev.map((s,si) => si===i ? {...s,message:e.target.value} : s))}
+                        style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.6, outline:'none', minHeight:72 }}
+                        placeholder={i === 0
+                          ? 'Hi {name}, saw {company} online — wanted to reach out about...'
+                          : i === 1
+                          ? 'Hey {name}, just checking if you got my last message...'
+                          : 'Last one from me {name} — happy to connect anytime if timing is better.'}
+                        value={waManualMsgs[i] || ''}
+                        onChange={e => setWaManualMsgs(prev => {
+                          const arr = [...prev];
+                          arr[i] = e.target.value;
+                          return arr;
+                        })}
                       />
                     </div>
                   ))}
+                  <div style={{ fontSize:10, color:'var(--muted)' }}>Use {'{name}'} {'{company}'} {'{first_name}'} as variables</div>
                 </div>
-              ) : (
-                <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)', fontSize:12, border:'1px dashed var(--border)', borderRadius:8 }}>
-                  Enter your goal above and click ✨ Generate
-                </div>
+              )}
+
+              {/* AI MODE */}
+              {waMsgMode === 'ai' && (
+                <>
+                  <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                    <input className="input" style={{ flex:1, boxSizing:'border-box' }}
+                      placeholder='e.g. "Follow up with SME owners about web design"'
+                      value={waGoal} onChange={e => setWaGoal(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && generateSequence()} />
+                    <button className="btn btn-sm" onClick={generateSequence} disabled={!waGoal || waGenerating}
+                      style={{ background:GREEN, color:'#fff', border:'none', fontWeight:700, whiteSpace:'nowrap', minWidth:90 }}>
+                      {waGenerating ? '✨ Writing…' : '✨ Generate'}
+                    </button>
+                  </div>
+
+                  {waSequence.length > 0 && waABEnabled && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                      <span style={{ fontSize:10, fontWeight:700, color:GREEN, background:`${GREEN}12`, borderRadius:3, padding:'2px 8px' }}>VARIANT A</span>
+                      <span style={{ fontSize:10, color:'var(--muted)' }}>Split 50/50 with B</span>
+                    </div>
+                  )}
+
+                  {waSequence.length > 0 ? (
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {waSequence.slice(0, waSteps).map((step, i) => (
+                        <div key={i} style={{ background:'var(--s2)', borderRadius:8, padding:'10px 12px', border:'1px solid var(--border)' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'oklch(62% 0.19 245 / 0.12)', borderRadius:4, padding:'2px 8px' }}>Day {step.day}</span>
+                            <span style={{ fontSize:11, color:'var(--muted)' }}>{step.label}</span>
+                            <span style={{ fontSize:10, color:'var(--muted)', marginLeft:'auto' }}>
+                              {(step.message||'').length} chars
+                            </span>
+                          </div>
+                          <textarea
+                            style={{ width:'100%', boxSizing:'border-box', background:'transparent', border:'none', color:'var(--text)', fontSize:12, resize:'vertical', lineHeight:1.6, outline:'none', minHeight:64 }}
+                            value={step.message}
+                            onChange={e => setWaSequence(prev => prev.map((s,si) => si===i ? {...s,message:e.target.value} : s))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)', fontSize:12, border:'1px dashed var(--border)', borderRadius:8 }}>
+                      Enter your goal above and click ✨ Generate
+                    </div>
+                  )}
+                </>
               )}
 
               {/* A/B Testing */}
