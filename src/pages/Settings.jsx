@@ -17,11 +17,12 @@ function timeAgoShort(iso) {
   return `${Math.floor(s/86400)}d ago`;
 }
 
-const APIS = ['claude','sendgrid','wati','apollo','outscraper','billplz_api_key','billplz_collection_id','billplz_x_signature_key','vapi','vapi_phone_number_id'];
+const APIS = ['claude','sendgrid','wati','wati_url','apollo','outscraper','billplz_api_key','billplz_collection_id','billplz_x_signature_key','vapi','vapi_phone_number_id'];
 const API_LABELS = {
   claude: 'Claude (Anthropic)',
   sendgrid: 'SendGrid',
-  wati: 'WATI (WhatsApp)',
+  wati: 'WATI (WhatsApp) — API Token',
+  wati_url: 'WATI Server URL (e.g. https://live-server.wati.io)',
   apollo: 'Apollo.io',
   outscraper: 'Outscraper (Google Maps)',
   billplz_api_key: 'Billplz — API Key',
