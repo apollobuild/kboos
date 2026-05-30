@@ -67,6 +67,7 @@ const INTEGRATION_GROUPS = [
       },
       { key: 'wati', label: 'WATI (WhatsApp)', icon: '💬', color: '#00d97e', desc: 'WhatsApp Business messaging',
         webhookPath: '/webhooks/wati', webhookLabel: 'Inbound Webhook URL (paste into WATI → Webhooks)',
+        extraKey: 'wati_url', extraLabel: 'WATI Server URL (e.g. https://live-server.wati.io)',
       },
       { key: 'vapi',                  label: 'Vapi (AI Voice)',        icon: '📞', color: '#f5a623', desc: 'AI voice calls', extraKey: 'vapi_phone_number_id' },
       { key: 'billplz_api_key',       label: 'Billplz (Payments)',     icon: '💳', color: '#0078ff', desc: 'FPX client billing', extraKeys: ['billplz_collection_id','billplz_x_signature_key'] },
