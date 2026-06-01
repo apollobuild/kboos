@@ -13,28 +13,10 @@ const GEN_STEPS = [
   'Finalizing campaign strategy…',
 ];
 
-const CHANNEL_STRATEGIES = [
-  {
-    id: 'aggressive',
-    icon: '🔥',
-    label: 'Aggressive',
-    channels: 'Email + WhatsApp + Voice',
-    desc: 'Tier A: All 3 channels, Tier B: Email+WA, Tier C: Email only',
-  },
-  {
-    id: 'balanced',
-    icon: '⚖️',
-    label: 'Balanced',
-    channels: 'Email + WhatsApp',
-    desc: 'Tier A+B: Email+WA, Tier C: Email only',
-  },
-  {
-    id: 'low_risk',
-    icon: '📧',
-    label: 'Low Risk',
-    channels: 'Email Only',
-    desc: 'All tiers: Email only',
-  },
+const CHANNELS = [
+  { id: 'email', icon: '📧', label: 'Email', desc: 'Cold email outreach' },
+  { id: 'wa',    icon: '💬', label: 'WhatsApp', desc: 'WhatsApp messages' },
+  { id: 'voice', icon: '📞', label: 'Voice Agent', desc: 'AI voice calls' },
 ];
 
 const PERSONALIZATION_LEVELS = [
@@ -142,7 +124,7 @@ export function NewCampaign() {
   const [leadSource, setLeadSource] = useState('google_maps');
 
   // Quick Setup extra fields
-  const [channelStrategy, setChannelStrategy] = useState('balanced');
+  const [selectedChannels, setSelectedChannels] = useState(['email', 'wa']);
   const [personalizationLevel, setPersonalizationLevel] = useState('2');
   const [maxLeads, setMaxLeads] = useState('200');
 
@@ -226,13 +208,9 @@ export function NewCampaign() {
   // Quick Setup submit
   async function doQuickCreate() {
     if (!validate()) return;
+    if (selectedChannels.length === 0) { showToast('Select at least one channel', 'amber'); return; }
     setCreating(true);
     try {
-      const strategy = channelStrategy;
-      const channels =
-        strategy === 'aggressive' ? ['email', 'wa', 'voice'] :
-        strategy === 'balanced' ? ['email', 'wa'] :
-        ['email'];
       const biz = selBiz;
       const newC = await addCampaign({
         bizId,
@@ -243,8 +221,7 @@ export function NewCampaign() {
         targetAudience,
         personalizationLevel: parseInt(personalizationLevel),
         leadSource,
-        channelStrategy: strategy,
-        channels,
+        channels: selectedChannels,
         color: biz?.color || 'blue',
         status: 'active',
         total: parseInt(maxLeads) || 200,
@@ -558,39 +535,44 @@ export function NewCampaign() {
           {sharedFields}
         </div>
 
-        {/* Channel Strategy */}
+        {/* Channel Selection */}
         <div className="card fade-up-1" style={{ padding: 20, marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 12 }}>CHANNEL STRATEGY</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {CHANNEL_STRATEGIES.map(cs => (
-              <RadioCard
-                key={cs.id}
-                selected={channelStrategy === cs.id}
-                onClick={() => setChannelStrategy(cs.id)}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{cs.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13, color: channelStrategy === cs.id ? 'var(--blue)' : 'var(--text)' }}>
-                        {cs.label}
-                      </span>
-                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{cs.channels}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>{cs.desc}</div>
-                  </div>
-                  <div style={{
-                    width: 16, height: 16, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                    border: `2px solid ${channelStrategy === cs.id ? 'var(--blue)' : 'var(--border)'}`,
-                    background: channelStrategy === cs.id ? 'var(--blue)' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {channelStrategy === cs.id && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', display: 'inline-block' }}/>}
-                  </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 12 }}>CHANNELS — pick any combination</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {CHANNELS.map(ch => {
+              const active = selectedChannels.includes(ch.id);
+              return (
+                <div
+                  key={ch.id}
+                  onClick={() => setSelectedChannels(prev =>
+                    active ? prev.filter(c => c !== ch.id) : [...prev, ch.id]
+                  )}
+                  style={{
+                    flex: 1, padding: '16px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
+                    border: `2px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
+                    background: active ? 'color-mix(in srgb, var(--blue) 8%, var(--s2))' : 'var(--s2)',
+                    transition: 'border-color 0.15s, background 0.15s',
+                    position: 'relative',
+                  }}
+                >
+                  {active && (
+                    <div style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: '50%', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 900 }}>✓</div>
+                  )}
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>{ch.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: active ? 'var(--blue)' : 'var(--text)', marginBottom: 3 }}>{ch.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>{ch.desc}</div>
                 </div>
-              </RadioCard>
-            ))}
+              );
+            })}
           </div>
+          {selectedChannels.length === 0 && (
+            <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 10 }}>⚠ Select at least one channel</div>
+          )}
+          {selectedChannels.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
+              Selected: {selectedChannels.map(c => CHANNELS.find(ch => ch.id === c)?.label).join(' + ')}
+            </div>
+          )}
         </div>
 
         {/* Personalization Level */}
