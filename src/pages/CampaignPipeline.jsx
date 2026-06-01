@@ -743,8 +743,18 @@ export function CampaignPipeline() {
                 </div>
 
                 {stage === 'qualifying' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--muted)' }}>
-                    <Spinner/> Scoring leads by quality…
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--muted)' }}>
+                      <Spinner/> Scoring leads by quality…
+                    </div>
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      style={{ width: 'fit-content', fontSize: 11 }}
+                      disabled={acting}
+                      onClick={doQualify}
+                    >
+                      Taking too long? Retry →
+                    </button>
                   </div>
                 )}
 

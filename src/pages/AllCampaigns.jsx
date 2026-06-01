@@ -243,12 +243,15 @@ export function AllCampaigns() {
                           {insight.topInsight}
                         </div>
                       )}
-                      {insight?.actions?.slice(0, 2).map((action, i) => (
-                        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'var(--text)',marginTop:3}}>
-                          <span style={{color:color,flexShrink:0,marginTop:1}}>›</span>
-                          <span>{action}</span>
-                        </div>
-                      ))}
+                      {insight?.actions?.slice(0, 2).map((action, i) => {
+                        const text = typeof action === 'string' ? action : (action?.detail || action?.label || '');
+                        return text ? (
+                          <div key={i} style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'var(--text)',marginTop:3}}>
+                            <span style={{color:color,flexShrink:0,marginTop:1}}>›</span>
+                            <span>{text}</span>
+                          </div>
+                        ) : null;
+                      })}
                     </div>
                   );
                 })}
