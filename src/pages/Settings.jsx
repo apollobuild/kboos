@@ -17,7 +17,7 @@ function timeAgoShort(iso) {
   return `${Math.floor(s/86400)}d ago`;
 }
 
-const APIS = ['claude','sendgrid','wati','wati_url','apollo','outscraper','billplz_api_key','billplz_collection_id','billplz_x_signature_key','vapi','vapi_phone_number_id'];
+const APIS = ['claude','sendgrid','wati','wati_url','apollo','outscraper','billplz_api_key','billplz_collection_id','billplz_x_signature_key','vapi','vapi_phone_number_id','meta_wa_token','meta_wa_phone_id','meta_wa_waba_id'];
 const API_LABELS = {
   claude: 'Claude (Anthropic)',
   sendgrid: 'SendGrid',
@@ -30,6 +30,9 @@ const API_LABELS = {
   billplz_x_signature_key: 'Billplz — X-Signature Key',
   vapi: 'Vapi (AI Voice)',
   vapi_phone_number_id: 'Vapi — Phone Number ID',
+  meta_wa_token: 'Meta WhatsApp — Access Token',
+  meta_wa_phone_id: 'Meta WhatsApp — Phone Number ID',
+  meta_wa_waba_id: 'Meta WhatsApp — Business Account ID (WABA)',
 };
 
 const SOURCE_BADGE = {
@@ -69,6 +72,11 @@ const INTEGRATION_GROUPS = [
       { key: 'wati', label: 'WATI (WhatsApp)', icon: '💬', color: '#00d97e', desc: 'WhatsApp Business messaging',
         webhookPath: '/webhooks/wati', webhookLabel: 'Inbound Webhook URL (paste into WATI → Webhooks)',
         extraKey: 'wati_url', extraLabel: 'WATI Server URL (e.g. https://live-server.wati.io)',
+      },
+      { key: 'meta_wa_token', label: 'Meta WhatsApp Cloud API', icon: '📱', color: '#1877f2', desc: 'Official Meta API — zero ban risk, free 1000 conversations/month',
+        webhookPath: '/webhooks/meta-wa/webhook', webhookLabel: 'Webhook URL (paste into Meta App → WhatsApp → Webhooks)',
+        extraKeys: ['meta_wa_phone_id', 'meta_wa_waba_id'],
+        testRoute: '/meta-wa/test',
       },
       { key: 'vapi',                  label: 'Vapi (AI Voice)',        icon: '📞', color: '#f5a623', desc: 'AI voice calls', extraKey: 'vapi_phone_number_id' },
       { key: 'billplz_api_key',       label: 'Billplz (Payments)',     icon: '💳', color: '#0078ff', desc: 'FPX client billing', extraKeys: ['billplz_collection_id','billplz_x_signature_key'] },

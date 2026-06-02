@@ -113,6 +113,23 @@ export function NewCampaign() {
   const [leadSearch,   setLeadSearch]   = useState('');
   const [uploadedLeads,setUploadedLeads]= useState([]);
   const [uploadFileName,setUploadFileName]= useState('');
+
+  // Meta WA state
+  const [metaTemplates,   setMetaTemplates]   = useState([]);
+  const [metaTemplate,    setMetaTemplate]     = useState(null); // selected template object
+  const [metaVarMap,      setMetaVarMap]       = useState({}); // { '1': 'name', '2': 'company' }
+  const [metaLeads,       setMetaLeads]        = useState('');
+  const [metaLeadMode,    setMetaLeadMode]     = useState('paste');
+  const [metaUpLeads,     setMetaUpLeads]      = useState([]);
+  const [metaUpFileName,  setMetaUpFileName]   = useState('');
+  const [metaSelLeads,    setMetaSelLeads]     = useState([]);
+  const [metaAllLeads,    setMetaAllLeads]     = useState([]);
+  const [metaSearch,      setMetaSearch]       = useState('');
+  const [metaStep,        setMetaStep]         = useState(1);
+  const [metaName,        setMetaName]         = useState('');
+  const [metaSending,     setMetaSending]      = useState(false);
+  const [metaResult,      setMetaResult]       = useState(null);
+  const [metaLoadingTpl,  setMetaLoadingTpl]   = useState(false);
   const [waStep,       setWaStep]       = useState(1); // wizard step 1-4
 
   // Shared fields
@@ -271,7 +288,7 @@ export function NewCampaign() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, maxWidth: 1020 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, maxWidth: 1360 }}>
         {/* AI Fast Track */}
         <div
           className="card fade-up-1"
@@ -347,6 +364,36 @@ export function NewCampaign() {
             {['AI writes the message sequence', 'Set daily send limit (max 200)', 'No business name needed'].map(t => (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)' }}>
                 <span style={{ color: 'oklch(65% 0.2 145)', fontSize: 10 }}>✓</span>{t}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+        {/* Meta WA */}
+        <div
+          className="card fade-up-1"
+          onClick={() => { setMode('meta'); setMetaLoadingTpl(true); apiFetch('/meta-wa/templates').then(t => { setMetaTemplates(t); setMetaLoadingTpl(false); }).catch(() => setMetaLoadingTpl(false)); }}
+          style={{
+            cursor: 'pointer', border: '2px solid #1877f2', padding: 28,
+            transition: 'transform 0.15s', position: 'relative', overflow: 'hidden',
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: '#1877f2', opacity: 0.06, borderRadius: '0 0 0 80px' }}/>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>📱</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#1877f2' }}>Meta WhatsApp</div>
+            <span style={{ fontSize:9, background:'#1877f215', color:'#1877f2', border:'1px solid #1877f230', borderRadius:4, padding:'1px 6px', fontWeight:700 }}>NO BAN</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>
+            Official Meta Cloud API — zero IP ban risk
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {['Uses approved message templates', 'Free 1000 conversations/month', 'Delivery receipts + reply inbox'].map(t => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)' }}>
+                <span style={{ color: '#1877f2', fontSize: 10 }}>✓</span>{t}
               </div>
             ))}
           </div>
@@ -639,6 +686,315 @@ export function NewCampaign() {
       )}
     </div>
   );
+
+  // ── Meta WhatsApp Campaign ─────────────────────────────────────────────────
+  if (mode === 'meta') {
+    const BLUE = '#1877f2';
+    const META_STEPS = ['Template', 'Variables', 'Leads', 'Send'];
+
+    const metaParsedLeads = metaLeads.split('\n').filter(l => l.trim()).map(line => {
+      const parts = line.split(',').map(p => p.trim());
+      return { name: parts[0] || '', phone: parts[1] || '', company: parts[2] || '' };
+    }).filter(l => l.phone && l.phone.replace(/\D/g,'').length >= 7);
+
+    const metaLeadCount = metaLeadMode === 'paste' ? metaParsedLeads.length
+      : metaLeadMode === 'upload' ? metaUpLeads.length
+      : metaSelLeads.length;
+
+    const metaLeadList = metaLeadMode === 'paste' ? metaParsedLeads
+      : metaLeadMode === 'upload' ? metaUpLeads
+      : metaAllLeads.filter(l => metaSelLeads.includes(l.id)).map(l => ({ name: l.name, phone: l.phone, company: l.company }));
+
+    const canStep2 = metaName.trim() && metaTemplate;
+    const canStep3 = metaTemplate && Object.keys(metaVarMap).length === (metaTemplate.variables?.length || 0);
+    const canStep4 = metaLeadCount > 0;
+
+    async function doMetaSend() {
+      if (!metaTemplate || !metaLeadList.length) return;
+      setMetaSending(true);
+      setMetaResult(null);
+      try {
+        const result = await apiFetch('/meta-wa/send-bulk', {
+          method: 'POST',
+          body: { templateName: metaTemplate.name, languageCode: metaTemplate.language || 'en', varMap: metaVarMap, leads: metaLeadList },
+        });
+        setMetaResult(result);
+        showToast(`Sent ${result.sent} messages via Meta WA`, 'green');
+      } catch (e) {
+        showToast('Send failed: ' + e.message, 'red');
+      } finally {
+        setMetaSending(false);
+      }
+    }
+
+    async function handleMetaFileUpload(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setMetaUpFileName(file.name);
+      try {
+        const text = await file.text();
+        const lines = text.split('\n').filter(l => l.trim());
+        const first = lines[0]?.split(',').map(s => s.trim().toLowerCase()) || [];
+        const hasHeader = first.some(h => ['name','phone','company','mobile'].includes(h));
+        const dataLines = hasHeader ? lines.slice(1) : lines;
+        const ni = hasHeader ? Math.max(0, first.findIndex(h => h.includes('name'))) : 0;
+        const pi = hasHeader ? first.findIndex(h => ['phone','mobile','tel','hp'].some(k => h.includes(k))) : 1;
+        const ci = hasHeader ? first.findIndex(h => ['company','biz','org'].some(k => h.includes(k))) : 2;
+        const parsed = dataLines.map(line => {
+          const p = line.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+          return { name: p[ni] || '', phone: p[pi >= 0 ? pi : 1] || '', company: p[ci >= 0 ? ci : 2] || '' };
+        }).filter(l => l.phone.replace(/\D/g,'').length >= 7);
+        setMetaUpLeads(parsed);
+      } catch { showToast('Could not parse file', 'red'); }
+    }
+
+    return (
+      <div className="page">
+        <div className="fade-up" style={{ marginBottom: 20 }}>
+          <div className="breadcrumb">Campaigns / New Campaign / <span>Meta WhatsApp</span></div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:4 }}>
+            <h1 className="page-title" style={{ margin:0 }}>Meta WA Campaign</h1>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setMode(null); setMetaStep(1); }}>← Back</button>
+          </div>
+        </div>
+
+        {/* Step indicator */}
+        <div style={{ display:'flex', alignItems:'center', maxWidth:480, marginBottom:28 }}>
+          {META_STEPS.map((label, i) => {
+            const step = i + 1;
+            const done = metaStep > step;
+            const active = metaStep === step;
+            return (
+              <div key={step} style={{ display:'contents' }}>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, minWidth:60 }}>
+                  <div onClick={() => done && setMetaStep(step)} style={{
+                    width:32, height:32, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+                    fontWeight:700, fontSize: done ? 14 : 13, cursor: done ? 'pointer' : 'default',
+                    background: done || active ? BLUE : 'var(--s2)',
+                    color: done || active ? '#fff' : 'var(--muted)',
+                    border: `2px solid ${done || active ? BLUE : 'var(--border)'}`, transition:'all 0.2s',
+                  }}>
+                    {done ? '✓' : step}
+                  </div>
+                  <span style={{ fontSize:10, fontWeight: active ? 700 : 400, color: active ? BLUE : done ? 'var(--text)' : 'var(--muted)', whiteSpace:'nowrap' }}>{label}</span>
+                </div>
+                {i < 3 && <div style={{ flex:1, height:2, marginBottom:14, background: metaStep > i+1 ? BLUE : 'var(--border)', transition:'background 0.3s' }}/>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ maxWidth: 560 }}>
+
+          {/* STEP 1: TEMPLATE */}
+          {metaStep === 1 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="card" style={{ padding:20 }}>
+                <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:8 }}>CAMPAIGN NAME</label>
+                <input className="input" style={{ width:'100%', boxSizing:'border-box', marginBottom:14 }}
+                  placeholder="e.g. Lawyer Outreach June"
+                  value={metaName} onChange={e => setMetaName(e.target.value)} />
+
+                <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:8 }}>SELECT APPROVED TEMPLATE</label>
+                {metaLoadingTpl ? (
+                  <div style={{ fontSize:12, color:'var(--muted)', padding:'16px 0' }}><Spinner/> Loading templates…</div>
+                ) : metaTemplates.length === 0 ? (
+                  <div style={{ fontSize:12, color:'var(--amber)', padding:'12px 14px', background:'oklch(80% 0.15 80 / 0.08)', borderRadius:8, border:'1px solid oklch(80% 0.15 80 / 0.2)', lineHeight:1.7 }}>
+                    ⚠️ No approved templates found.<br/>
+                    Add your Meta WA credentials in <strong>Settings → API Keys</strong> first, then submit templates in Meta Business Manager.
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {metaTemplates.map(t => {
+                      const sel = metaTemplate?.name === t.name;
+                      return (
+                        <div key={t.name} onClick={() => { setMetaTemplate(t); setMetaVarMap({}); }}
+                          style={{ padding:'12px 14px', borderRadius:8, border:`1.5px solid ${sel ? BLUE : 'var(--border)'}`,
+                            background: sel ? `${BLUE}0f` : 'var(--s2)', cursor:'pointer', transition:'all 0.12s' }}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                            <span style={{ fontSize:13, fontWeight:700, color: sel ? BLUE : 'var(--text)' }}>{t.name}</span>
+                            <span style={{ fontSize:10, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>{t.language}</span>
+                          </div>
+                          <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.5 }}>{t.bodyText}</div>
+                          {t.variables?.length > 0 && (
+                            <div style={{ marginTop:6, fontSize:10, color: BLUE }}>{t.variables.length} variable{t.variables.length !== 1 ? 's' : ''}: {t.variables.map(v => `{{${v}}}`).join(', ')}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <button className="btn" style={{ padding:'13px', fontSize:14, fontWeight:700, background: BLUE, color:'#fff', border:'none', borderRadius:8 }}
+                disabled={!canStep2} onClick={() => setMetaStep(2)}>
+                Next: Map Variables →
+              </button>
+            </div>
+          )}
+
+          {/* STEP 2: VARIABLES */}
+          {metaStep === 2 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="card" style={{ padding:20 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginBottom:4 }}>MAP TEMPLATE VARIABLES</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:14, lineHeight:1.6 }}>
+                  Tell KBOOS which lead field to use for each variable in your template.
+                </div>
+                <div style={{ fontSize:12, color:'var(--text)', background:'var(--s2)', borderRadius:8, padding:'10px 12px', marginBottom:16, lineHeight:1.7, fontStyle:'italic' }}>
+                  "{metaTemplate?.bodyText}"
+                </div>
+                {metaTemplate?.variables?.length === 0 ? (
+                  <div style={{ fontSize:12, color:'var(--green)' }}>✓ No variables — template sends as-is</div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {metaTemplate?.variables?.map(v => (
+                      <div key={v} style={{ display:'flex', alignItems:'center', gap:12 }}>
+                        <span style={{ fontSize:13, fontWeight:700, color: BLUE, minWidth:36, fontFamily:'var(--font-mono)' }}>{`{{${v}}}`}</span>
+                        <select className="input" style={{ flex:1, fontSize:12 }}
+                          value={metaVarMap[v] || ''}
+                          onChange={e => setMetaVarMap(prev => ({ ...prev, [v]: e.target.value }))}>
+                          <option value="">— pick a field —</option>
+                          <option value="name">Name</option>
+                          <option value="company">Company</option>
+                          <option value="title">Job Title</option>
+                          <option value="phone">Phone</option>
+                          <option value="email">Email</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button className="btn btn-ghost" style={{ padding:'13px 20px' }} onClick={() => setMetaStep(1)}>← Back</button>
+                <button className="btn" style={{ flex:1, padding:'13px', fontSize:14, fontWeight:700, background: BLUE, color:'#fff', border:'none', borderRadius:8 }}
+                  disabled={!canStep3 && metaTemplate?.variables?.length > 0} onClick={() => setMetaStep(3)}>
+                  Next: Add Leads →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: LEADS */}
+          {metaStep === 3 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="card" style={{ padding:20 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>ADD LEADS</div>
+                    {metaLeadCount > 0 && <span style={{ fontSize:11, fontWeight:700, color: BLUE, background:`${BLUE}12`, borderRadius:4, padding:'2px 8px' }}>{metaLeadCount} ready</span>}
+                  </div>
+                  <div style={{ display:'flex', background:'var(--s2)', borderRadius:6, padding:2, gap:2 }}>
+                    {[['paste','Paste CSV'],['upload','Upload'],['pick','Lead Manager']].map(([v,l]) => (
+                      <button key={v} onClick={() => { setMetaLeadMode(v); if (v==='pick' && !metaAllLeads.length) apiFetch('/leads').then(r => setMetaAllLeads(Array.isArray(r) ? r.filter(x => x.phone) : [])).catch(() => {}); }}
+                        style={{ padding:'3px 9px', borderRadius:4, fontSize:10, fontWeight:600, cursor:'pointer', border:'none',
+                          background: metaLeadMode===v ? BLUE : 'transparent', color: metaLeadMode===v ? '#fff' : 'var(--muted)' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {metaLeadMode === 'paste' && (
+                  <>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>One per line: <code style={{ background:'var(--s2)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Name, Phone, Company</code></div>
+                    <textarea className="input" rows={7} style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontSize:12, fontFamily:'var(--font-mono)', lineHeight:1.6 }}
+                      placeholder={'Ahmad Zul, 60123456789, Gadong Sdn Bhd\nSarah Lee, 60198765432, Tech Corp'}
+                      value={metaLeads} onChange={e => setMetaLeads(e.target.value)} />
+                    <div style={{ fontSize:11, marginTop:6, color: metaParsedLeads.length > 0 ? 'var(--green)' : 'var(--muted)', fontWeight: metaParsedLeads.length > 0 ? 700 : 400 }}>
+                      {metaParsedLeads.length > 0 ? `✓ ${metaParsedLeads.length} leads detected` : 'No valid leads yet'}
+                    </div>
+                  </>
+                )}
+
+                {metaLeadMode === 'upload' && (
+                  <>
+                    <label style={{ display:'block', border:'2px dashed var(--border)', borderRadius:10, padding:'24px', textAlign:'center', cursor:'pointer' }}>
+                      <input type="file" accept=".csv,.txt,.xlsx" style={{ display:'none' }} onChange={handleMetaFileUpload} />
+                      <div style={{ fontSize:28, marginBottom:8 }}>📂</div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{metaUpFileName || 'Drop file or click to browse'}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)' }}>Supports .csv · .txt · .xlsx</div>
+                    </label>
+                    {metaUpLeads.length > 0 && <div style={{ fontSize:12, fontWeight:700, color:'var(--green)', marginTop:8 }}>✓ {metaUpLeads.length} leads loaded</div>}
+                  </>
+                )}
+
+                {metaLeadMode === 'pick' && (
+                  <>
+                    <input className="input" style={{ width:'100%', boxSizing:'border-box', marginBottom:8 }}
+                      placeholder="Search by name or company…" value={metaSearch} onChange={e => setMetaSearch(e.target.value)} />
+                    <div style={{ maxHeight:200, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
+                      {metaAllLeads.filter(l => !metaSearch || l.name?.toLowerCase().includes(metaSearch.toLowerCase()) || l.company?.toLowerCase().includes(metaSearch.toLowerCase())).slice(0,50).map(l => {
+                        const sel = metaSelLeads.includes(l.id);
+                        return (
+                          <div key={l.id} onClick={() => setMetaSelLeads(prev => sel ? prev.filter(id => id !== l.id) : [...prev, l.id])}
+                            style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:6, cursor:'pointer',
+                              background: sel ? `${BLUE}0d` : 'var(--s2)', border:`1px solid ${sel ? `${BLUE}55` : 'var(--border)'}` }}>
+                            <span style={{ width:15, height:15, borderRadius:3, border:`2px solid ${sel ? BLUE : 'var(--border)'}`, background: sel ? BLUE : 'transparent',
+                              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:9, color:'#fff', fontWeight:900 }}>{sel ? '✓' : ''}</span>
+                            <div style={{ flex:1 }}>
+                              <div style={{ fontSize:12, fontWeight:600 }}>{l.name}</div>
+                              <div style={{ fontSize:10, color:'var(--muted)' }}>{l.company} · {l.phone}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {metaSelLeads.length > 0 && <div style={{ fontSize:11, color: BLUE, fontWeight:700, marginTop:6 }}>✓ {metaSelLeads.length} selected</div>}
+                  </>
+                )}
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button className="btn btn-ghost" style={{ padding:'13px 20px' }} onClick={() => setMetaStep(2)}>← Back</button>
+                <button className="btn" style={{ flex:1, padding:'13px', fontSize:14, fontWeight:700, background: BLUE, color:'#fff', border:'none', borderRadius:8 }}
+                  disabled={!canStep4} onClick={() => setMetaStep(4)}>
+                  Next: Review & Send →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: SEND */}
+          {metaStep === 4 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="card" style={{ padding:20 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginBottom:14 }}>CAMPAIGN SUMMARY</div>
+                {[
+                  ['Campaign', metaName],
+                  ['Template', metaTemplate?.name],
+                  ['Language', metaTemplate?.language || 'en'],
+                  ['Leads', `${metaLeadCount} contacts`],
+                  ['Variables', Object.entries(metaVarMap).map(([k,v]) => `{{${k}}}→${v}`).join(', ') || 'None'],
+                ].map(([k,v]) => (
+                  <div key={k} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
+                    <span style={{ fontSize:12, color:'var(--muted)' }}>{k}</span>
+                    <span style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {metaResult ? (
+                <div style={{ padding:'14px 16px', borderRadius:10, background:`${BLUE}0d`, border:`1px solid ${BLUE}30` }}>
+                  <div style={{ fontSize:14, fontWeight:700, color: BLUE, marginBottom:8 }}>🚀 Campaign sent!</div>
+                  <div style={{ fontSize:13 }}>Sent: <strong style={{ color:'var(--green)' }}>{metaResult.sent}</strong> · Failed: <strong style={{ color: metaResult.failed > 0 ? 'var(--amber)' : 'var(--text)' }}>{metaResult.failed}</strong></div>
+                  {metaResult.note && <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>{metaResult.note}</div>}
+                </div>
+              ) : (
+                <>
+                  <button className="btn" style={{ padding:'14px', fontSize:15, fontWeight:800, width:'100%', background: BLUE, color:'#fff', border:'none', borderRadius:10 }}
+                    disabled={metaSending} onClick={doMetaSend}>
+                    {metaSending ? <><Spinner/> Sending…</> : '📱 Send via Meta WhatsApp'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" style={{ width:'100%' }} onClick={() => setMetaStep(3)}>← Back</button>
+                </>
+              )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  }
 
   // ── WA Connect Campaign ───────────────────────────────────────────────────
   if (mode === 'wa') {
