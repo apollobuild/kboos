@@ -8,7 +8,7 @@ const STAGE_ORDER = [
   'draft', 'scraping', 'scraped',
   'qualifying', 'ready_for_enrichment',
   'enriching', 'enrichment_complete',
-  'ai_scoring',
+  'ai_scoring', 'ai_generating',
   'ai_content_ready',
   'personalizing', 'channels_configured',
   'deliverability_check', 'ready_to_launch',
@@ -16,7 +16,7 @@ const STAGE_ORDER = [
 ];
 
 const POLL_STAGES = new Set([
-  'scraping', 'qualifying', 'enriching', 'ai_scoring', 'personalizing',
+  'scraping', 'qualifying', 'enriching', 'ai_scoring', 'ai_generating', 'personalizing',
 ]);
 
 function stageIndex(stage) { return STAGE_ORDER.indexOf(stage ?? 'draft'); }
@@ -559,7 +559,7 @@ export function CampaignPipeline() {
     { label: '2. Qualify & Score',  stages: ['qualifying','ready_for_enrichment'],            doneStage: 'ready_for_enrichment' },
     { label: '3. Enrich Leads',     stages: ['enriching','enrichment_complete'],              doneStage: 'enrichment_complete'  },
     { label: '4. AI Scoring',       stages: ['ai_scoring'],                                   doneStage: 'ai_scoring'           },
-    { label: '5. AI Assets',        stages: ['ai_content_ready'],                             doneStage: 'ai_content_ready'     },
+    { label: '5. AI Assets',        stages: ['ai_generating', 'ai_content_ready'],            doneStage: 'ai_content_ready'     },
     { label: '6. Personalize',      stages: ['personalizing'],                                doneStage: 'personalizing'        },
     { label: '7. Channel Strategy', stages: ['channels_configured'],                          doneStage: 'channels_configured'  },
     { label: '8. Deliverability',   stages: ['deliverability_check','ready_to_launch'],       doneStage: 'ready_to_launch'      },
@@ -886,7 +886,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 5: AI Assets ══════════ */}
-            {curIdx >= stageIndex('ai_content_ready') && curIdx <= stageIndex('personalizing') && (
+            {curIdx >= stageIndex('ai_generating') && curIdx <= stageIndex('personalizing') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
@@ -907,6 +907,12 @@ export function CampaignPipeline() {
                     Level {plvl} — {plvlLabel}
                   </span>
                 </div>
+
+                {stage === 'ai_generating' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
+                    <Spinner/> Claude is generating email, WhatsApp and voice assets…
+                  </div>
+                )}
 
                 {assets.length === 0 && stage === 'ai_content_ready' && (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', position: 'relative' }}>
