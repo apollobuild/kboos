@@ -368,8 +368,6 @@ export function NewCampaign() {
             ))}
           </div>
         </div>
-      </div>
-
         {/* Meta WA */}
         <div
           className="card fade-up-1"
