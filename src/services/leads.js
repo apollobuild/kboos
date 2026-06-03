@@ -16,7 +16,10 @@ export function calculateScoreLabel(lead) {
 }
 
 export const leadsService = {
-  getAll: () => apiFetch('/leads'),
+  getAll: (params = {}) => {
+    const qs = new URLSearchParams({ limit: 2000, ...params }).toString();
+    return apiFetch(`/leads?${qs}`).then(r => (r && Array.isArray(r.leads) ? r.leads : r));
+  },
   add: (l) => apiFetch('/leads', { method: 'POST', body: l }),
   update: (id, patch) => apiFetch(`/leads/${id}`, { method: 'PATCH', body: patch }),
   remove: (id) => apiFetch(`/leads/${id}`, { method: 'DELETE' }),
