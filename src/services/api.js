@@ -2,7 +2,10 @@ import { API_BASE as BASE } from '../config/api.js';
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('kboos_token');
-  const res = await fetch(`${BASE}${path}`, {
+  const method = options.method || 'GET';
+  const fullUrl = `${BASE}${path}`;
+  console.log(`[API] → ${method} ${fullUrl}`);
+  const res = await fetch(fullUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -21,7 +24,9 @@ export async function apiFetch(path, options = {}) {
     const text = await res.text();
     let msg = text;
     try { msg = JSON.parse(text).error || text; } catch {}
+    console.log(`[API] ✗ ${method} ${fullUrl} → ${res.status}`);
     throw new Error(msg || `Request failed: ${res.status}`);
   }
+  console.log(`[API] ✓ ${method} ${fullUrl} → ${res.status}`);
   return res.json();
 }
