@@ -163,12 +163,49 @@ function OpenWAConnectPanel({ showToast }) {
   const [addPhone,   setAddPhone]   = useState('');
   const [addLimit,   setAddLimit]   = useState(200);
   const [adding,     setAdding]     = useState(false);
-  const [connecting, setConnecting] = useState(null); // sessionId being connected
-  const [qrData,     setQrData]     = useState({});  // { [sessionId]: qrString }
+  const [connecting, setConnecting] = useState(null);
+  const [qrData,     setQrData]     = useState({});
   const [testPhone,  setTestPhone]  = useState('');
   const [testMsg,    setTestMsg]    = useState('Hello from KBOOS! 👋');
   const [testSession,setTestSession]= useState('');
   const [sending,    setSending]    = useState(false);
+  // Meta Cloud API credentials
+  const [metaToken,   setMetaToken]   = useState('');
+  const [metaPhoneId, setMetaPhoneId] = useState('');
+  const [metaWabaId,  setMetaWabaId]  = useState('');
+  const [metaSaving,  setMetaSaving]  = useState(false);
+  const [metaTesting, setMetaTesting] = useState(false);
+
+  useEffect(() => {
+    apiFetch('/settings').then(s => {
+      if (s?.apiKeys?.meta_wa_token)   setMetaToken(s.apiKeys.meta_wa_token);
+      if (s?.apiKeys?.meta_wa_phone_id) setMetaPhoneId(s.apiKeys.meta_wa_phone_id);
+      if (s?.apiKeys?.meta_wa_waba_id)  setMetaWabaId(s.apiKeys.meta_wa_waba_id);
+    }).catch(() => {});
+  }, []);
+
+  async function saveMetaCreds() {
+    setMetaSaving(true);
+    try {
+      await Promise.all([
+        apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_token',    value: metaToken } }),
+        apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_phone_id', value: metaPhoneId } }),
+        metaWabaId && apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_waba_id', value: metaWabaId } }),
+      ]);
+      showToast('Meta Cloud API credentials saved', 'green');
+    } catch (e) { showToast(e.message, 'red'); }
+    setMetaSaving(false);
+  }
+
+  async function testMetaConnection() {
+    setMetaTesting(true);
+    try {
+      const r = await apiFetch('/meta-wa/test', { method:'POST' });
+      if (r.ok) showToast(`Connected — ${r.name} (${r.phone})`, 'green');
+      else showToast(r.error || 'Connection failed', 'red');
+    } catch (e) { showToast(e.message, 'red'); }
+    setMetaTesting(false);
+  }
   const [saving,     setSaving]     = useState(false);
   const [showAdd,    setShowAdd]    = useState(false);
   const pollRefs = useRef({});
@@ -460,6 +497,50 @@ function OpenWAConnectPanel({ showToast }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Meta Cloud API credentials */}
+      <div style={{ marginTop:20, paddingTop:20, borderTop:'1px solid var(--border)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+          <div style={{ width:28, height:28, borderRadius:6, background:'#1877f215', border:'1px solid #1877f230', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>📱</div>
+          <div>
+            <div style={{ fontWeight:700, fontSize:13, color:'var(--text)' }}>Meta Cloud API</div>
+            <div style={{ fontSize:11, color:'var(--muted)' }}>Credentials for WhatsApp Connect campaigns — zero ban risk</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>ACCESS TOKEN</div>
+            <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+              placeholder="EAAxxxxxxxx…"
+              value={metaToken} onChange={e => setMetaToken(e.target.value)} />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>PHONE NUMBER ID</div>
+              <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+                placeholder="1234567890"
+                value={metaPhoneId} onChange={e => setMetaPhoneId(e.target.value)} />
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>WABA ID <span style={{ fontWeight:400, opacity:0.6 }}>(optional)</span></div>
+              <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+                placeholder="9876543210"
+                value={metaWabaId} onChange={e => setMetaWabaId(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ fontSize:11, color:'var(--muted)' }}>
+            Webhook URL: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital','kboos-server.railway.app')}/webhooks/meta-wa/webhook</code>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={testMetaConnection} disabled={metaTesting || !metaToken}>
+              {metaTesting ? 'Testing…' : 'Test Connection'}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={saveMetaCreds} disabled={metaSaving || !metaToken || !metaPhoneId}>
+              {metaSaving ? 'Saving…' : 'Save Credentials'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Test send */}
