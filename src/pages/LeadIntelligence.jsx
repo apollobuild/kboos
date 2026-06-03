@@ -56,6 +56,159 @@ function ChannelBadges({ l }) {
   );
 }
 
+function LeadDrawer({ lead, onClose, campaigns }) {
+  if (!lead) return null;
+  const camp = campaigns.find(c => c.id === lead.campaignId);
+
+  const field = (label, value, color) => {
+    if (!value && value !== 0) return null;
+    return (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--muted)', minWidth: 110, flexShrink: 0, paddingTop: 1 }}>{label}</span>
+        <span style={{ fontSize: 12, color: color || 'var(--text)', wordBreak: 'break-word' }}>{value}</span>
+      </div>
+    );
+  };
+
+  const badge = (label, color, bg) => (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: bg, color, border: `1px solid ${color}33`, marginRight: 4 }}>{label}</span>
+  );
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300 }}
+      />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 420,
+        background: 'var(--s1)', borderLeft: '1px solid var(--border)',
+        zIndex: 301, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+        boxShadow: '-8px 0 40px rgba(0,0,0,0.4)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{lead.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{lead.company}</div>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18, padding: 4, marginLeft: 8, flexShrink: 0 }}>✕</button>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {lead.tier && badge(`Tier ${lead.tier}`, lead.tier === 'A' ? 'var(--green)' : lead.tier === 'B' ? 'var(--amber)' : 'var(--muted)', lead.tier === 'A' ? 'oklch(70% 0.18 145 / 0.12)' : lead.tier === 'B' ? 'oklch(75% 0.18 70 / 0.12)' : 'var(--s2)')}
+            {lead.aiScore != null && badge(`AI Score: ${lead.aiScore}`, lead.aiScore >= 70 ? 'var(--green)' : lead.aiScore >= 40 ? 'var(--amber)' : 'var(--muted)', 'var(--s2)')}
+            {lead.status && badge(lead.status.replace(/_/g, ' '), 'var(--muted)', 'var(--s2)')}
+            {lead.enriched && badge('Enriched', 'var(--green)', 'oklch(70% 0.18 145 / 0.12)')}
+            {lead.personalized && badge('Personalized', 'var(--blue)', 'oklch(62% 0.19 245 / 0.12)')}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20, flex: 1 }}>
+
+          {/* Contact Info */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contact Info</div>
+            {field('Title', lead.title)}
+            {field('Phone', lead.phone)}
+            {field('Email', lead.email)}
+            {field('Website', lead.website)}
+            {field('Address', lead.address)}
+            {field('Language', lead.lang)}
+            {field('Category', lead.category)}
+            {!lead.phone && !lead.email && !lead.website && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>No contact data collected</div>
+            )}
+          </div>
+
+          {/* Scraper Data */}
+          {(lead.rating != null || lead.reviewCount != null) && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Scraped Data</div>
+              {field('Rating', lead.rating != null ? `${lead.rating} ★` : null, 'var(--amber)')}
+              {field('Reviews', lead.reviewCount != null ? lead.reviewCount.toLocaleString() : null)}
+              {field('Raw Score', lead.rawQualityScore)}
+            </div>
+          )}
+
+          {/* AI Intelligence */}
+          {(lead.aiScore != null || lead.aiScoreReason || lead.aiNextAction) && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>AI Intelligence</div>
+              {field('AI Score', lead.aiScore != null ? `${lead.aiScore} / 100` : null, lead.aiScore >= 70 ? 'var(--green)' : lead.aiScore >= 40 ? 'var(--amber)' : 'var(--muted)')}
+              {lead.aiScoreReason && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Score reason</div>
+                  <div style={{ fontSize: 12, color: 'var(--text)', background: 'var(--s2)', borderRadius: 6, padding: '8px 10px', lineHeight: 1.5 }}>{lead.aiScoreReason}</div>
+                </div>
+              )}
+              {field('Next action', lead.aiNextAction)}
+              {lead.enrichmentConfidence != null && field('Enrich confidence', `${Math.round(lead.enrichmentConfidence * 100)}%`)}
+            </div>
+          )}
+
+          {/* Personalization */}
+          {lead.openingLine && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>AI Opening Line</div>
+              <div style={{ fontSize: 12, color: 'var(--text)', background: 'oklch(62% 0.19 245 / 0.08)', border: '1px solid oklch(62% 0.19 245 / 0.2)', borderRadius: 6, padding: '10px 12px', lineHeight: 1.6, fontStyle: 'italic' }}>
+                "{lead.openingLine}"
+              </div>
+            </div>
+          )}
+
+          {/* Enrichment Note */}
+          {lead.enrichmentNote && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Enrichment Note</div>
+              <div style={{ fontSize: 12, color: 'var(--text)', background: 'var(--s2)', borderRadius: 6, padding: '8px 10px', lineHeight: 1.5 }}>{lead.enrichmentNote}</div>
+            </div>
+          )}
+
+          {/* Channel Eligibility */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Channel Eligibility</div>
+            {[
+              { label: 'Email', eligible: lead.emailEligible },
+              { label: 'WhatsApp', eligible: lead.waEligible },
+              { label: 'Voice', eligible: lead.voiceEligible },
+            ].map(({ label, eligible }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: eligible ? 'var(--green)' : 'var(--border)', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: eligible ? 'var(--text)' : 'var(--muted)' }}>{label}</span>
+                <span style={{ fontSize: 11, color: eligible ? 'var(--green)' : 'var(--muted)', marginLeft: 'auto' }}>{eligible ? 'Eligible' : 'Not eligible'}</span>
+              </div>
+            ))}
+            {!lead.eligibilityChecked && (
+              <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 4 }}>Eligibility not yet checked</div>
+            )}
+          </div>
+
+          {/* Notes */}
+          {lead.note && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Notes</div>
+              <div style={{ fontSize: 12, color: 'var(--text)', background: 'var(--s2)', borderRadius: 6, padding: '8px 10px', lineHeight: 1.5 }}>{lead.note}</div>
+            </div>
+          )}
+
+          {/* Campaign / Meta */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Meta</div>
+            {field('Campaign', camp?.name || (lead.campaignId ? `Campaign #${lead.campaignId}` : 'Unassigned'))}
+            {field('Deal value', lead.dealValue != null ? `RM ${lead.dealValue.toLocaleString()}` : null, 'var(--green)')}
+            {field('Score', lead.score != null ? lead.score : null)}
+            {field('Added', lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : null)}
+            {field('Enriched', lead.enrichedAt ? new Date(lead.enrichedAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : null)}
+            {field('Personalized', lead.personalizedAt ? new Date(lead.personalizedAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : null)}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function LeadIntelligence() {
   const { leads, campaigns, selectedBizId, showToast, refreshLeads } = useAppStore(useShallow(s => ({
     leads:         s.leads,
@@ -70,6 +223,7 @@ export function LeadIntelligence() {
   const [campaignFilter, setCampaignFilter] = useState('All');
   const [page, setPage]                     = useState(0);
   const [importOpen, setImportOpen]         = useState(false);
+  const [selectedLead, setSelectedLead]     = useState(null);
 
   // Bulk selection
   const [selected, setSelected]     = useState(new Set());
@@ -309,15 +463,16 @@ export function LeadIntelligence() {
                 return (
                   <tr
                     key={l.id}
-                    style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'oklch(62% 0.19 245 / 0.05)' : 'transparent' }}
+                    onClick={() => setSelectedLead(l)}
+                    style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'oklch(62% 0.19 245 / 0.05)' : 'transparent', cursor: 'pointer' }}
                     onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--s2)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'oklch(62% 0.19 245 / 0.05)' : 'transparent'; }}
                   >
-                    <td style={{ padding: '10px 8px 10px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '10px 8px 10px 16px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={isSelected} onChange={() => toggleOne(l.id)} style={{ cursor: 'pointer' }} />
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{l.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--blue)' }}>{l.name}</div>
                       {l.company && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{l.company}</div>}
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || '—'}</td>
@@ -466,6 +621,7 @@ export function LeadIntelligence() {
       )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} />}
+      {selectedLead && <LeadDrawer lead={selectedLead} onClose={() => setSelectedLead(null)} campaigns={campaigns} />}
     </div>
   );
 }
