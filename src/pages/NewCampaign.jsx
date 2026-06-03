@@ -288,7 +288,7 @@ export function NewCampaign() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, maxWidth: 1360 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, maxWidth: 1020 }}>
         {/* AI Fast Track */}
         <div
           className="card fade-up-1"
@@ -340,35 +340,7 @@ export function NewCampaign() {
             ))}
           </div>
         </div>
-        {/* WA Connect */}
-        <div
-          className="card fade-up-1"
-          onClick={() => setMode('wa')}
-          style={{
-            cursor: 'pointer', border: '2px solid oklch(65% 0.2 145)', padding: 28,
-            transition: 'transform 0.15s', position: 'relative', overflow: 'hidden',
-          }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'oklch(65% 0.2 145)', opacity: 0.06, borderRadius: '0 0 0 80px' }}/>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>📲</div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'oklch(65% 0.2 145)' }}>WA Connect</div>
-            <span style={{ fontSize:9, background:'oklch(65% 0.2 145 / 0.15)', color:'oklch(65% 0.2 145)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:4, padding:'1px 6px', fontWeight:700 }}>FREE</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>
-            Send via your own WhatsApp number — no WATI needed
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {['AI writes the message sequence', 'Set daily send limit (max 200)', 'No business name needed'].map(t => (
-              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)' }}>
-                <span style={{ color: 'oklch(65% 0.2 145)', fontSize: 10 }}>✓</span>{t}
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Meta WA */}
+        {/* WhatsApp Connect (Meta Cloud API) */}
         <div
           className="card fade-up-1"
           onClick={() => { setMode('meta'); setMetaLoadingTpl(true); apiFetch('/meta-wa/templates').then(t => { setMetaTemplates(t); setMetaLoadingTpl(false); }).catch(() => setMetaLoadingTpl(false)); }}
@@ -380,13 +352,14 @@ export function NewCampaign() {
           onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
         >
           <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: '#1877f2', opacity: 0.06, borderRadius: '0 0 0 80px' }}/>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>📱</div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1877f2' }}>Meta WhatsApp</div>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#1877f2' }}>WhatsApp Connect</div>
             <span style={{ fontSize:9, background:'#1877f215', color:'#1877f2', border:'1px solid #1877f230', borderRadius:4, padding:'1px 6px', fontWeight:700 }}>NO BAN</span>
           </div>
+          <div style={{ fontSize: 10, color: '#1877f2', opacity: 0.7, marginBottom: 10, fontWeight: 500 }}>via Meta Cloud API</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>
-            Official Meta Cloud API — zero IP ban risk
+            Official Meta API — zero IP ban risk
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {['Uses approved message templates', 'Free 1000 conversations/month', 'Delivery receipts + reply inbox'].map(t => (
