@@ -452,9 +452,22 @@ export function Settings() {
       }
       if (s.notifications) setNotif(prev => ({ ...prev, ...s.notifications }));
       if (s.branding)      setBranding(prev => ({ ...prev, ...s.branding }));
+      // Budget and rate live in AppSettings — load them here so they always show correctly
+      if (s.monthlyBudget) setBudget(s.monthlyBudget);
+      if (s.monthlyBudget || s.usdRmRate) {
+        setSpend(prev => ({
+          ...prev,
+          budget: s.monthlyBudget || prev.budget,
+          usdRmRate: s.usdRmRate || prev.usdRmRate,
+        }));
+      }
     }).catch(() => {});
     apiFetch('/settings/drive-status').then(r => setDriveConnected(r.connected)).catch(() => {});
-    apiFetch('/wallet/spend-summary').then(r => { setSpend(r); setBudget(r.budget); }).catch(() => {});
+    // spend-summary loads the usage breakdown — budget/rate already loaded above from settings
+    apiFetch('/wallet/spend-summary').then(r => {
+      setSpend(prev => ({ ...prev, ...r, budget: r.budget || prev.budget, usdRmRate: r.usdRmRate || prev.usdRmRate }));
+      if (r.budget) setBudget(r.budget);
+    }).catch(() => {});
   }, []);
 
   async function saveApiKey(api) {
