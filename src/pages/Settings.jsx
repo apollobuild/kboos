@@ -155,21 +155,6 @@ function fmtDate(iso) {
 }
 
 function OpenWAConnectPanel({ showToast }) {
-  const [url,        setUrl]        = useState('');
-  const [apiKey,     setApiKey]     = useState('');
-  const [configured, setConfigured] = useState(false);
-  const [sessions,   setSessions]   = useState([]);
-  const [addLabel,   setAddLabel]   = useState('');
-  const [addPhone,   setAddPhone]   = useState('');
-  const [addLimit,   setAddLimit]   = useState(200);
-  const [adding,     setAdding]     = useState(false);
-  const [connecting, setConnecting] = useState(null);
-  const [qrData,     setQrData]     = useState({});
-  const [testPhone,  setTestPhone]  = useState('');
-  const [testMsg,    setTestMsg]    = useState('Hello from KBOOS! 👋');
-  const [testSession,setTestSession]= useState('');
-  const [sending,    setSending]    = useState(false);
-  // Meta Cloud API credentials
   const [metaToken,   setMetaToken]   = useState('');
   const [metaPhoneId, setMetaPhoneId] = useState('');
   const [metaWabaId,  setMetaWabaId]  = useState('');
@@ -178,7 +163,7 @@ function OpenWAConnectPanel({ showToast }) {
 
   useEffect(() => {
     apiFetch('/settings').then(s => {
-      if (s?.apiKeys?.meta_wa_token)   setMetaToken(s.apiKeys.meta_wa_token);
+      if (s?.apiKeys?.meta_wa_token)    setMetaToken(s.apiKeys.meta_wa_token);
       if (s?.apiKeys?.meta_wa_phone_id) setMetaPhoneId(s.apiKeys.meta_wa_phone_id);
       if (s?.apiKeys?.meta_wa_waba_id)  setMetaWabaId(s.apiKeys.meta_wa_waba_id);
     }).catch(() => {});
@@ -192,7 +177,7 @@ function OpenWAConnectPanel({ showToast }) {
         apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_phone_id', value: metaPhoneId } }),
         metaWabaId && apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_waba_id', value: metaWabaId } }),
       ]);
-      showToast('Meta Cloud API credentials saved', 'green');
+      showToast('WhatsApp Connect credentials saved', 'green');
     } catch (e) { showToast(e.message, 'red'); }
     setMetaSaving(false);
   }
@@ -206,369 +191,65 @@ function OpenWAConnectPanel({ showToast }) {
     } catch (e) { showToast(e.message, 'red'); }
     setMetaTesting(false);
   }
-  const [saving,     setSaving]     = useState(false);
-  const [showAdd,    setShowAdd]    = useState(false);
-  const pollRefs = useRef({});
 
-  useEffect(() => {
-    apiFetch('/openwa/config').then(c => { setConfigured(c.configured); if (c.url) setUrl(c.url); }).catch(() => {});
-    loadSessions();
-    return () => Object.values(pollRefs.current).forEach(clearInterval);
-  }, []);
-
-  async function loadSessions() {
-    try { const s = await apiFetch('/openwa/sessions'); setSessions(s); } catch {}
-  }
-
-  async function saveConfig() {
-    if (!url) return;
-    setSaving(true);
-    try {
-      await apiFetch('/openwa/config', { method:'POST', body:{ url, apiKey } });
-      setConfigured(true);
-      showToast('Server config saved', 'green');
-    } catch (e) { showToast(e.message || 'Failed to save', 'red'); }
-    finally { setSaving(false); }
-  }
-
-  async function addSession() {
-    if (!addLabel) return;
-    setAdding(true);
-    try {
-      const s = await apiFetch('/openwa/sessions', { method:'POST', body:{ label: addLabel, phone: addPhone, dailyLimit: addLimit } });
-      setSessions(prev => [...prev, s]);
-      setAddLabel(''); setAddPhone(''); setAddLimit(200); setShowAdd(false);
-      showToast(`${addLabel} added`, 'green');
-    } catch (e) { showToast(e.message || 'Failed to add', 'red'); }
-    finally { setAdding(false); }
-  }
-
-  async function removeSession(id, label) {
-    if (!window.confirm(`Remove "${label}"?`)) return;
-    try {
-      await apiFetch(`/openwa/sessions/${id}`, { method:'DELETE' });
-      setSessions(prev => prev.filter(s => s.id !== id));
-      showToast('Removed', 'amber');
-    } catch { showToast('Failed to remove', 'red'); }
-  }
-
-  async function connectSession(id) {
-    setConnecting(id);
-    setQrData(prev => ({ ...prev, [id]: null }));
-    try {
-      const r = await apiFetch(`/openwa/sessions/${id}/connect`, { method:'POST' });
-      if (r?.qr) setQrData(prev => ({ ...prev, [id]: r.qr }));
-      // Poll every 3s
-      clearInterval(pollRefs.current[id]);
-      pollRefs.current[id] = setInterval(async () => {
-        try {
-          const q = await apiFetch(`/openwa/sessions/${id}/qr`);
-          if (q.connected) {
-            clearInterval(pollRefs.current[id]);
-            setQrData(prev => ({ ...prev, [id]: null }));
-            setConnecting(null);
-            showToast('WhatsApp connected! 🎉', 'green');
-            loadSessions();
-          } else if (q.qr) {
-            setQrData(prev => ({ ...prev, [id]: q.qr }));
-          }
-        } catch {}
-      }, 3000);
-    } catch (e) { showToast(e.message || 'Failed to start', 'red'); }
-    finally { setConnecting(prev => prev === id ? null : prev); }
-  }
-
-  async function disconnectSession(id) {
-    try {
-      await apiFetch(`/openwa/sessions/${id}/disconnect`, { method:'POST' });
-      showToast('Disconnected', 'amber');
-      loadSessions();
-    } catch { showToast('Failed to disconnect', 'red'); }
-  }
-
-  async function updateLimit(id, limit) {
-    try {
-      const updated = await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ dailyLimit: parseInt(limit) } });
-      setSessions(prev => prev.map(s => s.id === id ? { ...s, dailyLimit: updated.dailyLimit } : s));
-    } catch { showToast('Failed to update limit', 'red'); }
-  }
-
-  async function updateLabel(id, label) {
-    try {
-      const updated = await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ label } });
-      setSessions(prev => prev.map(s => s.id === id ? { ...s, label: updated.label } : s));
-    } catch { showToast('Failed to update label', 'red'); }
-  }
-
-  async function resetHealth(id) {
-    try {
-      await apiFetch(`/openwa/sessions/${id}`, { method:'PATCH', body:{ healthScore: 100 } });
-      setSessions(prev => prev.map(s => s.id === id ? { ...s, healthScore: 100 } : s));
-    } catch {}
-  }
-
-  async function handleTestSend() {
-    if (!testPhone || !testMsg) return;
-    setSending(true);
-    try {
-      await apiFetch('/openwa/send', { method:'POST', body:{ sessionId: testSession || undefined, phone: testPhone, message: testMsg } });
-      showToast('Message sent!', 'green');
-    } catch (e) { showToast(e.message || 'Failed to send', 'red'); }
-    finally { setSending(false); }
-  }
-
-  const connectedSessions = sessions.filter(s => s.liveStatus === 'WORKING' || s.status === 'connected');
 
   return (
     <div className="card" style={{ padding:'20px', marginTop:8 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-        <div style={{ width:36, height:36, borderRadius:8, background:'oklch(65% 0.2 145 / 0.15)', border:'1px solid oklch(65% 0.2 145 / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>📲</div>
+        <div style={{ width:36, height:36, borderRadius:8, background:'#1877f215', border:'1px solid #1877f230', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>💬</div>
         <div style={{ flex:1 }}>
-          <div style={{ fontWeight:700, fontSize:14 }}>WhatsApp Connect <span style={{ fontSize:10, background:'oklch(65% 0.2 145 / 0.15)', color:'var(--green)', border:'1px solid oklch(65% 0.2 145 / 0.3)', borderRadius:4, padding:'1px 7px', marginLeft:6, fontWeight:600 }}>FREE</span></div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Connect multiple numbers via OpenWA — free, open-source, no official API needed</div>
+          <div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>
+            WhatsApp Connect
+            <span style={{ fontSize:10, background:'#1877f215', color:'#1877f2', border:'1px solid #1877f230', borderRadius:4, padding:'1px 7px', marginLeft:8, fontWeight:600 }}>NO BAN</span>
+          </div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Powered by Meta Cloud API — official, zero IP ban risk</div>
         </div>
-        <div style={{ fontSize:11, color:'var(--muted)' }}>{connectedSessions.length} number{connectedSessions.length !== 1 ? 's' : ''} connected</div>
+        {metaToken && <span style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>● Connected</span>}
       </div>
 
-      {/* Server config */}
-      <div style={{ background:'var(--s2)', borderRadius:8, padding:'14px', marginBottom:18 }}>
-        <div className="card-title" style={{ marginBottom:10 }}>OpenWA Server</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:8, alignItems:'flex-end' }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Server URL</div>
-            <input className="input" style={{ width:'100%', boxSizing:'border-box' }}
-              placeholder="https://openwa.yourserver.com  or  http://localhost:2785"
-              value={url} onChange={e => setUrl(e.target.value)} />
-          </div>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>API Key</div>
-            <input className="input" type="password" style={{ width:140, boxSizing:'border-box' }} placeholder="optional"
-              value={apiKey} onChange={e => setApiKey(e.target.value)} />
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={saveConfig} disabled={!url || saving}>{saving ? 'Saving…' : 'Save'}</button>
+      {/* Credentials */}
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>ACCESS TOKEN</div>
+          <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+            placeholder="EAAxxxxxxxx… (from Meta App → WhatsApp → API Setup)"
+            type="password"
+            value={metaToken} onChange={e => setMetaToken(e.target.value)} />
         </div>
-        {!configured && (
-          <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', lineHeight:1.7 }}>
-            <strong style={{ color:'var(--text)' }}>Railway setup:</strong> New Service → Docker Image → <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>devlikeapro/waha</code> → set <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>PORT=3000</code> → copy URL → paste above
-          </div>
-        )}
-        <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ flex:1, fontSize:11, color:'var(--muted)' }}>
-            Webhook: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital', 'kboos-server.railway.app')}/webhooks/openwa</code>
-          </div>
-          {configured && (
-            <button className="btn btn-ghost btn-sm" style={{ fontSize:10 }} onClick={async () => {
-              try {
-                const d = await apiFetch('/openwa/diagnose');
-                alert(`WAHA Diagnose\n\nURL: ${d.normalizedUrl}\nHTTP: ${d.httpStatus}\n\nSessions:\n${JSON.stringify(d.sessions, null, 2)}`);
-              } catch (e) { alert(`Error: ${e.message}`); }
-            }}>🔍 Diagnose</button>
-          )}
-        </div>
-      </div>
-
-      {/* Numbers list */}
-      <div className="card-title" style={{ marginBottom:12 }}>Connected Numbers</div>
-      {sessions.length === 0 ? (
-        <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>No numbers added yet — add one below.</div>
-      ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-          {sessions.map(s => {
-            const isConnected = s.liveStatus === 'WORKING' || s.status === 'connected';
-            const qr = qrData[s.id];
-            const isConnecting = connecting === s.id;
-            const sentPct = Math.min(100, Math.round((s.sentToday / s.dailyLimit) * 100));
-            return (
-              <div key={s.id} style={{ background:'var(--s2)', borderRadius:8, border:'1px solid var(--border)', padding:'12px 14px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: qr ? 12 : 0 }}>
-                  <span style={{ width:8, height:8, borderRadius:'50%', background: isConnected ? 'var(--green)' : 'var(--muted)', flexShrink:0 }} />
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <input
-                        className="input"
-                        style={{ fontWeight:600, fontSize:13, padding:'3px 8px', height:'auto', minWidth:120, maxWidth:200,
-                          background:'transparent', border:'1px solid transparent', borderRadius:4,
-                          transition:'border-color 0.15s' }}
-                        value={s.label}
-                        onChange={e => setSessions(prev => prev.map(x => x.id === s.id ? { ...x, label: e.target.value } : x))}
-                        onBlur={e => { if (e.target.value.trim()) updateLabel(s.id, e.target.value.trim()); }}
-                        onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
-                        onFocus={e => e.target.style.borderColor = 'var(--border)'}
-                        onBlurCapture={e => e.target.style.borderColor = 'transparent'}
-                        placeholder="Label this number"
-                        title="Click to rename"
-                      />
-                      {s.phone && <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>· {s.phone}</span>}
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
-                      <div style={{ fontSize:10, color:'var(--muted)' }}>Sent today: {s.sentToday} /</div>
-                      <input type="number" min="1" max="500"
-                        style={{ width:54, fontSize:10, padding:'1px 5px', borderRadius:4, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)' }}
-                        value={s.dailyLimit}
-                        onChange={e => setSessions(prev => prev.map(x => x.id === s.id ? { ...x, dailyLimit: parseInt(e.target.value) || 200 } : x))}
-                        onBlur={e => updateLimit(s.id, e.target.value)} />
-                      <div style={{ flex:1, height:4, background:'var(--border)', borderRadius:2, maxWidth:80 }}>
-                        <div style={{ width:`${sentPct}%`, height:'100%', background: sentPct > 80 ? 'var(--amber)' : 'var(--green)', borderRadius:2, transition:'width 0.3s' }} />
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', gap:6 }}>
-                    {isConnected ? (
-                      <button className="btn btn-sm" style={{ fontSize:10, background:'var(--red)', color:'#fff', border:'none', padding:'3px 10px', borderRadius:5, cursor:'pointer' }} onClick={() => disconnectSession(s.id)}>Disconnect</button>
-                    ) : (
-                      <>
-                        <button className="btn btn-green btn-sm" style={{ fontSize:10 }} onClick={() => connectSession(s.id)} disabled={!configured || isConnecting}>
-                          {isConnecting ? 'Starting…' : '📲 Connect'}
-                        </button>
-                        {qr && (
-                          <button className="btn btn-sm" style={{ fontSize:10, background:'var(--red)', color:'#fff', border:'none', padding:'3px 10px', borderRadius:5, cursor:'pointer' }} onClick={() => { clearInterval(pollRefs.current[s.id]); setQrData(prev => ({ ...prev, [s.id]: null })); setConnecting(null); }}>Cancel</button>
-                        )}
-                      </>
-                    )}
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize:10, color:'var(--muted)' }} onClick={() => removeSession(s.id, s.label)}>✕ Remove</button>
-                  </div>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:6 }}>
-                  {/* Health score — only meaningful when connected */}
-                  {isConnected && (
-                    <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10 }}>
-                      <span style={{ color:'var(--muted)', cursor:'help' }} title="Starts at 100%. Drops 2% per failed send. Green ≥80%, Amber ≥50%, Red <50%.">Health:</span>
-                      <span style={{ fontWeight:700, color: (s.healthScore ?? 100) >= 80 ? 'var(--green)' : (s.healthScore ?? 100) >= 50 ? 'var(--amber)' : 'var(--red)' }}>
-                        {s.healthScore ?? 100}%
-                      </span>
-                      {(s.healthScore ?? 100) < 100 && (
-                        <span style={{ color:'var(--muted)', cursor:'pointer', textDecoration:'underline', textDecorationStyle:'dotted' }} onClick={() => resetHealth(s.id)} title="Reset to 100%">Reset</span>
-                      )}
-                    </div>
-                  )}
-                  {/* Warmup toggle */}
-                  <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10 }}>
-                    <span style={{ color:'var(--muted)' }}>Warmup:</span>
-                    <div onClick={async () => {
-                      try {
-                        const updated = await apiFetch(`/openwa/sessions/${s.id}/warmup`, { method:'PATCH', body:{ warmupEnabled: !s.warmupEnabled } });
-                        setSessions(prev => prev.map(x => x.id === s.id ? { ...x, warmupEnabled: updated.warmupEnabled, warmupWeek: updated.warmupWeek } : x));
-                      } catch {}
-                    }}
-                      style={{ width:28, height:16, borderRadius:8, background: s.warmupEnabled ? 'var(--green)' : 'var(--border)', cursor:'pointer', position:'relative', transition:'background 0.2s' }}>
-                      <div style={{ position:'absolute', top:2, left: s.warmupEnabled ? 14 : 2, width:12, height:12, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }} />
-                    </div>
-                    {s.warmupEnabled && <span style={{ color:'var(--muted)' }}>Wk {s.warmupWeek + 1} · {[20,50,100,150,200][Math.min(s.warmupWeek,4)]}/day</span>}
-                  </div>
-                </div>
-                {qr && (
-                  <div style={{ textAlign:'center', paddingTop:8 }}>
-                    <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8 }}>Open WhatsApp → Linked Devices → Link a Device → Scan</div>
-                    <img src={qr} alt="QR" style={{ width:180, height:180, borderRadius:8, border:'4px solid #fff' }} />
-                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:6 }}>Auto-refreshes every 3s — keep this open</div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add number */}
-      <div style={{ marginBottom: connectedSessions.length ? 16 : 0 }}>
-        {!showAdd ? (
-          <button className="btn btn-primary btn-sm" style={{ fontSize:12 }} onClick={() => setShowAdd(true)} disabled={!configured}>+ Add Number</button>
-        ) : (
-          <div style={{ background:'var(--s2)', borderRadius:8, padding:'14px' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto auto auto', gap:8, alignItems:'flex-end' }}>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Name / Label</div>
-                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder='e.g. Sales Team 1'
-                  value={addLabel} onChange={e => setAddLabel(e.target.value)} autoFocus />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone Number</div>
-                <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder='e.g. 601125148606'
-                  value={addPhone} onChange={e => setAddPhone(e.target.value)} />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Daily Limit</div>
-                <input type="number" className="input" style={{ width:80 }} min="1" max="500" value={addLimit}
-                  onChange={e => setAddLimit(parseInt(e.target.value) || 200)} />
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={addSession} disabled={!addLabel || adding}>{adding ? 'Adding…' : '+ Add'}</button>
-              <button className="btn btn-ghost btn-sm" style={{ color:'var(--muted)' }} onClick={() => { setShowAdd(false); setAddLabel(''); setAddPhone(''); setAddLimit(200); }}>Cancel</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Meta Cloud API credentials */}
-      <div style={{ marginTop:20, paddingTop:20, borderTop:'1px solid var(--border)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-          <div style={{ width:28, height:28, borderRadius:6, background:'#1877f215', border:'1px solid #1877f230', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>📱</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div>
-            <div style={{ fontWeight:700, fontSize:13, color:'var(--text)' }}>Meta Cloud API</div>
-            <div style={{ fontSize:11, color:'var(--muted)' }}>Credentials for WhatsApp Connect campaigns — zero ban risk</div>
-          </div>
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>ACCESS TOKEN</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>PHONE NUMBER ID</div>
             <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-              placeholder="EAAxxxxxxxx…"
-              value={metaToken} onChange={e => setMetaToken(e.target.value)} />
+              placeholder="1234567890"
+              value={metaPhoneId} onChange={e => setMetaPhoneId(e.target.value)} />
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>PHONE NUMBER ID</div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-                placeholder="1234567890"
-                value={metaPhoneId} onChange={e => setMetaPhoneId(e.target.value)} />
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>WABA ID <span style={{ fontWeight:400, opacity:0.6 }}>(optional)</span></div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-                placeholder="9876543210"
-                value={metaWabaId} onChange={e => setMetaWabaId(e.target.value)} />
-            </div>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>WABA ID <span style={{ fontWeight:400, opacity:0.6 }}>(optional — for template list)</span></div>
+            <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+              placeholder="9876543210"
+              value={metaWabaId} onChange={e => setMetaWabaId(e.target.value)} />
           </div>
-          <div style={{ fontSize:11, color:'var(--muted)' }}>
-            Webhook URL: <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3 }}>{window.location.origin.replace(':5173','').replace('kboos.digital','kboos-server.railway.app')}/webhooks/meta-wa/webhook</code>
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button className="btn btn-ghost btn-sm" onClick={testMetaConnection} disabled={metaTesting || !metaToken}>
-              {metaTesting ? 'Testing…' : 'Test Connection'}
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={saveMetaCreds} disabled={metaSaving || !metaToken || !metaPhoneId}>
-              {metaSaving ? 'Saving…' : 'Save Credentials'}
-            </button>
-          </div>
+        </div>
+        <div style={{ fontSize:11, color:'var(--muted)', background:'var(--s2)', padding:'8px 12px', borderRadius:6, border:'1px solid var(--border)' }}>
+          <strong style={{ color:'var(--text)' }}>Webhook URL</strong> — paste into Meta App → WhatsApp → Configuration → Webhooks<br/>
+          <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>
+            {window.location.origin.replace(':5173','').replace('kboos.digital','kboos-server.railway.app')}/webhooks/meta-wa/webhook
+          </code>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button className="btn btn-ghost btn-sm" onClick={testMetaConnection} disabled={metaTesting || !metaToken}>
+            {metaTesting ? 'Testing…' : '🔌 Test Connection'}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={saveMetaCreds} disabled={metaSaving || !metaToken || !metaPhoneId}>
+            {metaSaving ? 'Saving…' : 'Save Credentials'}
+          </button>
         </div>
       </div>
-
-      {/* Test send */}
-      {connectedSessions.length > 0 && (
-        <div style={{ marginTop:16 }}>
-          <div className="card-title" style={{ marginBottom:10 }}>Test Send</div>
-          <div style={{ display:'grid', gridTemplateColumns:'auto 1fr 2fr auto', gap:8, alignItems:'flex-end' }}>
-            <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Number</div>
-              <select className="input" style={{ width:160 }} value={testSession} onChange={e => setTestSession(e.target.value)}>
-                {connectedSessions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Phone</div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box' }} placeholder="60123456789" value={testPhone} onChange={e => setTestPhone(e.target.value)} />
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:5 }}>Message</div>
-              <input className="input" style={{ width:'100%', boxSizing:'border-box' }} value={testMsg} onChange={e => setTestMsg(e.target.value)} />
-            </div>
-            <button className="btn btn-green btn-sm" onClick={handleTestSend} disabled={!testPhone || !testMsg || sending}>{sending ? 'Sending…' : '→ Send'}</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
 
 export function Settings() {
   const { formatCurrency, currencySymbol } = useTenant();
