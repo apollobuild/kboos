@@ -833,11 +833,19 @@ export function CampaignPipeline() {
                 </div>
 
                 {stage === 'enriching' ? (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
                       <Spinner/> Enriching via Apollo.io…
                     </div>
                     <ProgressBar value={pipeline?.enrichComplete || 0} max={pipeline?.enrichTotal || totalLeads}/>
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      style={{ width: 'fit-content', fontSize: 11 }}
+                      disabled={acting}
+                      onClick={doEnrichTiers}
+                    >
+                      Taking too long? Retry →
+                    </button>
                   </div>
                 ) : (
                   <div>
