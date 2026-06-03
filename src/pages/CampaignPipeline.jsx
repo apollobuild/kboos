@@ -447,6 +447,10 @@ export function CampaignPipeline() {
     await doAction('ai-score', {}, 'AI scoring started', 'AI Score failed');
   }
 
+  async function doRetryAiScore() {
+    await doAction('retry-ai-score', {}, 'AI scoring restarted', 'AI Score retry failed');
+  }
+
   async function doGenerateAssets() {
     await doAction('generate-assets', {}, 'Generating AI assets…', 'Generate failed');
   }
@@ -886,17 +890,37 @@ export function CampaignPipeline() {
 
                 {stage === 'ai_scoring' ? (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
-                      <Spinner/> Claude Sonnet is scoring and segmenting leads…
-                    </div>
-                    <ProgressBar
-                      value={pipeline?.aiScoreComplete || 0}
-                      max={pipeline?.aiScoreTotal || totalLeads}
-                      color="var(--blue)"
-                    />
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
-                      This page will update automatically when scoring completes.
-                    </div>
+                    {pipeline?.lastError ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 12, color: 'oklch(62% 0.22 25)' }}>
+                          ✗ {pipeline.lastError}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                          Check Settings → API Keys to make sure the Claude key is saved and tested.
+                        </div>
+                        <button className="btn btn-ghost btn-sm" disabled={acting} onClick={doRetryAiScore}>
+                          {acting ? <><Spinner color="#fff"/> Retrying…</> : 'Retry AI Scoring →'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                          <Spinner/> Claude Sonnet is scoring and segmenting leads…
+                        </div>
+                        <ProgressBar
+                          value={pipeline?.aiScoreComplete || 0}
+                          max={pipeline?.aiScoreTotal || totalLeads}
+                          color="var(--blue)"
+                        />
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+                          This page will update automatically when scoring completes.
+                        </div>
+                        <button className="btn btn-ghost btn-xs" style={{ width: 'fit-content', fontSize: 11, marginTop: 8 }}
+                          disabled={acting} onClick={doRetryAiScore}>
+                          Taking too long? Retry →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ fontSize: 13, color: 'var(--green)', fontWeight: 500 }}>
