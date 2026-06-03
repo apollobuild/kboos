@@ -8,6 +8,7 @@ import { TeamMemberSlideOver } from '../components/ui/TeamMemberSlideOver.jsx';
 import { apiFetch } from '../services/api.js';
 import { Select } from '../components/ui/Select.jsx';
 import { useTenant } from '../hooks/useTenant.js';
+import { API_BASE } from '../config/api.js';
 
 function timeAgoShort(iso) {
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
@@ -250,7 +251,7 @@ function OpenWAConnectPanel({ showToast }) {
     setSavingEdit(false);
   }
 
-  const webhookBase = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const webhookBase = API_BASE;
 
   return (
     <div className="card" style={{ padding:'20px', marginTop:8 }}>
@@ -747,7 +748,7 @@ export function Settings() {
   }
 
   function WebhookUrlCard({ path, label }) {
-    const base = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const base = API_BASE;
     const url = `${base}${path}`;
     const [copied, setCopied] = useState(false);
     function copy() {

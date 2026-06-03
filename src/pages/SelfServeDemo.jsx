@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { API_BASE as API } from '../config/api.js';
 
 const INDUSTRIES = [
   'Automotive & Car Sales','Construction & Renovation','IT Services & Software',

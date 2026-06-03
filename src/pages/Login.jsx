@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+import { API_BASE as BASE } from '../config/api.js';
 
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');

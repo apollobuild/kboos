@@ -1,4 +1,4 @@
-const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+import { API_BASE as BASE } from '../config/api.js';
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('kboos_token');

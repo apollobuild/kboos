@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../services/api.js';
+import { API_BASE } from '../config/api.js';
 import { Select } from '../components/ui/Select.jsx';
 
 const INDUSTRY_CONFIG = {
@@ -120,7 +121,7 @@ export function LiveDemo() {
   }, [form.industry]);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/demo/stats`)
+    fetch(`${API_BASE}/demo/stats`)
       .then(r => r.json())
       .then(setRealStats)
       .catch(() => {});
