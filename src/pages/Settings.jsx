@@ -250,7 +250,7 @@ function OpenWAConnectPanel({ showToast }) {
     setSavingEdit(false);
   }
 
-  const webhookBase = (window.location.origin.includes('5173') ? 'https://kboos-server.railway.app' : window.location.origin.replace('kboos.digital', 'kboos-server.railway.app'));
+  const webhookBase = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 
   return (
     <div className="card" style={{ padding:'20px', marginTop:8 }}>
