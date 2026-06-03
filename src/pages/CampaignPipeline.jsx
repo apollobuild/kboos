@@ -330,7 +330,7 @@ export function CampaignPipeline() {
   const [manualChannels, setManualChannels] = useState({ email: true, wa: false, voice: false });
   const [useManualChannels, setUseManualChannels] = useState(false);
   const [waNumbers, setWaNumbers] = useState([]);
-  const [selectedWaNumberId, setSelectedWaNumberId] = useState(campaign?.waNumberId || null);
+  const [selectedWaNumberId, setSelectedWaNumberId] = useState(campaign?.config?.waNumberId || null);
 
   // Studio modal
   const [showStudioModal, setShowStudioModal] = useState(false);
