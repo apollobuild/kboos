@@ -8,7 +8,7 @@ const STAGE_ORDER = [
   'draft', 'scraping', 'scraped',
   'qualifying', 'ready_for_enrichment',
   'enriching', 'enrichment_complete',
-  'ai_scoring', 'ai_generating',
+  'ai_scoring', 'ai_generating', 'ai_error',
   'ai_content_ready',
   'personalizing', 'channels_configured',
   'deliverability_check', 'ready_to_launch',
@@ -917,8 +917,25 @@ export function CampaignPipeline() {
                 </div>
 
                 {stage === 'ai_generating' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                    <Spinner/> Claude is generating email, WhatsApp and voice assets…
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
+                      <Spinner/> Claude is generating email, WhatsApp and voice assets…
+                    </div>
+                    <button className="btn btn-ghost btn-xs" style={{ width: 'fit-content', fontSize: 11 }}
+                      disabled={acting} onClick={doGenerateAssets}>
+                      Taking too long? Retry →
+                    </button>
+                  </div>
+                )}
+
+                {stage === 'ai_error' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 12, color: 'oklch(62% 0.22 25)' }}>
+                      ✗ Asset generation failed — {pipeline?.lastError || 'unknown error'}
+                    </div>
+                    <button className="btn btn-ghost btn-sm" disabled={acting} onClick={doGenerateAssets}>
+                      {acting ? <><Spinner color="#fff"/> Retrying…</> : 'Retry Generate Assets →'}
+                    </button>
                   </div>
                 )}
 
