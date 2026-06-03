@@ -155,43 +155,102 @@ function fmtDate(iso) {
 }
 
 function OpenWAConnectPanel({ showToast }) {
-  const [metaToken,   setMetaToken]   = useState('');
-  const [metaPhoneId, setMetaPhoneId] = useState('');
-  const [metaWabaId,  setMetaWabaId]  = useState('');
-  const [metaSaving,  setMetaSaving]  = useState(false);
-  const [metaTesting, setMetaTesting] = useState(false);
+  const [metaToken,  setMetaToken]  = useState('');
+  const [metaWabaId, setMetaWabaId] = useState('');
+  const [tokenSaving, setTokenSaving] = useState(false);
+
+  const [numbers,   setNumbers]   = useState([]);
+  const [testingId, setTestingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Add-number form
+  const [showAdd,   setShowAdd]   = useState(false);
+  const [addLabel,  setAddLabel]  = useState('');
+  const [addPhoneId, setAddPhoneId] = useState('');
+  const [addLimit,  setAddLimit]  = useState(1000);
+  const [adding,    setAdding]    = useState(false);
+
+  // Inline edit
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editLimit, setEditLimit] = useState(1000);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     apiFetch('/settings').then(s => {
-      if (s?.apiKeys?.meta_wa_token)    setMetaToken(s.apiKeys.meta_wa_token);
-      if (s?.apiKeys?.meta_wa_phone_id) setMetaPhoneId(s.apiKeys.meta_wa_phone_id);
-      if (s?.apiKeys?.meta_wa_waba_id)  setMetaWabaId(s.apiKeys.meta_wa_waba_id);
+      if (s?.apiKeys?.meta_wa_token)   setMetaToken(s.apiKeys.meta_wa_token);
+      if (s?.apiKeys?.meta_wa_waba_id) setMetaWabaId(s.apiKeys.meta_wa_waba_id);
     }).catch(() => {});
+    loadNumbers();
   }, []);
 
-  async function saveMetaCreds() {
-    setMetaSaving(true);
+  function loadNumbers() {
+    apiFetch('/meta-wa/numbers').then(setNumbers).catch(() => {});
+  }
+
+  async function saveToken() {
+    setTokenSaving(true);
     try {
       await Promise.all([
-        apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_token',    value: metaToken } }),
-        apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_phone_id', value: metaPhoneId } }),
+        apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_token', value: metaToken } }),
         metaWabaId && apiFetch('/settings/api-key', { method:'POST', body:{ api:'meta_wa_waba_id', value: metaWabaId } }),
       ]);
-      showToast('WhatsApp Connect credentials saved', 'green');
+      showToast('Token saved', 'green');
     } catch (e) { showToast(e.message, 'red'); }
-    setMetaSaving(false);
+    setTokenSaving(false);
   }
 
-  async function testMetaConnection() {
-    setMetaTesting(true);
+  async function addNumber() {
+    if (!addLabel.trim() || !addPhoneId.trim()) return;
+    setAdding(true);
     try {
-      const r = await apiFetch('/meta-wa/test', { method:'POST' });
-      if (r.ok) showToast(`Connected — ${r.name} (${r.phone})`, 'green');
-      else showToast(r.error || 'Connection failed', 'red');
+      const num = await apiFetch('/meta-wa/numbers', { method:'POST', body:{ label: addLabel.trim(), phoneNumberId: addPhoneId.trim(), dailyLimit: addLimit } });
+      setNumbers(p => [...p, num]);
+      setAddLabel(''); setAddPhoneId(''); setAddLimit(1000); setShowAdd(false);
+      showToast('Number added', 'green');
     } catch (e) { showToast(e.message, 'red'); }
-    setMetaTesting(false);
+    setAdding(false);
   }
 
+  async function testNumber(num) {
+    setTestingId(num.id);
+    try {
+      const r = await apiFetch(`/meta-wa/numbers/${num.id}/test`, { method:'POST' });
+      if (r.ok) showToast(`✓ ${num.label} — ${r.name} (${r.phone})`, 'green');
+      else showToast(r.error || 'Test failed', 'red');
+    } catch (e) { showToast(e.message, 'red'); }
+    setTestingId(null);
+  }
+
+  async function toggleActive(num) {
+    try {
+      const updated = await apiFetch(`/meta-wa/numbers/${num.id}`, { method:'PATCH', body:{ active: !num.active } });
+      setNumbers(p => p.map(n => n.id === num.id ? updated : n));
+    } catch (e) { showToast(e.message, 'red'); }
+  }
+
+  async function deleteNumber(id) {
+    setDeletingId(id);
+    try {
+      await apiFetch(`/meta-wa/numbers/${id}`, { method:'DELETE' });
+      setNumbers(p => p.filter(n => n.id !== id));
+      showToast('Number removed');
+    } catch (e) { showToast(e.message, 'red'); }
+    setDeletingId(null);
+  }
+
+  async function saveEdit(id) {
+    setSavingEdit(true);
+    try {
+      const updated = await apiFetch(`/meta-wa/numbers/${id}`, { method:'PATCH', body:{ label: editLabel, dailyLimit: editLimit } });
+      setNumbers(p => p.map(n => n.id === id ? updated : n));
+      setEditingId(null);
+      showToast('Saved');
+    } catch (e) { showToast(e.message, 'red'); }
+    setSavingEdit(false);
+  }
+
+  const webhookBase = (window.location.origin.includes('5173') ? 'https://kboos-server.railway.app' : window.location.origin.replace('kboos.digital', 'kboos-server.railway.app'));
 
   return (
     <div className="card" style={{ padding:'20px', marginTop:8 }}>
@@ -203,48 +262,117 @@ function OpenWAConnectPanel({ showToast }) {
             WhatsApp Connect
             <span style={{ fontSize:10, background:'#1877f215', color:'#1877f2', border:'1px solid #1877f230', borderRadius:4, padding:'1px 7px', marginLeft:8, fontWeight:600 }}>NO BAN</span>
           </div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Powered by Meta Cloud API — official, zero IP ban risk</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Meta Cloud API · official · supports multiple numbers</div>
         </div>
-        {metaToken && <span style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>● Connected</span>}
+        {numbers.length > 0 && <span style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>● {numbers.filter(n=>n.active).length} active</span>}
       </div>
 
-      {/* Credentials */}
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {/* Shared token */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:18 }}>
+        <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>SHARED ACCESS TOKEN</div>
+        <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
+          placeholder="EAAxxxxxxxx… (Meta App → WhatsApp → API Setup)"
+          type="password"
+          value={metaToken} onChange={e => setMetaToken(e.target.value)} />
         <div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>ACCESS TOKEN</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>WABA ID <span style={{ fontWeight:400, opacity:0.6 }}>(optional — enables template list)</span></div>
           <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-            placeholder="EAAxxxxxxxx… (from Meta App → WhatsApp → API Setup)"
-            type="password"
-            value={metaToken} onChange={e => setMetaToken(e.target.value)} />
+            placeholder="9876543210"
+            value={metaWabaId} onChange={e => setMetaWabaId(e.target.value)} />
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>PHONE NUMBER ID</div>
-            <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-              placeholder="1234567890"
-              value={metaPhoneId} onChange={e => setMetaPhoneId(e.target.value)} />
+        <button className="btn btn-primary btn-sm" style={{ alignSelf:'flex-start' }} onClick={saveToken} disabled={tokenSaving || !metaToken}>
+          {tokenSaving ? 'Saving…' : 'Save Token'}
+        </button>
+      </div>
+
+      {/* Connected numbers list */}
+      <div style={{ borderTop:'1px solid var(--border)', paddingTop:16, marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'var(--text)' }}>CONNECTED NUMBERS</div>
+          <button className="btn btn-green btn-xs" onClick={() => setShowAdd(p => !p)}>+ Add Number</button>
+        </div>
+
+        {numbers.length === 0 && !showAdd && (
+          <div style={{ fontSize:12, color:'var(--muted)', padding:'10px 0' }}>
+            No numbers added yet. Click <strong>+ Add Number</strong> and paste a Phone Number ID from Meta App → WhatsApp → API Setup.
           </div>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4, fontWeight:600 }}>WABA ID <span style={{ fontWeight:400, opacity:0.6 }}>(optional — for template list)</span></div>
-            <input className="input" style={{ width:'100%', boxSizing:'border-box', fontSize:12 }}
-              placeholder="9876543210"
-              value={metaWabaId} onChange={e => setMetaWabaId(e.target.value)} />
+        )}
+
+        {/* Number rows */}
+        {numbers.map(num => (
+          <div key={num.id} style={{
+            background:'var(--s2)', borderRadius:8, padding:'10px 14px', marginBottom:8,
+            border:`1px solid ${num.active ? 'var(--border)' : 'var(--border)'}`,
+            opacity: num.active ? 1 : 0.55,
+          }}>
+            {editingId === num.id ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <input className="input" style={{ fontSize:12 }} value={editLabel} onChange={e => setEditLabel(e.target.value)} placeholder="Label"/>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <div style={{ fontSize:11, color:'var(--muted)' }}>Daily limit:</div>
+                  <input className="input" type="number" style={{ width:90, fontSize:12 }} value={editLimit} onChange={e => setEditLimit(parseInt(e.target.value)||1000)}/>
+                  <button className="btn btn-green btn-xs" disabled={savingEdit} onClick={() => saveEdit(num.id)}>{savingEdit ? '…' : 'Save'}</button>
+                  <button className="btn btn-ghost btn-xs" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:14 }}>{num.active ? '🟢' : '⚫'}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{num.label}</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
+                    ID: {num.phoneNumberId}
+                  </div>
+                </div>
+                <div style={{ textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:11, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
+                    {num.sentToday}/{num.dailyLimit} today
+                  </div>
+                  <div style={{ height:3, width:70, background:'var(--bg)', borderRadius:2, marginTop:3, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${Math.min(100,(num.sentToday/num.dailyLimit)*100)}%`, background: num.sentToday/num.dailyLimit > 0.8 ? 'var(--amber)' : 'var(--green)', borderRadius:2 }}/>
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                  <button className="btn btn-ghost btn-xs" style={{ fontSize:10 }} disabled={testingId === num.id} onClick={() => testNumber(num)}>
+                    {testingId === num.id ? '…' : 'Test'}
+                  </button>
+                  <button className="btn btn-ghost btn-xs" style={{ fontSize:10 }} onClick={() => { setEditingId(num.id); setEditLabel(num.label); setEditLimit(num.dailyLimit); }}>Edit</button>
+                  <button className="btn btn-ghost btn-xs" style={{ fontSize:10 }} onClick={() => toggleActive(num)}>{num.active ? 'Pause' : 'Enable'}</button>
+                  <button className="btn btn-ghost btn-xs" style={{ fontSize:10, color:'var(--red)' }} disabled={deletingId === num.id} onClick={() => deleteNumber(num.id)}>
+                    {deletingId === num.id ? '…' : '✕'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div style={{ fontSize:11, color:'var(--muted)', background:'var(--s2)', padding:'8px 12px', borderRadius:6, border:'1px solid var(--border)' }}>
-          <strong style={{ color:'var(--text)' }}>Webhook URL</strong> — paste into Meta App → WhatsApp → Configuration → Webhooks<br/>
-          <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>
-            {window.location.origin.replace(':5173','').replace('kboos.digital','kboos-server.railway.app')}/webhooks/meta-wa/webhook
-          </code>
-        </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button className="btn btn-ghost btn-sm" onClick={testMetaConnection} disabled={metaTesting || !metaToken}>
-            {metaTesting ? 'Testing…' : '🔌 Test Connection'}
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={saveMetaCreds} disabled={metaSaving || !metaToken || !metaPhoneId}>
-            {metaSaving ? 'Saving…' : 'Save Credentials'}
-          </button>
-        </div>
+        ))}
+
+        {/* Add number form */}
+        {showAdd && (
+          <div style={{ background:'var(--s2)', borderRadius:8, padding:'14px', border:'1px solid var(--blue)', marginTop:8 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:'var(--blue)', marginBottom:10 }}>New Number</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <input className="input" style={{ fontSize:12 }} placeholder="Label (e.g. KL Main, JB Branch)" value={addLabel} onChange={e => setAddLabel(e.target.value)}/>
+              <input className="input" style={{ fontSize:12, fontFamily:'var(--font-mono)' }} placeholder="Phone Number ID from Meta" value={addPhoneId} onChange={e => setAddPhoneId(e.target.value)}/>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Daily limit:</span>
+                <input className="input" type="number" style={{ width:90, fontSize:12 }} value={addLimit} onChange={e => setAddLimit(parseInt(e.target.value)||1000)}/>
+                <button className="btn btn-green btn-sm" disabled={adding || !addLabel.trim() || !addPhoneId.trim()} onClick={addNumber}>
+                  {adding ? 'Adding…' : 'Add →'}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Webhook */}
+      <div style={{ fontSize:11, color:'var(--muted)', background:'var(--s2)', padding:'8px 12px', borderRadius:6, border:'1px solid var(--border)' }}>
+        <strong style={{ color:'var(--text)' }}>Webhook URL</strong> — paste into Meta App → WhatsApp → Configuration<br/>
+        <code style={{ background:'var(--bg)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>
+          {webhookBase}/webhooks/meta-wa/webhook
+        </code>
       </div>
     </div>
   );

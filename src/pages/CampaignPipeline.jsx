@@ -329,6 +329,8 @@ export function CampaignPipeline() {
   const [channelStrategy, setChannelStrategy] = useState(campaign?.channelStrategy || 'balanced');
   const [manualChannels, setManualChannels] = useState({ email: true, wa: false, voice: false });
   const [useManualChannels, setUseManualChannels] = useState(false);
+  const [waNumbers, setWaNumbers] = useState([]);
+  const [selectedWaNumberId, setSelectedWaNumberId] = useState(campaign?.waNumberId || null);
 
   // Studio modal
   const [showStudioModal, setShowStudioModal] = useState(false);
@@ -408,6 +410,15 @@ export function CampaignPipeline() {
     }
   }, [pipeline?.stage, selectedCampaignId]);
 
+  // ── Load WA numbers for channel config ──
+  useEffect(() => {
+    const s = pipeline?.stage;
+    const waStages = ['channels_configured','deliverability_check','ready_to_launch','personalizing'];
+    if (waStages.includes(s) || stageIndex(s) >= stageIndex('channels_configured')) {
+      apiFetch('/meta-wa/numbers').then(nums => setWaNumbers(nums || [])).catch(() => {});
+    }
+  }, [pipeline?.stage]);
+
   // ── Actions ──
   async function doAction(endpoint, body, successMsg, errorPrefix) {
     setActing(true);
@@ -451,7 +462,9 @@ export function CampaignPipeline() {
       : channelStrategy === 'balanced'   ? ['email','wa']
       : ['email'];
     const strategy = useManualChannels ? 'custom' : channelStrategy;
-    await doAction('configure-channels', { strategy, channels }, 'Channel strategy saved', 'Config failed');
+    const body = { strategy, channels };
+    if (selectedWaNumberId) body.waNumberId = selectedWaNumberId;
+    await doAction('configure-channels', body, 'Channel strategy saved', 'Config failed');
   }
 
   async function doRunDeliverability() {
@@ -1375,6 +1388,31 @@ export function CampaignPipeline() {
                     </div>
                   </div>
                 )}
+
+                {/* WA number selector — shown when WA is part of the strategy */}
+                {(() => {
+                  const hasWa = useManualChannels ? manualChannels.wa : channelStrategy !== 'low_risk';
+                  if (!hasWa || waNumbers.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>WHATSAPP NUMBER</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, padding: '8px 12px', borderRadius: 6, border: `1px solid ${!selectedWaNumberId ? 'var(--blue)' : 'var(--border)'}`, background: !selectedWaNumberId ? 'color-mix(in srgb, var(--blue) 8%, var(--s2))' : 'var(--s2)' }}>
+                          <input type="radio" checked={!selectedWaNumberId} onChange={() => setSelectedWaNumberId(null)} style={{ accentColor: 'var(--blue)' }}/>
+                          <span style={{ flex: 1, color: 'var(--text)' }}>Auto-select</span>
+                          <span style={{ fontSize: 10, color: 'var(--muted)' }}>Picks number with most capacity</span>
+                        </label>
+                        {waNumbers.filter(n => n.active).map(num => (
+                          <label key={num.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, padding: '8px 12px', borderRadius: 6, border: `1px solid ${selectedWaNumberId === num.id ? 'var(--green)' : 'var(--border)'}`, background: selectedWaNumberId === num.id ? 'color-mix(in srgb, var(--green) 8%, var(--s2))' : 'var(--s2)' }}>
+                            <input type="radio" checked={selectedWaNumberId === num.id} onChange={() => setSelectedWaNumberId(num.id)} style={{ accentColor: 'var(--green)' }}/>
+                            <span style={{ flex: 1, fontWeight: 500, color: 'var(--text)' }}>{num.label}</span>
+                            <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{num.sentToday}/{num.dailyLimit} today</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {stage === 'channels_configured' && (
                   <button
