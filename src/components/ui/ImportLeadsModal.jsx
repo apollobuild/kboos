@@ -349,7 +349,7 @@ export function ImportLeadsModal({ onClose, defaultCampaignId }) {
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600 }}>📱 WhatsApp Mode</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{`Show only leads with mobile numbers (${mobilePrefix}X) — ready for WhatsApp outreach`}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{`Show only leads with mobile numbers (${mobilePrefix === '+60' ? '+601X' : `${mobilePrefix}X`}) — ready for WhatsApp outreach`}</div>
             </div>
           </div>
         </div>
