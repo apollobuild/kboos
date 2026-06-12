@@ -23,7 +23,7 @@ const STAGE_LABELS = { cold: 'Cold', engaged: 'Engaged', qualifying: 'Qualifying
 
 function HotLeadsPanel({ leads }) {
   const [openLead, setOpenLead] = useState(null);
-  const hot = leads.filter(l => l.status === 'hot' || l.score >= 8).slice(0, 6);
+  const hot = leads.filter(l => l.status === 'hot').slice(0, 6);
 
   return (
     <>
@@ -152,10 +152,12 @@ export function Dashboard() {
   const { formatCurrency } = useTenant();
   const [walletSpend, setWalletSpend] = useState(null);
   const [revenueData, setRevenueData] = useState(null);
+  const [overview, setOverview] = useState(null);
 
   useEffect(() => {
     apiFetch('/wallet/spend-summary').then(setWalletSpend).catch(() => {});
     apiFetch('/meetings/revenue').then(setRevenueData).catch(() => {});
+    apiFetch('/analytics/overview').then(setOverview).catch(() => {});
   }, []);
 
   // Platform spend (API costs)
@@ -172,30 +174,36 @@ export function Dashboard() {
       ? formatCurrency(revenueData.totalDealValue)
       : '—';
 
-  const opportunities    = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  // "Hot" means real interest signals (replies/engagement), never score thresholds
+  const opportunities    = leads.filter(l => l.status === 'hot').length;
   const meetingsBooked   = leads.filter(l => l.status === 'meeting_booked').length;
   const activeCampaigns  = campaigns.filter(c => c.status === 'active').length;
 
-  // Campaign Performance
-  const emailLeads  = leads.filter(l => l.channels?.includes('email')).length;
-  const waLeads     = leads.filter(l => l.channels?.includes('wa')).length;
-  const voiceLeads  = leads.filter(l => l.channels?.includes('voice')).length;
+  // Campaign Performance — real confirmed sends from CampaignAction, not lead counts
+  const emailsSent = overview?.emailActions ?? 0;
+  const waSent     = overview?.waActions ?? 0;
+  const callsMade  = overview?.voiceActions ?? 0;
   const totalReplies = replies.length;
 
   // Lead Pipeline
+  const QUALIFIED_STATUSES = ['qualified', 'contacted', 'emailed', 'called', 'replied', 'hot', 'meeting_booked'];
   const sevenDaysAgo = Date.now() - 7 * 86400000;
   const newLeads      = leads.filter(l => l.createdAt && new Date(l.createdAt).getTime() > sevenDaysAgo).length;
-  const enrichedLeads = leads.filter(l => l.company && l.title && l.score > 0).length;
-  const qualifiedLeads = leads.filter(l => l.score >= 6 || ['engaged', 'qualifying', 'committed'].includes(l.aiStage)).length;
+  const enrichedLeads = leads.filter(l => l.enriched).length;
+  const qualifiedLeads = leads.filter(l => QUALIFIED_STATUSES.includes(l.status)).length;
 
-  // AI Insights
-  const campaignsWithOpen = campaigns.filter(c => c.open && parseFloat(c.open) > 0);
-  const bestCampaign = campaignsWithOpen.length > 0
-    ? campaignsWithOpen.reduce((best, c) => parseFloat(c.open) > parseFloat(best.open) ? c : best)
-    : null;
+  // AI Insights — best campaign by real replies (mapped reply → lead → campaign)
+  const replyByCampaign = {};
+  replies.forEach(r => {
+    const lead = leads.find(l => l.id === r.leadId);
+    if (lead?.campaignId) replyByCampaign[lead.campaignId] = (replyByCampaign[lead.campaignId] || 0) + 1;
+  });
+  const bestCampaignEntry = Object.entries(replyByCampaign).sort((a, b) => b[1] - a[1])[0];
+  const bestCampaign = bestCampaignEntry ? campaigns.find(c => c.id === parseInt(bestCampaignEntry[0])) : null;
+  const bestCampaignReplies = bestCampaignEntry ? bestCampaignEntry[1] : 0;
 
   const industryHot = {};
-  leads.filter(l => l.status === 'hot' || l.score >= 8).forEach(l => {
+  leads.filter(l => l.status === 'hot').forEach(l => {
     const camp = campaigns.find(c => c.id === l.campaignId);
     const biz  = businesses.find(b => b.id === camp?.bizId);
     if (biz?.industry) industryHot[biz.industry] = (industryHot[biz.industry] || 0) + 1;
@@ -215,10 +223,10 @@ export function Dashboard() {
   ];
 
   const perfMetrics = [
-    { label: 'Emails Sent',       val: emailLeads  || leads.length,              icon: '✉',  color: 'blue' },
-    { label: 'WhatsApps Sent',    val: waLeads     || Math.floor(leads.length * 0.6), icon: '💬', color: 'green' },
-    { label: 'Calls Made',        val: voiceLeads  || 0,                          icon: '📞', color: 'amber' },
-    { label: 'Replies Received',  val: totalReplies,                              icon: '↩',  color: 'text' },
+    { label: 'Emails Sent',       val: emailsSent,   icon: '✉',  color: 'blue' },
+    { label: 'WhatsApps Sent',    val: waSent,       icon: '💬', color: 'green' },
+    { label: 'Calls Made',        val: callsMade,    icon: '📞', color: 'amber' },
+    { label: 'Replies Received',  val: totalReplies, icon: '↩',  color: 'text' },
   ];
 
   const pipelineStages = [
@@ -345,8 +353,8 @@ export function Dashboard() {
           {bestCampaign ? (
             <>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bestCampaign.name}</div>
-              <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', marginBottom: 6 }}>{bestCampaign.open}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>email open rate · {bestCampaign.leads} leads contacted</div>
+              <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: 'var(--green)', marginBottom: 6 }}>{bestCampaignReplies}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>replies received · most engaged campaign</div>
             </>
           ) : (
             <div style={{ color: 'var(--muted)', fontSize: 12, paddingTop: 4 }}>No campaign data yet — start a campaign to see insights</div>

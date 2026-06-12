@@ -9,9 +9,11 @@ export function TickerBar() {
     leads: s.leads,
   })));
 
-  const hotCount       = leads.filter(l => l.status === 'hot' || l.score >= 8).length;
+  // Hot = real interest only; qualified = passed the pipeline's qualify stage
+  const QUALIFIED_STATUSES = ['qualified', 'contacted', 'emailed', 'called', 'replied', 'hot', 'meeting_booked'];
+  const hotCount       = leads.filter(l => l.status === 'hot').length;
   const meetingsCount  = leads.filter(l => l.status === 'meeting_booked').length;
-  const qualifiedCount = leads.filter(l => l.score >= 6 || ['engaged', 'qualifying', 'committed'].includes(l.aiStage)).length;
+  const qualifiedCount = leads.filter(l => QUALIFIED_STATUSES.includes(l.status)).length;
   const totalSpend     = campaigns.reduce((sum, c) => sum + (parseInt((c.spend || '0').replace(/[^\d]/g, ''), 10) || 0), 0);
   const awaitingApproval = campaigns.filter(c => c.status === 'awaiting_approval');
   const activeCampaigns  = campaigns.filter(c => c.status === 'active');
