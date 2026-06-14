@@ -476,7 +476,9 @@ export function CampaignPipeline() {
     const strategy = useManualChannels ? 'custom' : channelStrategy;
     const body = { strategy, channels };
     if (selectedWaNumberId) body.waNumberId = selectedWaNumberId;
-    await doAction('configure-channels', body, 'Channel strategy saved', 'Config failed');
+    const res = await doAction('configure-channels', body, 'Channels saved', 'Config failed');
+    // Re-saving must also recompute the score, or the old (stale) result lingers
+    if (res) await doRunDeliverability();
   }
 
   async function doRunDeliverability() {
@@ -484,6 +486,7 @@ export function CampaignPipeline() {
     try {
       const res = await apiFetch(`/pipeline/${selectedCampaignId}/run-deliverability`, { method: 'POST' });
       setDeliverabilityResult(res);
+      setViewIdx(null); // follow the live stage so the result/launch panel shows
       showToast('Deliverability check complete');
       await fetchStatus();
     } catch (e) {
