@@ -340,6 +340,8 @@ export function CampaignPipeline() {
   // UI toggles
   const [showAddMore, setShowAddMore] = useState(false);
   const [acting, setActing] = useState(false);
+  // When set, the user is reviewing an earlier completed step instead of the live one
+  const [viewIdx, setViewIdx] = useState(null);
   const [sendConfig, setSendConfig] = useState({
     fromName: campaign?.config?.fromName || '',
     fromEmail: campaign?.config?.fromEmail || '',
@@ -425,6 +427,7 @@ export function CampaignPipeline() {
     try {
       const res = await apiFetch(`/pipeline/${selectedCampaignId}/${endpoint}`, { method: 'POST', body });
       if (successMsg) showToast(successMsg);
+      setViewIdx(null); // snap back to the live step after any action
       await fetchStatus();
       return res;
     } catch (e) {
@@ -568,6 +571,8 @@ export function CampaignPipeline() {
 
   const stage = pipeline?.stage || 'draft';
   const curIdx = stageIndex(stage);
+  // Effective index drives which panel shows — lets the user revisit completed steps
+  const eIdx = viewIdx != null ? viewIdx : curIdx;
   const isLive = stage === 'active' || stage === 'completed';
 
   // ── Sidebar nav items ──
@@ -665,15 +670,20 @@ export function CampaignPipeline() {
               const current = sectionCurrent(item);
               const locked = sectionLocked(item);
               const inProgress = current && POLL_STAGES.has(stage);
+              const viewing = viewIdx != null && eIdx === stageIndex(item.doneStage) && !current;
               return (
                 <div
                   key={item.label}
+                  onClick={() => {
+                    if (locked) return;
+                    setViewIdx(current ? null : stageIndex(item.doneStage));
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
-                    fontSize: 12, fontWeight: current ? 600 : 400,
-                    color: locked ? 'var(--muted)' : current ? 'var(--text)' : 'var(--muted)',
-                    background: current ? 'var(--s2)' : 'transparent',
-                    borderLeft: current ? '2px solid var(--blue)' : '2px solid transparent',
+                    fontSize: 12, fontWeight: current || viewing ? 600 : 400,
+                    color: locked ? 'var(--muted)' : (current || viewing) ? 'var(--text)' : 'var(--muted)',
+                    background: current || viewing ? 'var(--s2)' : 'transparent',
+                    borderLeft: current ? '2px solid var(--blue)' : viewing ? '2px solid var(--amber)' : '2px solid transparent',
                     cursor: locked ? 'default' : 'pointer',
                   }}
                 >
@@ -692,6 +702,14 @@ export function CampaignPipeline() {
           {/* ── Right panel area ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+            {/* Viewing-a-previous-step banner */}
+            {viewIdx != null && eIdx < curIdx && (
+              <div style={{ background: 'oklch(72% 0.18 65 / 0.12)', border: '1px solid oklch(72% 0.18 65)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'oklch(72% 0.18 65)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span>You're reviewing an earlier step. Changes here re-run that step.</span>
+                <button className="btn btn-ghost btn-xs" onClick={() => setViewIdx(null)} style={{ whiteSpace: 'nowrap' }}>Back to current →</button>
+              </div>
+            )}
+
             {/* Error banner */}
             {pipeline?.lastError && (
               <div style={{ background: 'oklch(62% 0.22 25 / 0.12)', border: '1px solid oklch(62% 0.22 25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'oklch(62% 0.22 25)' }}>
@@ -700,7 +718,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 1: Import Leads ══════════ */}
-            {curIdx <= stageIndex('scraped') && (
+            {eIdx <= stageIndex('scraped') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
@@ -752,7 +770,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 2: Qualify & Score ══════════ */}
-            {curIdx >= stageIndex('qualifying') && curIdx <= stageIndex('ready_for_enrichment') + 1 && (
+            {eIdx >= stageIndex('qualifying') && eIdx <= stageIndex('ready_for_enrichment') + 1 && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">2. Qualify & Score</div>
@@ -842,7 +860,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 3: Enrich Leads ══════════ */}
-            {curIdx >= stageIndex('enriching') && curIdx <= stageIndex('enrichment_complete') + 1 && (
+            {eIdx >= stageIndex('enriching') && eIdx <= stageIndex('enrichment_complete') + 1 && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">3. Enrich Leads</div>
@@ -881,7 +899,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 4: AI Scoring ══════════ */}
-            {curIdx >= stageIndex('ai_scoring') && curIdx <= stageIndex('ai_content_ready') && (
+            {eIdx >= stageIndex('ai_scoring') && eIdx <= stageIndex('ai_content_ready') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">4. AI Scoring</div>
@@ -931,7 +949,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 5: AI Assets ══════════ */}
-            {curIdx >= stageIndex('ai_generating') && curIdx <= stageIndex('personalizing') && (
+            {eIdx >= stageIndex('ai_generating') && eIdx <= stageIndex('personalizing') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
@@ -1240,7 +1258,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 6: Personalize ══════════ */}
-            {curIdx >= stageIndex('personalizing') && curIdx <= stageIndex('channels_configured') && (
+            {eIdx >= stageIndex('personalizing') && eIdx <= stageIndex('channels_configured') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div>
@@ -1277,7 +1295,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 7: Channel Strategy ══════════ */}
-            {curIdx >= stageIndex('channels_configured') && curIdx <= stageIndex('deliverability_check') && (
+            {eIdx >= stageIndex('channels_configured') && eIdx <= stageIndex('deliverability_check') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">7. Channel Strategy</div>
@@ -1438,20 +1456,22 @@ export function CampaignPipeline() {
                   );
                 })()}
 
-                {stage === 'channels_configured' && (
+                {/* Allow re-saving channels after moving forward (deliverability/ready_to_launch),
+                    so the strategy can be changed without restarting the whole campaign */}
+                {['channels_configured', 'deliverability_check', 'ready_to_launch'].includes(stage) && (
                   <button
                     className="btn btn-green btn-sm"
                     disabled={acting || (useManualChannels && !Object.values(manualChannels).some(Boolean))}
                     onClick={doConfigureChannels}
                   >
-                    {acting ? <><Spinner color="#fff"/> Saving…</> : 'Save Channel Strategy →'}
+                    {acting ? <><Spinner color="#fff"/> Saving…</> : stage === 'channels_configured' ? 'Save Channel Strategy →' : 'Re-save Channels & Re-check →'}
                   </button>
                 )}
               </div>
             )}
 
             {/* ══════════ Panel 8: Deliverability ══════════ */}
-            {curIdx >= stageIndex('deliverability_check') && curIdx <= stageIndex('active') && (
+            {eIdx >= stageIndex('deliverability_check') && eIdx <= stageIndex('active') && (
               <div className="card fade-up-1">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">8. Deliverability Check</div>
@@ -1523,7 +1543,7 @@ export function CampaignPipeline() {
             )}
 
             {/* ══════════ Panel 9: Launch ══════════ */}
-            {curIdx >= stageIndex('ready_to_launch') && (
+            {eIdx >= stageIndex('ready_to_launch') && (
               <div className="card fade-up-1" style={{ border: (stage === 'ready_to_launch' || stage === 'active') ? '1px solid var(--green)' : '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div className="card-title">9. Launch</div>
