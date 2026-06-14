@@ -327,8 +327,13 @@ export function CampaignPipeline() {
 
   // Channel strategy (Panel 7)
   const [channelStrategy, setChannelStrategy] = useState(campaign?.channelStrategy || 'balanced');
-  const [manualChannels, setManualChannels] = useState({ email: true, wa: false, voice: false });
-  const [useManualChannels, setUseManualChannels] = useState(false);
+  // Channel selection is always direct now — seed from the campaign's saved channels
+  const [manualChannels, setManualChannels] = useState(() => {
+    const saved = campaign?.channels || [];
+    if (!saved.length) return { email: false, wa: true, voice: false }; // WhatsApp-first default
+    return { email: saved.includes('email'), wa: saved.includes('wa'), voice: saved.includes('voice') };
+  });
+  const [useManualChannels, setUseManualChannels] = useState(true);
   const [waNumbers, setWaNumbers] = useState([]);
   const [selectedWaNumberId, setSelectedWaNumberId] = useState(campaign?.config?.waNumberId || null);
 
@@ -1302,72 +1307,34 @@ export function CampaignPipeline() {
                   <StageStatus stageKey="channels_configured" currentStage={stage}/>
                 </div>
 
-                {/* Strategy selector */}
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>OUTREACH STRATEGY</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', opacity: useManualChannels ? 0.35 : 1, pointerEvents: useManualChannels ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+                {/* Quick presets — clicking one just fills in the channels below */}
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 8 }}>QUICK PRESETS</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                   {[
-                    { id: 'aggressive', icon: '🔥', label: 'Aggressive' },
-                    { id: 'balanced',   icon: '⚖️',  label: 'Balanced'   },
-                    { id: 'low_risk',   icon: '📧', label: 'Low Risk'  },
+                    { id: 'aggressive', icon: '🔥', label: 'Aggressive', chans: { email: true,  wa: true,  voice: true  } },
+                    { id: 'balanced',   icon: '⚖️',  label: 'Balanced',   chans: { email: true,  wa: true,  voice: false } },
+                    { id: 'low_risk',   icon: '📧', label: 'Email Only', chans: { email: true,  wa: false, voice: false } },
+                    { id: 'wa_only',    icon: '💬', label: 'WhatsApp Only', chans: { email: false, wa: true,  voice: false } },
                   ].map(s => (
                     <div
                       key={s.id}
-                      onClick={() => setChannelStrategy(s.id)}
+                      onClick={() => { setChannelStrategy(s.id); setManualChannels(s.chans); }}
                       style={{
-                        flex: 1, minWidth: 120, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
-                        border: `2px solid ${channelStrategy === s.id ? 'var(--blue)' : 'var(--border)'}`,
-                        background: channelStrategy === s.id ? 'color-mix(in srgb, var(--blue) 8%, var(--s2))' : 'var(--s2)',
-                        textAlign: 'center', transition: 'border-color 0.15s',
+                        flex: 1, minWidth: 110, padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                        border: `1px solid var(--border)`,
+                        background: 'var(--s2)', textAlign: 'center', transition: 'border-color 0.15s',
                       }}
                     >
-                      <div style={{ fontSize: 18, marginBottom: 3 }}>{s.icon}</div>
-                      <div style={{ fontSize: 12, fontWeight: channelStrategy === s.id ? 700 : 500, color: channelStrategy === s.id ? 'var(--blue)' : 'var(--text)' }}>
-                        {s.label}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, lineHeight: 1.4 }}>
-                        {STRATEGY_DESC[s.id]}
-                      </div>
+                      <div style={{ fontSize: 16, marginBottom: 2 }}>{s.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text)' }}>{s.label}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* Cadence preview */}
-                {!useManualChannels && (
-                  <>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>DEFAULT CADENCE</div>
-                    <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
-                      {(CADENCES[channelStrategy] || []).map((line, i) => (
-                        <div key={i} style={{ fontSize: 11, color: 'var(--text)', marginBottom: i < CADENCES[channelStrategy].length - 1 ? 5 : 0 }}>
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* Manual channel override */}
+                {/* Channel selection — always visible, tap to toggle each one */}
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useManualChannels ? 12 : 0 }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>MANUAL OVERRIDE</div>
-                      {!useManualChannels && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>Pick your own channel combination</div>}
-                    </div>
-                    <div
-                      onClick={() => setUseManualChannels(v => !v)}
-                      style={{
-                        width: 36, height: 20, borderRadius: 10, cursor: 'pointer', flexShrink: 0,
-                        background: useManualChannels ? 'var(--blue)' : 'var(--border)',
-                        position: 'relative', transition: 'background 0.2s',
-                      }}
-                    >
-                      <div style={{
-                        position: 'absolute', top: 3, left: useManualChannels ? 18 : 3,
-                        width: 14, height: 14, borderRadius: '50%', background: '#fff',
-                        transition: 'left 0.2s',
-                      }}/>
-                    </div>
-                  </div>
-                  {useManualChannels && (
+                  <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 10 }}>CHANNELS TO USE — tap to turn on/off</div>
+                  {(
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[
                         { key: 'email', icon: '📧', label: 'Email', note: 'Valid email required' },
