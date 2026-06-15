@@ -143,11 +143,21 @@ function LiveCampaignStats({ campaignId, setPage, dailyLimit }) {
 function DeliveryIssues({ campaignId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const load = useCallback(() => {
     setLoading(true);
     apiFetch(`/pipeline/${campaignId}/send-issues`).then(setData).catch(() => {}).finally(() => setLoading(false));
   }, [campaignId]);
   useEffect(() => { load(); }, [load]);
+
+  async function retryFailed() {
+    setRetrying(true);
+    try {
+      await apiFetch(`/pipeline/${campaignId}/retry-sends`, { method: 'POST' });
+      setTimeout(load, 1500); // give the immediate tick a moment, then refresh
+    } catch { /* surfaced on next refresh */ }
+    finally { setRetrying(false); }
+  }
 
   const failures = data?.failures || [];
   const skips = data?.skips || [];
@@ -162,7 +172,12 @@ function DeliveryIssues({ campaignId }) {
             {data.sentTotal} sent · {data.failedTotal} failed · {data.skippedTotal} skipped
           </span>}
         </div>
-        <button className="btn btn-ghost btn-xs" onClick={load} disabled={loading}>{loading ? '…' : '↻ Refresh'}</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {failures.length > 0 && (
+            <button className="btn btn-amber btn-xs" onClick={retryFailed} disabled={retrying}>{retrying ? 'Retrying…' : '↻ Retry failed'}</button>
+          )}
+          <button className="btn btn-ghost btn-xs" onClick={load} disabled={loading}>{loading ? '…' : '↻ Refresh'}</button>
+        </div>
       </div>
 
       {failures.length > 0 && (
