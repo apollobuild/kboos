@@ -133,6 +133,65 @@ function LiveCampaignStats({ campaignId, setPage, dailyLimit }) {
         <button className="btn btn-ghost btn-sm" onClick={() => setPage('unified-inbox')}>Reply Inbox →</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setPage('lead-intelligence')}>Lead Manager →</button>
       </div>
+      <DeliveryIssues campaignId={campaignId} />
+    </div>
+  );
+}
+
+// Shows why messages didn't send (WATI/SendGrid/Vapi reasons) so the operator
+// can fix the issue or report it to the client
+function DeliveryIssues({ campaignId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch(`/pipeline/${campaignId}/send-issues`).then(setData).catch(() => {}).finally(() => setLoading(false));
+  }, [campaignId]);
+  useEffect(() => { load(); }, [load]);
+
+  const failures = data?.failures || [];
+  const skips = data?.skips || [];
+  const hasProblems = failures.length > 0 || skips.length > 0;
+
+  return (
+    <div style={{ marginTop: 16, padding: 14, background: 'var(--s2)', borderRadius: 8, border: `1px solid ${failures.length ? 'oklch(62% 0.22 25 / 0.5)' : 'var(--border)'}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasProblems ? 10 : 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+          Delivery status
+          {data && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 11 }}>
+            {data.sentTotal} sent · {data.failedTotal} failed · {data.skippedTotal} skipped
+          </span>}
+        </div>
+        <button className="btn btn-ghost btn-xs" onClick={load} disabled={loading}>{loading ? '…' : '↻ Refresh'}</button>
+      </div>
+
+      {failures.length > 0 && (
+        <div style={{ marginBottom: skips.length ? 10 : 0 }}>
+          <div style={{ fontSize: 10, color: 'oklch(62% 0.22 25)', fontWeight: 600, marginBottom: 6 }}>FAILED — NEEDS ATTENTION</div>
+          {failures.map((f, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, marginBottom: 5, alignItems: 'flex-start' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'oklch(62% 0.22 25)', flexShrink: 0, minWidth: 28 }}>{f.count}×</span>
+              <span style={{ color: 'var(--text)' }}>{f.reason}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {skips.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>SKIPPED (not eligible / no reply window)</div>
+          {skips.map((s, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 11, marginBottom: 5, alignItems: 'flex-start' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', flexShrink: 0, minWidth: 28 }}>{s.count}×</span>
+              <span style={{ color: 'var(--muted)' }}>{s.reason}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && !hasProblems && (
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>No delivery problems recorded. ✓</div>
+      )}
     </div>
   );
 }
@@ -351,9 +410,11 @@ export function CampaignPipeline() {
     fromName: campaign?.config?.fromName || '',
     fromEmail: campaign?.config?.fromEmail || '',
     replyTo: campaign?.config?.replyTo || '',
+    waTemplateName: campaign?.config?.waTemplateName || '',
     dailyLimit: String(campaign?.dailyLimit || 200),
   });
   const [savingConfig, setSavingConfig] = useState(false);
+  const [sendIssues, setSendIssues] = useState(null);
 
   const pollRef = useRef(null);
 
@@ -509,6 +570,7 @@ export function CampaignPipeline() {
             fromName: sendConfig.fromName,
             fromEmail: sendConfig.fromEmail,
             replyTo: sendConfig.replyTo,
+            waTemplateName: sendConfig.waTemplateName.trim(),
           },
         },
       });
@@ -1588,6 +1650,22 @@ export function CampaignPipeline() {
                           />
                         </div>
                       </div>
+                      {/* WhatsApp template — required for cold first messages */}
+                      {(campaign.channels || []).includes('wa') && (
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>WHATSAPP TEMPLATE NAME (approved in WATI)</div>
+                          <input
+                            className="input"
+                            placeholder="e.g. kboos_intro_v1"
+                            value={sendConfig.waTemplateName}
+                            onChange={e => setSendConfig(s => ({ ...s, waTemplateName: e.target.value }))}
+                            style={{ width: '100%', fontSize: 12, fontFamily: 'var(--font-mono)' }}
+                          />
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+                            The exact name of your approved WATI template (variable {'{{1}}'} = first name). Cold first messages send this template; follow-ups after a reply use your AI messages.
+                          </div>
+                        </div>
+                      )}
                       <button className="btn btn-ghost btn-sm" onClick={doSaveConfig} disabled={savingConfig}>
                         {savingConfig ? 'Saving…' : 'Save Config'}
                       </button>
