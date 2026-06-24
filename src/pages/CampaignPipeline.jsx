@@ -1698,7 +1698,36 @@ export function CampaignPipeline() {
                 )}
 
                 {isLive && (
-                  <LiveCampaignStats campaignId={selectedCampaignId} setPage={setPage} dailyLimit={campaign?.dailyLimit || 200} />
+                  <>
+                    {/* WhatsApp template stays editable after launch — a cold
+                        campaign can't fire without it, and previously there was
+                        no way back to this field once the campaign went live */}
+                    {(campaign.channels || []).includes('wa') && (
+                      <div style={{ marginBottom: 16, padding: 16, background: 'var(--s2)', borderRadius: 8, border: `1px solid ${sendConfig.waTemplateName.trim() ? 'var(--border)' : 'oklch(72% 0.18 65)'}` }}>
+                        <div className="card-title" style={{ marginBottom: 8 }}>WhatsApp Template</div>
+                        {!sendConfig.waTemplateName.trim() && (
+                          <div style={{ fontSize: 11, color: 'oklch(72% 0.18 65)', marginBottom: 10, lineHeight: 1.5 }}>
+                            ⚠ No template set — cold WhatsApp messages can't send (and the campaign may auto-pause). Enter your approved WATI template name, save, then use “↻ Retry failed” below to resume.
+                          </div>
+                        )}
+                        <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>WHATSAPP TEMPLATE NAME (approved in WATI)</div>
+                        <input
+                          className="input"
+                          placeholder="e.g. kboos_intro_v1"
+                          value={sendConfig.waTemplateName}
+                          onChange={e => setSendConfig(s => ({ ...s, waTemplateName: e.target.value }))}
+                          style={{ width: '100%', fontSize: 12, fontFamily: 'var(--font-mono)' }}
+                        />
+                        <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, marginBottom: 10, lineHeight: 1.4 }}>
+                          The exact name of your approved WATI template (variable {'{{1}}'} = first name). Cold first messages send this template; follow-ups after a reply use your AI messages.
+                        </div>
+                        <button className="btn btn-ghost btn-sm" onClick={doSaveConfig} disabled={savingConfig}>
+                          {savingConfig ? 'Saving…' : 'Save Template'}
+                        </button>
+                      </div>
+                    )}
+                    <LiveCampaignStats campaignId={selectedCampaignId} setPage={setPage} dailyLimit={campaign?.dailyLimit || 200} />
+                  </>
                 )}
               </div>
             )}
