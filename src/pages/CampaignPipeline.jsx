@@ -162,23 +162,55 @@ function DeliveryIssues({ campaignId }) {
   const failures = data?.failures || [];
   const skips = data?.skips || [];
   const hasProblems = failures.length > 0 || skips.length > 0;
+  const paused = data?.status === 'paused';
+
+  // Translate the raw counters into a plain-language engine state, so a
+  // campaign that is silently doing nothing (idle window, no template, no
+  // leads, queued-but-unprocessed) isn't disguised as a healthy "✓".
+  const notice = (() => {
+    if (!data) return null;
+    if (data.waTemplateMissing)
+      return { color: 'oklch(72% 0.18 65)', text: '⚠ No WhatsApp template set — cold WhatsApp sends will fail until you add the approved WATI template above, then Retry failed.' };
+    if (paused)
+      return { color: 'oklch(62% 0.22 25)', text: `⏸ Campaign paused — ${data.lastError || 'sending stopped. Fix the cause, then Resume.'}` };
+    if (data.attemptedTotal === 0 && data.pendingTotal === 0) {
+      if (data.totalLeads === 0)
+        return { color: 'var(--muted)', text: 'No leads imported yet — nothing to send.' };
+      if (!data.withinSendWindow)
+        return { color: 'var(--muted)', text: '⏸ Outside the send window — the engine only sends 9am–6pm KL. No sends attempted yet; it will begin at 9am KL.' };
+      return { color: 'oklch(72% 0.18 65)', text: 'No sends attempted yet — the engine hasn’t produced any sends. Check the sequence and channel eligibility.' };
+    }
+    if (data.attemptedTotal === 0 && data.pendingTotal > 0)
+      return { color: 'var(--blue)', text: `${data.pendingTotal} send${data.pendingTotal === 1 ? '' : 's'} queued — waiting for the worker. Refresh in a moment.` };
+    return null;
+  })();
+
+  const showRetry = failures.length > 0 || paused;
+  const borderColor = (failures.length || paused) ? 'oklch(62% 0.22 25 / 0.5)'
+    : notice ? 'oklch(72% 0.18 65 / 0.5)' : 'var(--border)';
 
   return (
-    <div style={{ marginTop: 16, padding: 14, background: 'var(--s2)', borderRadius: 8, border: `1px solid ${failures.length ? 'oklch(62% 0.22 25 / 0.5)' : 'var(--border)'}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasProblems ? 10 : 0 }}>
+    <div style={{ marginTop: 16, padding: 14, background: 'var(--s2)', borderRadius: 8, border: `1px solid ${borderColor}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (hasProblems || notice) ? 10 : 0 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
           Delivery status
           {data && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 8, fontSize: 11 }}>
-            {data.sentTotal} sent · {data.failedTotal} failed · {data.skippedTotal} skipped
+            {data.sentTotal} sent · {data.pendingTotal} queued · {data.failedTotal} failed · {data.skippedTotal} skipped
           </span>}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {failures.length > 0 && (
-            <button className="btn btn-amber btn-xs" onClick={retryFailed} disabled={retrying}>{retrying ? 'Retrying…' : '↻ Retry failed'}</button>
+          {showRetry && (
+            <button className="btn btn-amber btn-xs" onClick={retryFailed} disabled={retrying}>{retrying ? 'Retrying…' : paused ? '▶ Resume' : '↻ Retry failed'}</button>
           )}
           <button className="btn btn-ghost btn-xs" onClick={load} disabled={loading}>{loading ? '…' : '↻ Refresh'}</button>
         </div>
       </div>
+
+      {notice && (
+        <div style={{ fontSize: 11, color: notice.color, marginBottom: hasProblems ? 10 : 0, lineHeight: 1.5 }}>
+          {notice.text}
+        </div>
+      )}
 
       {failures.length > 0 && (
         <div style={{ marginBottom: skips.length ? 10 : 0 }}>
@@ -204,8 +236,8 @@ function DeliveryIssues({ campaignId }) {
         </div>
       )}
 
-      {data && !hasProblems && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>No delivery problems recorded. ✓</div>
+      {data && !hasProblems && !notice && (
+        <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 8 }}>✓ Sending normally — no delivery problems.</div>
       )}
     </div>
   );
