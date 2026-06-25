@@ -178,7 +178,9 @@ function DeliveryIssues({ campaignId }) {
         return { color: 'var(--muted)', text: 'No leads imported yet — nothing to send.' };
       if (!data.withinSendWindow)
         return { color: 'var(--muted)', text: '⏸ Outside the send window — the engine only sends 9am–6pm KL. No sends attempted yet; it will begin at 9am KL.' };
-      return { color: 'oklch(72% 0.18 65)', text: 'No sends attempted yet — the engine hasn’t produced any sends. Check the sequence and channel eligibility.' };
+      // Exact, engine-derived reason when available (no eligible leads, no
+      // sequence, steps not due, worker down) — falls back to the generic hint
+      return { color: 'oklch(72% 0.18 65)', text: data.idleReason || 'No sends attempted yet — the engine hasn’t produced any sends. Check the sequence and channel eligibility.' };
     }
     if (data.attemptedTotal === 0 && data.pendingTotal > 0)
       return { color: 'var(--blue)', text: `${data.pendingTotal} send${data.pendingTotal === 1 ? '' : 's'} queued — waiting for the worker. Refresh in a moment.` };
