@@ -259,14 +259,20 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
   const [apolloCity, setApolloCity] = useState('');
   const [apolloLimit, setApolloLimit] = useState(50);
 
+  // Keep only WhatsApp-capable mobile numbers (601…), dropping office landlines.
+  // Off by default so a normal scrape/import still keeps every lead.
+  const [mobileOnly, setMobileOnly] = useState(false);
+
   async function doScrape(mode) {
     setLoading(true);
     try {
       const body = mode === 'apollo'
         ? { mode: 'apollo', city: apolloCity, limit: apolloLimit, jobTitles: jobTitles.split(',').map(s => s.trim()).filter(Boolean) }
-        : { mode, keyword, city, limit };
+        : { mode, keyword, city, limit, mobileOnly };
       await apiFetch(`/pipeline/${campaignId}/scrape`, { method: 'POST', body });
-      showToast(mode === 'gmaps' ? 'Scraping Google Maps — takes ~90 seconds…' : 'Fetching B2B contacts…');
+      showToast(mode === 'gmaps'
+        ? `Scraping Google Maps${mobileOnly ? ' (mobile numbers only)' : ''} — takes ~90 seconds…`
+        : 'Fetching B2B contacts…');
       await onImported();
     } catch (e) { showToast(e.message, 'red'); }
     setLoading(false);
@@ -276,12 +282,21 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
     setLoading(true);
     try {
       const csvText = await file.text();
-      const res = await apiFetch(`/pipeline/${campaignId}/upload-csv`, { method: 'POST', body: { csvText } });
-      showToast(`Imported ${res.count} leads from CSV`);
+      const res = await apiFetch(`/pipeline/${campaignId}/upload-csv`, { method: 'POST', body: { csvText, mobileOnly } });
+      const skipMsg = res.skippedLandline ? ` · skipped ${res.skippedLandline} landline/office` : '';
+      showToast(res.count ? `Imported ${res.count} leads from CSV${skipMsg}` : (res.msg || 'No new leads to import'), res.count ? undefined : 'amber');
       await onImported();
     } catch (e) { showToast(e.message, 'red'); }
     setLoading(false);
   }
+
+  // Shared toggle shown on the Google Maps and CSV tabs
+  const mobileOnlyToggle = (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 11, color: 'var(--muted)', background: 'var(--s2)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', lineHeight: 1.4 }}>
+      <input type="checkbox" checked={mobileOnly} onChange={e => setMobileOnly(e.target.checked)} style={{ accentColor: 'var(--green)', width: 14, height: 14, flexShrink: 0 }}/>
+      <span>📱 <strong style={{ color: 'var(--text)' }}>Only keep mobile numbers (+601…)</strong> — for WhatsApp campaigns. Drops office landlines (03/04/07…), which can't receive WhatsApp.</span>
+    </label>
+  );
 
   const tabBtn = (id, label) => (
     <button
@@ -331,6 +346,7 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
               {[25, 50, 100, 200, 300].map(n => <option key={n} value={n}>{n} leads</option>)}
             </select>
           </div>
+          {mobileOnlyToggle}
           <button className="btn btn-green btn-sm" disabled={loading || !keyword.trim() || !city.trim()} onClick={() => doScrape('gmaps')}>
             {loading ? <><Spinner color="#fff"/> Scraping…</> : `Scrape ${limit} leads from Google Maps →`}
           </button>
@@ -369,6 +385,7 @@ function LeadAcquisition({ campaignId, onImported, showToast }) {
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
             Upload a CSV with columns: <strong>Name, Company, Phone, Email</strong> (any order, extra columns ignored).
           </div>
+          <div style={{ marginBottom: 10 }}>{mobileOnlyToggle}</div>
           <label
             style={{
               display: 'block',
@@ -415,6 +432,7 @@ export function CampaignPipeline() {
   // ── State ──
   const [pipeline, setPipeline] = useState(null);
   const [totalLeads, setTotalLeads] = useState(0);
+  const [phoneTypes, setPhoneTypes] = useState(null);
   const [assetCount, setAssetCount] = useState(0);
   const [approvedAssets, setApprovedAssets] = useState(0);
   const [personalizedLeads, setPersonalizedLeads] = useState(0);
@@ -474,6 +492,7 @@ export function CampaignPipeline() {
       const data = await apiFetch(`/pipeline/${selectedCampaignId}`);
       setPipeline(data.pipeline);
       setTotalLeads(data.totalLeads ?? 0);
+      setPhoneTypes(data.phoneTypes ?? null);
       setAssetCount(data.assetCount ?? 0);
       setApprovedAssets(data.approvedAssets ?? 0);
       setPersonalizedLeads(data.personalizedLeads ?? 0);
@@ -859,6 +878,26 @@ export function CampaignPipeline() {
                     <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>
                       <span style={{ fontWeight: 700, fontSize: 22, color: 'var(--green)' }}>{totalLeads}</span>{' '}leads imported
                     </div>
+                    {/* Phone-type breakdown so you can see at a glance how many leads
+                        can actually receive WhatsApp (mobiles) vs landlines/no number */}
+                    {phoneTypes && (totalLeads > 0) && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                        {[
+                          { key: 'mobile',   icon: '📱', label: 'mobile (WhatsApp-ready)', color: 'var(--green)' },
+                          { key: 'landline', icon: '☎️', label: 'landline (Voice/Email only)', color: 'var(--amber)' },
+                          { key: 'none',     icon: '⚠️', label: 'no number', color: 'var(--muted)' },
+                        ].filter(t => (phoneTypes[t.key] || 0) > 0).map(t => (
+                          <span key={t.key} style={{ fontSize: 11, color: 'var(--text)', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px' }}>
+                            {t.icon} <strong style={{ color: t.color }}>{phoneTypes[t.key]}</strong> <span style={{ color: 'var(--muted)' }}>{t.label}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {phoneTypes && (phoneTypes.mobile || 0) === 0 && (campaign.channels || []).includes('wa') && (
+                      <div style={{ fontSize: 11, color: 'var(--amber)', marginBottom: 10, lineHeight: 1.5 }}>
+                        ⚠ None of these leads have a mobile number, so a WhatsApp campaign can't send to them. Re-scrape with “mobile numbers only”, import mobiles, or use Voice/Email in Channel Strategy.
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
                       You can add more leads before qualifying.
                     </div>
