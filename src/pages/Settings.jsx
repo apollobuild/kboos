@@ -160,6 +160,11 @@ function OpenWAConnectPanel({ showToast }) {
   const [metaWabaId, setMetaWabaId] = useState('');
   const [tokenSaving, setTokenSaving] = useState(false);
 
+  // Which service campaigns actually send through: 'wati' (paid reseller) or
+  // 'meta' (our own official Cloud API number). Flipping this is instant + reversible.
+  const [provider, setProvider] = useState('wati');
+  const [savingProvider, setSavingProvider] = useState(false);
+
   const [numbers,   setNumbers]   = useState([]);
   const [testingId, setTestingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -181,9 +186,22 @@ function OpenWAConnectPanel({ showToast }) {
     apiFetch('/settings').then(s => {
       if (s?.apiKeys?.meta_wa_token)   setMetaToken(s.apiKeys.meta_wa_token);
       if (s?.apiKeys?.meta_wa_waba_id) setMetaWabaId(s.apiKeys.meta_wa_waba_id);
+      if (s?.waProvider) setProvider(s.waProvider);
     }).catch(() => {});
     loadNumbers();
   }, []);
+
+  async function saveProvider(next) {
+    if (next === provider || savingProvider) return;
+    const prev = provider;
+    setProvider(next); // optimistic
+    setSavingProvider(true);
+    try {
+      await apiFetch('/settings/api-key', { method:'POST', body:{ api:'wa_provider', value: next } });
+      showToast(next === 'meta' ? 'Campaigns now send via Meta Cloud API' : 'Campaigns now send via WATI', 'green');
+    } catch (e) { setProvider(prev); showToast(e.message, 'red'); }
+    setSavingProvider(false);
+  }
 
   function loadNumbers() {
     apiFetch('/meta-wa/numbers').then(setNumbers).catch(() => {});
@@ -266,6 +284,37 @@ function OpenWAConnectPanel({ showToast }) {
           <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Meta Cloud API · official · supports multiple numbers</div>
         </div>
         {numbers.length > 0 && <span style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>● {numbers.filter(n=>n.active).length} active</span>}
+      </div>
+
+      {/* Active sender switch — flips WATI ↔ Meta for all campaigns, instantly + reversibly */}
+      <div style={{ background:'var(--s2)', borderRadius:8, padding:'12px 14px', marginBottom:18, border:'1px solid var(--border)' }}>
+        <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginBottom:8 }}>
+          ACTIVE SENDER <span style={{ fontWeight:400, opacity:0.6 }}>— which service campaigns send through</span>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {[
+            { id:'wati', label:'WATI', sub:'reseller · paid' },
+            { id:'meta', label:'Meta Cloud API', sub:'official · no ban' },
+          ].map(opt => (
+            <button key={opt.id} onClick={() => saveProvider(opt.id)} disabled={savingProvider}
+              style={{
+                flex:1, textAlign:'left', cursor: savingProvider ? 'wait' : 'pointer',
+                background: provider === opt.id ? '#1877f215' : 'transparent',
+                border: `1px solid ${provider === opt.id ? '#1877f2' : 'var(--border)'}`,
+                borderRadius:6, padding:'8px 12px',
+              }}>
+              <div style={{ fontSize:13, fontWeight:700, color: provider === opt.id ? '#1877f2' : 'var(--text)' }}>
+                {provider === opt.id ? '● ' : '○ '}{opt.label}
+              </div>
+              <div style={{ fontSize:10, color:'var(--muted)', marginTop:1 }}>{opt.sub}</div>
+            </button>
+          ))}
+        </div>
+        {provider === 'meta' && (
+          <div style={{ fontSize:10.5, color:'var(--muted)', marginTop:8, lineHeight:1.45 }}>
+            ⚠️ Before relying on this: <strong>Test</strong> a number below, and make sure your template is approved in your own Meta WABA.
+          </div>
+        )}
       </div>
 
       {/* Shared token */}
